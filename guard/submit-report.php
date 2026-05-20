@@ -118,7 +118,7 @@ $encrypted_ai_text = openssl_encrypt($extracted_ai_text, $cipher_algo, $master_k
 $iv_base64 = base64_encode($iv);
 $time_of_event = date('Y-m-d H:i:s');
 
-$sql = 'INSERT INTO DGD (Company_ID, Establishment, Template_Path, Template, Time_of_Report, AI_Extracted_Text, iv) VALUES (?, ?, ?, ?, ?, ?, ?)';
+$sql = 'INSERT INTO dgd (Company_ID, Establishment, Template_Path, Template, Time_of_Report, AI_Extracted_Text, iv) VALUES (?, ?, ?, ?, ?, ?, ?)';
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {

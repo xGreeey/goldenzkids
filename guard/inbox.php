@@ -17,7 +17,7 @@ if ($guards_result && $guards_result->num_rows > 0) {
 // 3. FETCH ALL REPORTS
 $reports_result = db_query(
     $conn,
-    'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, iv FROM DGD WHERE Company_ID = ? ORDER BY Time_of_Report DESC',
+    'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, iv FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC',
     's',
     [$company_id]
 );

@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
     $r_time = (string) $_POST['report_time'];
     $r_guard = (string) $_POST['guard_id'];
 
-    $sql = 'UPDATE DGD SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?';
+    $sql = 'UPDATE dgd SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?';
     $stmt = $conn->prepare($sql);
 
     if ($stmt && $stmt->bind_param('sss', $remark, $r_time, $r_guard) && $stmt->execute()) {
@@ -33,7 +33,7 @@ if ($guards_result && $guards_result->num_rows > 0) {
     }
 }
 
-$reports_result = $conn->query('SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv FROM DGD ORDER BY Time_of_Report DESC');
+$reports_result = $conn->query('SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv FROM dgd ORDER BY Time_of_Report DESC');
 
 $adminNavActive = 'inbox';
 $adminMobileTitle = 'Report Inbox';

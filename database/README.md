@@ -84,6 +84,18 @@ c:\xampp\php\php.exe database\migrate.php
 
 If `Pin` was dropped before hashes were copied, run migrations again; `006_repair_users_password_hashes.php` syncs from `portal_users`.
 
+## Consolidated schema (`abc_security.sql`)
+
+The project root `abc_security.sql` is the **clean reference** for new databases. See `database/SCHEMA_AUDIT.md` for known issues and the pre-migration checklist.
+
+After import, always run:
+
+```bash
+c:\xampp\php\php.exe database\migrate.php
+```
+
+Migration **008** aligns an old messy dump with the app (memo table names, `dgd.AI_Extracted_Text`, etc.).
+
 ## Rollback
 
 Migrations are forward-only. Restore from a database backup before re-running if needed.

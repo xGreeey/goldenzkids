@@ -13,7 +13,7 @@ if (!isset($_SESSION['company_id'])) {
 $alert_count = 0;
 
 if (auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN)) {
-    $query = db_query($conn, "SELECT COUNT(*) AS total FROM DGD WHERE Status = 'Pending'");
+    $query = db_query($conn, "SELECT COUNT(*) AS total FROM dgd WHERE Status = 'Pending'");
     if ($query) {
         $row = $query->fetch_assoc();
         $alert_count = (int) ($row['total'] ?? 0);

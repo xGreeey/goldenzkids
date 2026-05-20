@@ -98,11 +98,12 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
                     <input type="hidden" name="recipient_id" value="<?= e($messagingActivePeer) ?>">
                     <input type="hidden" name="return_peer" value="<?= e($messagingActivePeer) ?>">
                     <label class="visually-hidden" for="messagingBody">Message</label>
-                    <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="3" maxlength="4000" required placeholder="Type your message…"></textarea>
-                    <button type="submit" class="messaging-compose__submit"<?= ui_tooltip('Send message') ?>>
-                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                        Send
-                    </button>
+                    <div class="messaging-compose__field">
+                        <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Type your message…"></textarea>
+                        <button type="submit" class="messaging-compose__submit" aria-label="Send message"<?= ui_tooltip('Send message') ?>>
+                            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </form>
             <?php endif; ?>
         </div>

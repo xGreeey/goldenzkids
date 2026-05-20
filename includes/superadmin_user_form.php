@@ -83,7 +83,7 @@ function superadmin_default_form(string $companyId = ''): array
     return [
         'company_id' => $companyId,
         'email' => '',
-        'role' => (string) AUTH_ROLE_HEADGUARD,
+        'role' => (string) AUTH_ROLE_ADMIN,
         'is_active' => '1',
         'password' => '',
     ];
@@ -132,7 +132,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $row = $existing->fetch_assoc();
         $beforeState = [
             'email' => (string) ($row['Email'] ?? ''),
-            'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_HEADGUARD),
+            'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN),
             'is_active' => (int) ($row['is_active'] ?? 1),
         ];
         $accountTrail = superadmin_account_audit_trail($conn, $editId);
@@ -140,7 +140,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
 
     $form['company_id'] = trim((string) ($_POST['company_id'] ?? $form['company_id']));
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
-    $form['role'] = (string) ($_POST['role'] ?? '0');
+    $form['role'] = (string) ($_POST['role'] ?? (string) AUTH_ROLE_ADMIN);
     $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
     $form['password'] = trim((string) ($_POST['password'] ?? ''));
 
@@ -311,7 +311,6 @@ function superadmin_render_create_account_form(
         <div class="form-field">
             <label for="<?= e($pid('role')) ?>" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
             <select id="<?= e($pid('role')) ?>" name="role" required>
-                <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
                 <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                 <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
             </select>

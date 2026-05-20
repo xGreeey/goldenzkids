@@ -40,7 +40,7 @@ if ($performedByFilter === 'SUPERADMIN') {
     $where[] = 'Designation LIKE ?';
     $params[] = 'ADMIN%';
     $types .= 's';
-} elseif ($performedByFilter === 'GUARD') {
+} elseif ($performedByFilter === 'LEGACY') {
     $where[] = '(Designation LIKE ? OR Designation LIKE ?)';
     $params[] = 'HEADGUARD%';
     $params[] = 'GUARD%';
@@ -144,7 +144,7 @@ $superadminMobileTitle = 'Audit Log';
                         <option value=""<?= $performedByFilter === '' ? ' selected' : '' ?>>All roles</option>
                         <option value="SUPERADMIN"<?= $performedByFilter === 'SUPERADMIN' ? ' selected' : '' ?>>SUPERADMIN</option>
                         <option value="ADMIN"<?= $performedByFilter === 'ADMIN' ? ' selected' : '' ?>>ADMIN</option>
-                        <option value="GUARD"<?= $performedByFilter === 'GUARD' ? ' selected' : '' ?>>GUARD</option>
+                        <option value="LEGACY"<?= $performedByFilter === 'LEGACY' ? ' selected' : '' ?>>Legacy guard (log)</option>
                     </select>
                 </div>
                 <button type="button" class="btn-primary" id="resetAuditFilters" aria-label="Reset filters">
@@ -181,7 +181,7 @@ $superadminMobileTitle = 'Audit Log';
                                     : (str_starts_with($designation, 'ADMIN')
                                         ? 'ADMIN'
                                         : ((str_contains($designation, 'HEADGUARD') || str_contains($designation, 'GUARD'))
-                                            ? 'GUARD'
+                                            ? 'LEGACY'
                                             : ''));
                                 $badgeClass = match ($ev) {
                                     'LOGOUT' => 'badge--logout',

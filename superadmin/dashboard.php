@@ -10,14 +10,12 @@ $roleCol = auth_users_role_column($conn);
 
 $userCounts = [
     'total' => 0,
-    'headguard' => 0,
     'admin' => 0,
     'superadmin' => 0,
     'active' => 0,
 ];
 $countResult = $conn->query(
     "SELECT COUNT(*) AS total,
-            SUM({$roleCol} = 0) AS headguard,
             SUM({$roleCol} = 1) AS admin,
             SUM({$roleCol} = 2) AS superadmin,
             SUM(is_active = 1) AS active
@@ -26,7 +24,6 @@ $countResult = $conn->query(
 if ($countResult) {
     $row = $countResult->fetch_assoc();
     $userCounts['total'] = (int) ($row['total'] ?? 0);
-    $userCounts['headguard'] = (int) ($row['headguard'] ?? 0);
     $userCounts['admin'] = (int) ($row['admin'] ?? 0);
     $userCounts['superadmin'] = (int) ($row['superadmin'] ?? 0);
     $userCounts['active'] = (int) ($row['active'] ?? 0);
@@ -117,8 +114,8 @@ $superadminMobileTitle = 'System Dashboard';
                             </svg>
                         </div>
                         <div class="stat-body">
-                            <h3 class="stat-label">Head guards</h3>
-                            <p class="stat-value"><?= e((string) $userCounts['headguard']) ?></p>
+                            <h3 class="stat-label">Super administrators</h3>
+                            <p class="stat-value"><?= e((string) $userCounts['superadmin']) ?></p>
                         </div>
                     </article>
                     <article class="stat-card">

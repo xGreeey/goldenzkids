@@ -6,7 +6,7 @@ if (!function_exists('e')) {
 }
 
 /**
- * Shared theme CSS (palette, typography, toggle, auth shell, guard layout).
+ * Shared theme CSS (palette, typography, toggle, auth shell, admin layout).
  * Call once inside <style>: <?php theme_styles(); ?>
  */
 function theme_styles(): void
@@ -288,7 +288,7 @@ function theme_render_css(): void
             --app-sidebar-bg-light: var(--app-sidebar-light);
         }
 
-        /* Active theme surfaces (admin · guard · auth) */
+        /* Active theme surfaces (admin · auth) */
         body.light-mode {
             --app-canvas-bg: var(--app-canvas-light-gradient);
             --app-sidebar-surface: var(--app-sidebar-light);

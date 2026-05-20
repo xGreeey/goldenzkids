@@ -44,15 +44,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     [$newHash, $company_id]
                 );
             }
-        } else {
-            $legacy = auth_attempt_legacy_login($conn, $company_id, $password);
-            if ($legacy !== null) {
-                $authenticated = true;
-                $user = $legacy['user'];
-                $permissions = $legacy['permissions'];
-            } elseif ($user !== null) {
-                auth_record_failed_login($conn, $company_id);
-            }
+        } elseif ($user !== null) {
+            auth_record_failed_login($conn, $company_id);
         }
 
         if (!$authenticated || $user === null) {

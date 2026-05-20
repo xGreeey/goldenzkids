@@ -40,63 +40,11 @@ Loaded via `config/app.php`.
 
 
 
-## Guard role module
+## Field guard portal (removed)
 
 
 
-```
-
-guard/
-
-  portal.php          # pages (URLs unchanged)
-
-  inbox.php
-
-  corner.php
-
-  php/
-
-    bootstrap.php     # loads app + guard helpers
-
-    guard.php         # head/footer, layout partials, styles/scripts helpers
-
-    submit-report.php # POST handler for portal uploads
-
-  assets/
-
-    css/guard.css     # all guard module CSS
-
-    js/guard.js       # portal + inbox client behavior
-
-```
-
-
-
-**Every guard page:**
-
-
-
-```php
-
-require_once __DIR__ . '/php/bootstrap.php';
-
-auth_require_permission('guard....');
-
-
-
-guard_head('Page Title', 'guard-portal guard-inbox'); // body class per page
-
-guard_layout_header_nav(); // or guard_layout_header_back()
-
-// ... page HTML ...
-
-guard_footer(); // loads guard.js + theme toggle
-
-```
-
-
-
-Guard CSS/JS live under `guard/assets/` — not mixed into `includes/theme.php`.
+The former `guard/` head-guard mobile portal, PIN-only legacy login, and `auth/logout-guard.php` were removed. Old URLs redirect to the admin area or shared logout. Staff messaging is **admin ↔ superadmin** only (`includes/internal_messaging.php`).
 
 
 

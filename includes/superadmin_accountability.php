@@ -73,7 +73,7 @@ function superadmin_log_account_diff(
     bool $isCreate
 ): void {
     if ($isCreate) {
-        $role = auth_role_name((int) ($after['role'] ?? AUTH_ROLE_HEADGUARD));
+        $role = auth_role_name((int) ($after['role'] ?? AUTH_ROLE_ADMIN));
         superadmin_log_account_event($conn, $targetCompanyId, 'ACCOUNT_CREATED', "Role: {$role}");
         return;
     }
@@ -236,7 +236,7 @@ function superadmin_accountability_rules(): array
 {
     return [
         'Only superadmin can create or change portal accounts.',
-        'Admins and head guards cannot edit their own role, email, or access code in the portal.',
+        'Administrators cannot edit their own role, email, or access code in the portal.',
         'Every sign-in, sign-out, and account change is recorded with who did it and when.',
         'Audit records cannot be removed or edited from this console.',
     ];

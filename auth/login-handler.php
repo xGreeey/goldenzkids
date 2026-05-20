@@ -56,7 +56,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         if (!$authenticated || $user === null) {
-            $error = 'Invalid username or password. Please try again.';
+            if (auth_is_deactivated_account($conn, $company_id)) {
+                $error = 'This account is deactivated, please contact administrator';
+            } else {
+                $error = 'Invalid username or password. Please try again.';
+            }
         } else {
             $role = auth_normalize_role($user['role']);
             $roleLabel = auth_role_label_for_recording($role);

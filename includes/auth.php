@@ -220,6 +220,27 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
     return auth_map_user_row($row);
 }
 
+function auth_is_deactivated_account(mysqli $conn, string $companyId): bool
+{
+    if ($companyId === '') {
+        return false;
+    }
+
+    $row = db_query(
+        $conn,
+        'SELECT is_active FROM users WHERE Company_ID = ? LIMIT 1',
+        's',
+        [$companyId]
+    );
+    if (!$row || $row->num_rows === 0) {
+        return false;
+    }
+
+    $record = $row->fetch_assoc();
+
+    return ((int) ($record['is_active'] ?? 1)) === 0;
+}
+
 /**
  * @param array{company_id:string,role:int,role_name?:string} $user
  * @param list<string> $permissions
@@ -445,7 +466,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
         }
     }
 
-    $stmt = $conn->prepare('SELECT Pin, Designation, Email FROM users WHERE Company_ID = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT Pin, Designation, Email, is_active FROM users WHERE Company_ID = ? LIMIT 1');
     if (!$stmt) {
         return null;
     }
@@ -455,7 +476,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$row) {
+    if (!$row || !(int) ($row['is_active'] ?? 1)) {
         return null;
     }
 
@@ -476,7 +497,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
         'email' => $row['Email'] ?? null,
         'password_hash' => '',
         'role' => $role,
-        'is_active' => 1,
+        'is_active' => (int) ($row['is_active'] ?? 1),
     ]);
 
     return [

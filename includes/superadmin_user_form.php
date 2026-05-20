@@ -235,17 +235,6 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $error = 'Username must be alphanumeric and up to 20 characters.';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
-<<<<<<< HEAD
-=======
-    } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
-        $error = 'Password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
-    } elseif (
-        $isEdit
-        && $form['password'] !== ''
-        && auth_password_matches_existing_hash($form['password'], trim((string) ($row['password_hash'] ?? '')))
-    ) {
-        $error = 'New password cannot be the same as the current password.';
->>>>>>> 1c79699d0c185e451e821df46b1ab711d2949f43
     } else {
         $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
         $alreadyExists = $exists && $exists->num_rows > 0;

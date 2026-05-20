@@ -101,7 +101,9 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
                     <div class="messaging-compose__field">
                         <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Type your message…"></textarea>
                         <button type="submit" class="messaging-compose__submit" aria-label="Send message"<?= ui_tooltip('Send message') ?>>
-                            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                            <svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
                         </button>
                     </div>
                 </form>

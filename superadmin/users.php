@@ -8,7 +8,6 @@ require_once __DIR__ . '/../includes/superadmin_user_form.php';
 auth_require_permission('superadmin.users.manage');
 
 $roleCol = auth_users_role_column($conn);
-$flash = null;
 $createForm = superadmin_default_form();
 $createError = null;
 $openCreateModal = isset($_GET['create']);
@@ -19,7 +18,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['create_accoun
     $createForm = $result['form'];
     $createError = $result['error'];
     if ($result['success'] !== null) {
-        $flash = $result['success'];
         header('Location: users.php');
         exit;
     }
@@ -59,9 +57,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active
             header('Location: users.php' . $tail);
             exit;
         }
-        $flash = 'Could not update account status.';
-    } else {
-        $flash = 'Invalid account or you cannot deactivate your own session.';
     }
 }
 
@@ -176,10 +171,6 @@ $superadminMobileTitle = 'User Accounts';
             <h1 class="page-title">Portal accounts</h1>
             <p class="page-subtitle">Search, filter, and manage head guard, admin, and superadmin portal accounts.</p>
         </header>
-
-        <?php if ($flash !== null): ?>
-            <div class="alert alert--success" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <?= e($flash) ?></div>
-        <?php endif; ?>
 
         <div class="toolbar">
             <form method="GET" class="filter-form">

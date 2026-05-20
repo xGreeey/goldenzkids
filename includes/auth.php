@@ -25,6 +25,16 @@ function auth_verify_password(string $password, string $passwordHash): bool
     return password_verify($password, $passwordHash);
 }
 
+/** True when plaintext matches stored hash (reuse of current password). */
+function auth_password_matches_existing_hash(string $password, string $passwordHash): bool
+{
+    if (trim($passwordHash) === '') {
+        return false;
+    }
+
+    return auth_verify_password($password, $passwordHash);
+}
+
 function auth_password_policy_valid(string $password): bool
 {
     return (bool) preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/', $password);

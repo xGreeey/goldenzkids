@@ -33,8 +33,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $error = 'New password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
     } elseif (!hash_equals($newPassword, $confirmPassword)) {
         $error = 'Password confirmation does not match.';
-    } elseif (hash_equals($currentPassword, $newPassword)) {
-        $error = 'New password must be different from your temporary password.';
+    } elseif (auth_password_matches_existing_hash($newPassword, (string) ($user['password_hash'] ?? ''))) {
+        $error = 'You cannot reuse your previous password. Choose a different one.';
     } else {
         $newHash = auth_hash_password($newPassword);
         $ok = db_execute(

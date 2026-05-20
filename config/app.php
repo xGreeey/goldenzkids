@@ -12,7 +12,7 @@ require_once APP_ROOT . '/includes/admin_shell.php';
 
 auth_enforce_area_access();
 
-$authPublicEntryPages = ['index.php', 'forgot-access-code.php', 'enter-otp.php'];
+$authPublicEntryPages = ['index.php', 'forgot-access-code.php', 'enter-otp.php', 'reset-password.php'];
 $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? ''));
 if (in_array($authCurrentScript, $authPublicEntryPages, true)) {
     auth_redirect_if_authenticated();

@@ -23,9 +23,14 @@ auth_body_start();
 auth_main_open();
 auth_module_open();
 auth_card_intro('Sign in', 'Enter your username and password to continue.');
+$passwordResetSuccess = (($_GET['reset'] ?? '') === 'success');
+
+if ($passwordResetSuccess) {
+    auth_alert_success('Password reset successful. You can now sign in with your new password.', 7000);
+}
 
 if (!empty($error)) {
-    auth_alert_error($error);
+    auth_alert_error($error, 6000);
 }
 ?>
             <form id="loginForm" class="login-form" action="" method="POST" novalidate>
@@ -86,7 +91,7 @@ if (!empty($error)) {
                 </p>
             </form>
 <?php
-auth_card_support_footer('Need assistance?', 'Contact your site supervisor or the HR department.');
+auth_card_support_footer('Need assistance?', 'Contact your site supervisor.');
 auth_module_close();
 auth_main_close();
 ?>

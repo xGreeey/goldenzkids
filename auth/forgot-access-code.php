@@ -77,6 +77,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $_SESSION['password_reset_otp'] = $otpCode;
             $_SESSION['password_reset_otp_expires'] = time() + 900;
             $_SESSION['password_reset_requested_at'] = time();
+            unset($_SESSION['password_reset_verified'], $_SESSION['password_reset_company_id']);
 
             if (send_password_reset_otp_email($guard_email, $otpCode)) {
                 header('Location: ' . app_url('auth/enter-otp.php'));
@@ -91,7 +92,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             );
             $email_Err = 'Unable to send verification code right now. Please try again in a moment.';
         } else {
-            $email_Err = 'We could not verify that email. Contact HR or your supervisor for help.';
+            $email_Err = 'We could not verify that email address. Please try again.';
         }
     }
 }
@@ -113,7 +114,7 @@ auth_module_open();
 auth_card_back_link(app_url('index.php'), 'Back to sign in');
 auth_card_intro(
     'Reset password',
-    'Enter the email address on your employee file. HR will verify your request.'
+    'Enter your account email to receive a verification code.'
 );
 ?>
             <form id="forgotPasswordForm" class="login-form" action="" method="POST" novalidate>

@@ -114,7 +114,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
     if ($isEdit) {
         $existing = db_query(
             $conn,
-            "SELECT Company_ID, Email, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
+            "SELECT Company_ID, Email, {$roleCol} AS role, is_active, password_hash FROM users WHERE Company_ID = ? LIMIT 1",
             's',
             [$editId]
         );
@@ -155,6 +155,12 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $error = 'A valid email address is required.';
     } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
         $error = 'Password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
+    } elseif (
+        $isEdit
+        && $form['password'] !== ''
+        && auth_password_matches_existing_hash($form['password'], trim((string) ($row['password_hash'] ?? '')))
+    ) {
+        $error = 'New password cannot be the same as the current password.';
     } else {
         $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
         $alreadyExists = $exists && $exists->num_rows > 0;

@@ -3,17 +3,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header('Location: ' . app_url('index.php'));
-    exit();
-}
+auth_require_permission('admin.inbox.manage');
 
 $company_id = (string) $_SESSION['company_id'];
-$cipher_algo = 'aes-256-cbc';
-$master_key = 'ABC_SecureKey_2026_xYz12345';
 
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
+    csrf_verify();
+
     $remark = (string) $_POST['remark'];
     $r_time = (string) $_POST['report_time'];
     $r_guard = (string) $_POST['guard_id'];
@@ -22,14 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
     $stmt = $conn->prepare($sql);
 
     if ($stmt && $stmt->bind_param('sss', $remark, $r_time, $r_guard) && $stmt->execute()) {
-        echo "<script>
-                alert('Status updated successfully.');
-                window.location.href = 'inbox.php';
-              </script>";
-        exit();
+        redirect_with_alert('Status updated successfully.', 'inbox.php');
     }
 
-    $error = 'Could not update status. ' . ($stmt ? $stmt->error : $conn->error);
+    $error = 'Could not update status. Please try again.';
 }
 
 $guards_result = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards');
@@ -440,6 +433,7 @@ $adminMobileTitle = 'Report Inbox';
                 <div id="modalAiText" class="ai-text-content"></div>
             </div>
             <form method="POST" id="remarking" class="modal-form-divider">
+                <?= csrf_field() ?>
                 <input type="hidden" name="report_time" id="formTime">
                 <input type="hidden" name="guard_id" id="formGuardId">
                 <div class="form-group">

@@ -1,11 +1,7 @@
-<?php 
- 
-   session_start();
+<?php
+require_once __DIR__ . '/../config/app.php';
 
-   if(!isset($_SESSION['company_id'])) {
-    header("http://localhost/Golden-Z-5-Report-System-main/loginfrontFront.php");
-    exit();
-   }
+auth_require_permission('admin.legacy_portal');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -421,7 +417,10 @@
             <nav class="nav-links">
                 <a href="dashboard.php" class="nav-link">DATABASE</a>
                 <a href="inbox.php" class="nav-link">INBOX</a>
-                <a href="../auth/logout-admin.php" class="nav-link">LOGOUT</a>
+                <form method="POST" action="../auth/logout-admin.php" style="display:inline;margin:0;">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;font:inherit;color:inherit;">LOGOUT</button>
+                </form>
             </nav>
         </div>
     </header>

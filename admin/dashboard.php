@@ -3,10 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header('Location: ' . app_url('index.php'));
-    exit();
-}
+auth_require_permission('admin.dashboard.view');
 
 $company_id = (string) $_SESSION['company_id'];
 
@@ -852,10 +849,13 @@ $adminMobileTitle = 'Operations Dashboard';
         </nav>
 
         <div class="sidebar-footer">
-            <a href="../auth/logout-admin.php" class="sidebar-link sidebar-link--signout">
-                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-                Sign Out
-            </a>
+            <form method="POST" action="../auth/logout-admin.php" class="sidebar-logout-form">
+                <?= csrf_field() ?>
+                <button type="submit" class="sidebar-link sidebar-link--signout">
+                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                    Sign Out
+                </button>
+            </form>
         </div>
         <div class="sidebar-appearance">
             <button type="button" id="themeToggle" class="btn-appearance" title="Switch to dark mode" aria-label="Toggle light or dark appearance">
@@ -978,6 +978,7 @@ $adminMobileTitle = 'Operations Dashboard';
                 </div>
                 <div class="panel-body">
                     <form action="send-memo.php" method="POST" id="memoForm" novalidate>
+                        <?= csrf_field() ?>
                         <input type="hidden" name="distribution_type" id="distTypeValue" value="">
 
                         <span class="form-section-label">Delivery scope<span class="required-mark">*</span></span>

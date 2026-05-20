@@ -27,10 +27,13 @@ $adminMobileTitle = $adminMobileTitle ?? 'Operations';
     </nav>
 
     <div class="sidebar-footer">
-        <a href="../auth/logout-admin.php" class="sidebar-link sidebar-link--signout">
-            <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-            Sign Out
-        </a>
+        <form method="POST" action="../auth/logout-admin.php" class="sidebar-logout-form">
+            <?= csrf_field() ?>
+            <button type="submit" class="sidebar-link sidebar-link--signout">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                Sign Out
+            </button>
+        </form>
     </div>
     <div class="sidebar-appearance">
         <button type="button" id="themeToggle" class="btn-appearance" title="Switch to dark mode" aria-label="Toggle light or dark appearance">
@@ -45,5 +48,5 @@ $adminMobileTitle = $adminMobileTitle ?? 'Operations';
         <button type="button" class="btn-menu" id="sidebarToggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="appSidebar">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
-        <span class="mobile-topbar-title"><?= htmlspecialchars($adminMobileTitle) ?></span>
+        <span class="mobile-topbar-title"><?= e($adminMobileTitle) ?></span>
     </div>

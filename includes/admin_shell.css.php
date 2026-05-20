@@ -195,6 +195,16 @@ declare(strict_types=1);
         .page-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); }
         .page-subtitle { font-size: 0.9375rem; color: var(--text-secondary); margin-top: 8px; }
 
+        .sidebar-logout-form { margin: 0; padding: 0; width: 100%; }
+        .sidebar-logout-form button {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font: inherit;
+        }
+
         @media (max-width: 900px) {
             .app-sidebar { transform: translateX(-100%); box-shadow: var(--shadow-lg); }
             body.sidebar-open .app-sidebar { transform: translateX(0); }
@@ -204,3 +214,4 @@ declare(strict_types=1);
             .brand-tagline { display: none; }
             .app-main { padding: 24px 16px 40px; }
         }
+<?= mobile_base_css() ?>

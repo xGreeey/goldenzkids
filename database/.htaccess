@@ -1,0 +1,12 @@
+# Deny direct access to SQL/PHP migration sources; use database/migrate.php (localhost/CLI only)
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(sql|md)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^migrations/ - [F,L]
+    RewriteRule ^scripts/ - [F,L]
+</IfModule>

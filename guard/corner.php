@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/app.php';
 
+auth_require_permission('guard.corner.view');
+
 // 3. Fetch the latest 5 memos for the UI
  /* $memo_query = "SELECT * FROM memos ORDER BY date_published DESC LIMIT 5"; */
  /* $memos_result = $conn->query($memo_query); */

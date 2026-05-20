@@ -1,37 +1,33 @@
 <?php
 require_once __DIR__ . '/../config/app.php';
 
-// 1. SECURITY CHECK
-if (!isset($_SESSION['company_id'])) {
-    header('Location: ' . app_url('index.php'));
-    exit();
-}
+auth_require_permission('guard.inbox.view');
 
 $company_id = $_SESSION['company_id'];
 
-$cipher_algo = "aes-256-cbc";
-$master_key = "ABC_SecureKey_2026_xYz12345"; // Ensure this exactly matches GuardPortal
-
 // 2. FETCH GUARDS (Store in a dictionary for fast lookup)
-$guards_query = "SELECT Company_ID, First_Name, Last_Name, Middle_Name FROM guards";
-$guards_result = $conn->query($guards_query);
+$guards_result = db_query($conn, 'SELECT Company_ID, First_Name, Last_Name, Middle_Name FROM guards');
 $guard_dict = [];
-if($guards_result && $guards_result->num_rows > 0) {
-    while($g = $guards_result->fetch_assoc()){
-        $guard_dict[$g['Company_ID']] = $g['Last_Name'] . ", " . $g['First_Name'];
+if ($guards_result && $guards_result->num_rows > 0) {
+    while ($g = $guards_result->fetch_assoc()) {
+        $guard_dict[$g['Company_ID']] = $g['Last_Name'] . ', ' . $g['First_Name'];
     }
 }
 
 // 3. FETCH ALL REPORTS
-$reports_query = "SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, iv From DGD WHERE Company_ID = '$company_id';";
-$reports_result = $conn->query($reports_query);
+$reports_result = db_query(
+    $conn,
+    'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, iv FROM DGD WHERE Company_ID = ? ORDER BY Time_of_Report DESC',
+    's',
+    [$company_id]
+);
 
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= mobile_meta_tags() ?>
     <title>ABC Security Agency | Inbox</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">

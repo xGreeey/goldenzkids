@@ -19,13 +19,14 @@ $mail->Mailer = "SMTP";
 
 $email_Err = null;
     
-  if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        $email = $_POST['email'];
-      
-       if (!preg_match('/^abc\.guard[0-9]{4}@gmail\.com$/i', trim($email))) {
-        $email_Err = 'Please enter the registered email address on your employee file.';
-       }
-
+  if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+        csrf_verify();
+        $email = filter_var(trim((string) ($_POST['email'] ?? '')), FILTER_VALIDATE_EMAIL);
+        if ($email === false) {
+            $email_Err = 'Please enter a valid email address.';
+        } elseif (!preg_match('/^abc\.guard[0-9]{4}@gmail\.com$/i', (string) $email)) {
+            $email_Err = 'Please enter the registered email address on your employee file.';
+        } else {
     try {
       $mail->SMTPDebug = SMTP::DEBUG_SERVER;
 $mail->SMTPDebug = 3; //Alternative to above constant
@@ -52,7 +53,7 @@ $mail->SMTPDebug = 3; //Alternative to above constant
     } catch (Exception $e) {
          echo "Message not sent" . $mail->ErrorInfo;
     }
-        
+        }
     }
         
         

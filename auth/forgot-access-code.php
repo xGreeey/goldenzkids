@@ -12,16 +12,12 @@ if ($isLocal) {
     error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 }
 
-function e(?string $value): string
-{
-    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= mobile_meta_tags() ?>
     <meta name="description" content="Reset your ABC Security Agency portal access code.">
     <title>Reset Access Code | ABC Security Agency</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
@@ -241,6 +237,12 @@ function e(?string $value): string
             color: var(--color-accent-hover);
             text-decoration: underline;
         }
+
+        @media (max-width: 600px) {
+            header { padding: 16px 20px; height: auto; flex-wrap: wrap; gap: 12px; }
+            .login-card { padding: 28px 22px 22px; }
+        }
+<?= mobile_base_css() ?>
     </style>
 </head>
 <body>
@@ -264,6 +266,7 @@ function e(?string $value): string
         <p class="login-subtitle">Enter the registered email address on your employee file. We will send verification instructions to HR for processing.</p>
 
         <form id="forgotpin" action="" method="POST">
+            <?= csrf_field() ?>
             <div class="input-group">
                 <label class="input-label" for="email">Registered Email</label>
                 <input

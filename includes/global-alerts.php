@@ -1,24 +1,29 @@
 <style>
     .toast-container {
         position: fixed;
-        bottom: 30px;
-        right: -400px; /* Hidden off-screen initially */
+        bottom: max(16px, env(safe-area-inset-bottom));
+        right: -110%;
         background: var(--bg-surface, #f9fafb);
         border-left: 4px solid var(--brand-accent, #a89b7a);
         color: var(--text-primary, #3d4a5c);
-        padding: 20px;
+        padding: 16px;
         border-radius: 4px;
         box-shadow: -5px 10px 30px rgba(0,0,0,0.8);
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 12px;
         z-index: 9999;
         transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-        width: 350px;
+        width: min(350px, calc(100vw - 32px));
+        max-width: 100%;
     }
     .toast-container.show {
-        right: 30px; /* Slides into view */
+        right: max(16px, env(safe-area-inset-right));
+    }
+    @media (max-width: 480px) {
+        .toast-container { padding: 14px; }
+        .toast-icon { font-size: 1.5rem; }
     }
     .toast-icon {
         font-size: 2rem;

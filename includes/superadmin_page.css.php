@@ -366,12 +366,12 @@ function superadmin_page_styles(): void
             font-size: 0.95rem;
         }
 
-        .stat-icon--blue { background: transparent; color: var(--accent-blue); }
-        .stat-icon--gold { background: transparent; color: var(--brand-accent); }
-        .stat-icon--green { background: transparent; color: var(--success); }
-        .stat-icon--warn { background: transparent; color: var(--warning); }
-        .stat-icon--danger { background: transparent; color: var(--danger); }
-        .stat-icon--info { background: transparent; color: var(--accent-blue); }
+        .stat-icon--blue { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--gold { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--green { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--warn { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--danger { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--info { background: transparent; color: var(--sa-card-ink); }
 
         .stat-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
 
@@ -654,6 +654,31 @@ function superadmin_page_styles(): void
             text-transform: uppercase;
             letter-spacing: 0.04em;
             line-height: 1.2;
+        }
+
+        .badge.role-badge {
+            background: transparent;
+            color: var(--sa-card-ink);
+            border: 1px solid var(--sa-card-border);
+            box-shadow: none;
+        }
+
+        .badge.status-badge {
+            background: transparent;
+            border: 1px solid transparent;
+            box-shadow: none;
+        }
+
+        .badge.status-badge--active {
+            color: var(--success);
+            border-color: var(--success);
+            background: var(--success-soft);
+        }
+
+        .badge.status-badge--inactive {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: var(--danger-soft);
         }
 
         .badge--guard { background: var(--accent-blue-soft); color: var(--accent-blue); }

@@ -248,7 +248,7 @@ function superadmin_create_account_modal(array $form, ?string $error, bool $open
     ?>
     <div class="app-modal<?= $open ? ' is-open' : '' ?>" id="createAccountModal" role="presentation"<?= $open ? ' data-open-on-load="1"' : '' ?><?= $open ? '' : ' hidden' ?> aria-hidden="<?= $open ? 'false' : 'true' ?>">
         <div class="app-modal__backdrop" data-modal-close tabindex="-1"></div>
-        <div class="app-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="createAccountModalHeading">
+        <div class="app-modal__panel" role="dialog" aria-modal="true" aria-labelledby="createAccountModalHeading">
             <button type="button" class="app-modal__close app-modal__close--floating" data-modal-close aria-label="Close">
                 <span class="app-modal__close-glyph" aria-hidden="true">×</span>
             </button>
@@ -321,7 +321,7 @@ function superadmin_modal_styles(): void
             opacity: 1;
         }
 
-        #createAccountModal .app-modal__dialog {
+        #createAccountModal .app-modal__panel {
             /* Re-declare superadmin tokens because modal is hoisted to <body>, outside .app-main */
             --sa-card-bg: var(--app-card-bg);
             --sa-card-border: var(--app-border);
@@ -356,7 +356,7 @@ function superadmin_modal_styles(): void
                 transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        body:not(.light-mode) #createAccountModal .app-modal__dialog {
+        body:not(.light-mode) #createAccountModal .app-modal__panel {
             --sa-card-border: var(--app-border-on-dark);
             --sa-card-ink: var(--app-ink-on-dark);
             --sa-card-ink-muted: var(--app-ink-muted-on-dark);
@@ -366,7 +366,7 @@ function superadmin_modal_styles(): void
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 24px 56px rgba(0, 0, 0, 0.28);
         }
 
-        #createAccountModal.app-modal.is-open .app-modal__dialog {
+        #createAccountModal.app-modal.is-open .app-modal__panel {
             opacity: 1;
             transform: translateY(0) scale(1);
         }
@@ -379,7 +379,7 @@ function superadmin_modal_styles(): void
         }
 
         /* High-contrast chip: --sa-* may match dialog surface and hide the icon */
-        #createAccountModal .app-modal__dialog > .app-modal__close {
+        #createAccountModal .app-modal__panel > .app-modal__close {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -405,7 +405,7 @@ function superadmin_modal_styles(): void
             transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        #createAccountModal .app-modal__dialog > .app-modal__close .app-modal__close-glyph {
+        #createAccountModal .app-modal__panel > .app-modal__close .app-modal__close-glyph {
             display: block;
             font-size: 1.125rem;
             font-weight: 600;
@@ -414,7 +414,7 @@ function superadmin_modal_styles(): void
             margin-top: -1px;
         }
 
-        body:not(.light-mode) #createAccountModal .app-modal__dialog > .app-modal__close {
+        body:not(.light-mode) #createAccountModal .app-modal__panel > .app-modal__close {
             border: 1px solid rgba(255, 255, 255, 0.42);
             background: rgba(0, 20, 35, 0.55);
             color: #ffffff;
@@ -423,25 +423,25 @@ function superadmin_modal_styles(): void
                 0 2px 8px rgba(0, 0, 0, 0.35);
         }
 
-        #createAccountModal .app-modal__dialog > .app-modal__close:hover {
+        #createAccountModal .app-modal__panel > .app-modal__close:hover {
             background: #ffffff;
             color: #001e30;
             border-color: rgba(15, 39, 68, 0.35);
             box-shadow: 0 2px 8px rgba(15, 39, 68, 0.15);
         }
 
-        body:not(.light-mode) #createAccountModal .app-modal__dialog > .app-modal__close:hover {
+        body:not(.light-mode) #createAccountModal .app-modal__panel > .app-modal__close:hover {
             background: rgba(255, 255, 255, 0.18);
             color: #ffffff;
             border-color: rgba(255, 255, 255, 0.55);
         }
 
-        #createAccountModal .app-modal__dialog > .app-modal__close:focus-visible {
+        #createAccountModal .app-modal__panel > .app-modal__close:focus-visible {
             outline: 2px solid var(--app-accent, #c4a35a);
             outline-offset: 2px;
         }
 
-        #createAccountModal .app-modal__dialog .app-modal__heading.panel-title {
+        #createAccountModal .app-modal__panel .app-modal__heading.panel-title {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -454,18 +454,31 @@ function superadmin_modal_styles(): void
             text-align: center;
         }
 
-        .app-modal__body .form-grid {
+        /* Modal-specific compact checkbox sizing to match label text line-height */
+        #createAccountModal .app-modal__panel .form-field--checkbox .checkbox-row {
+            gap: 5px;
+            align-items: center;
+        }
+
+        #createAccountModal .app-modal__panel .form-field--checkbox .checkbox-row input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            min-height: 15px;
+            border-radius: 3px;
+        }
+
+        #createAccountModal .app-modal__panel .form-grid {
             max-width: none;
             gap: 12px;
         }
 
-        .app-modal__body .alert {
+        #createAccountModal .app-modal__panel .alert {
             margin-bottom: 10px;
             padding: 8px 10px;
             font-size: 0.75rem;
         }
 
-        .app-modal__body .form-actions {
+        #createAccountModal .app-modal__panel .form-actions {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
@@ -473,34 +486,52 @@ function superadmin_modal_styles(): void
             margin-top: 2px;
         }
 
-        #createAccountModal .app-modal__dialog .btn-primary,
-        #createAccountModal .app-modal__dialog button.btn-primary {
+        #createAccountModal .app-modal__panel .form-actions {
+            justify-content: flex-end;
+        }
+
+        #createAccountModal .app-modal__panel .btn-primary,
+        #createAccountModal .app-modal__panel button.btn-primary {
             min-height: 34px;
             border-radius: 8px;
-            border: 1px solid var(--app-border-strong, var(--app-border));
+            border: 1px solid transparent;
             padding: 7px 12px;
             font-size: 0.8125rem;
             font-weight: 700;
             line-height: 1.2;
             text-decoration: none;
             cursor: pointer;
-            color: var(--app-accent-text);
-            background: var(--app-accent-soft);
+            color: #fff;
+            background: #5c6b7d;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
             transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        #createAccountModal .app-modal__dialog .btn-primary:hover,
-        #createAccountModal .app-modal__dialog button.btn-primary:hover {
+        body:not(.light-mode) #createAccountModal .app-modal__panel .btn-primary,
+        body:not(.light-mode) #createAccountModal .app-modal__panel button.btn-primary {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--app-border-on-dark);
+            color: var(--app-ink-on-dark);
+        }
+
+        #createAccountModal .app-modal__panel .btn-primary:hover,
+        #createAccountModal .app-modal__panel button.btn-primary:hover {
             color: #fff;
-            background: var(--app-accent);
-            border-color: var(--app-accent);
+            background: #4a5868;
+            border-color: transparent;
             box-shadow: 0 2px 8px rgba(15, 39, 68, 0.16);
         }
 
-        #createAccountModal .app-modal__dialog .btn-primary:focus-visible,
-        #createAccountModal .app-modal__dialog button.btn-primary:focus-visible {
-            outline: 2px solid var(--app-accent);
+        body:not(.light-mode) #createAccountModal .app-modal__panel .btn-primary:hover,
+        body:not(.light-mode) #createAccountModal .app-modal__panel button.btn-primary:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: var(--app-border-on-dark);
+            color: var(--app-ink-on-dark);
+        }
+
+        #createAccountModal .app-modal__panel .btn-primary:focus-visible,
+        #createAccountModal .app-modal__panel button.btn-primary:focus-visible {
+            outline: 2px solid #5c6b7d;
             outline-offset: 2px;
         }
 
@@ -510,11 +541,11 @@ function superadmin_modal_styles(): void
 
         @media (prefers-reduced-motion: reduce) {
             .app-modal__backdrop,
-            #createAccountModal .app-modal__dialog {
+            #createAccountModal .app-modal__panel {
                 transition: none;
             }
 
-            #createAccountModal .app-modal__dialog {
+            #createAccountModal .app-modal__panel {
                 opacity: 1;
                 transform: none;
             }
@@ -555,6 +586,10 @@ function superadmin_modal_script(): void
         var btn = e.target && e.target.closest ? e.target.closest('#openCreateAccountModal') : null;
         if (!btn) {
             return;
+        }
+        if (typeof window.__saCreateAccountModalOpen !== 'function'
+            && typeof window.superadminInitCreateAccountModal === 'function') {
+            window.superadminInitCreateAccountModal();
         }
         if (typeof window.__saCreateAccountModalOpen === 'function') {
             e.preventDefault();

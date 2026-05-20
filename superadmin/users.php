@@ -20,7 +20,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['create_accoun
     $createError = $result['error'];
     if ($result['success'] !== null) {
         $flash = $result['success'];
-        $openCreateModal = false;
         header('Location: users.php');
         exit;
     }
@@ -166,9 +165,7 @@ $superadminMobileTitle = 'User Accounts';
                 </div>
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter</button>
             </form>
-            <button type="button" class="btn-primary" id="openCreateAccountModal">
-                <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Create account
-            </button>
+            <button type="button" class="btn-primary" id="openCreateAccountModal"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Create account</button>
         </div>
 
         <section class="card-panel">
@@ -199,9 +196,9 @@ $superadminMobileTitle = 'User Accounts';
                                 <tr>
                                     <td class="mono"><?= e($uid) ?></td>
                                     <td><?= e((string) ($user['Email'] ?? '')) ?></td>
-                                    <td><span class="badge <?= e(superadmin_role_badge($role)) ?>"><?= e(auth_role_name($role)) ?></span></td>
+                                    <td><span class="badge role-badge"><?= e(auth_role_name($role)) ?></span></td>
                                     <td>
-                                        <span class="badge <?= $active ? 'badge--active' : 'badge--inactive' ?>">
+                                        <span class="badge status-badge <?= $active ? 'status-badge--active' : 'status-badge--inactive' ?>">
                                             <?= $active ? 'Active' : 'Inactive' ?>
                                         </span>
                                     </td>

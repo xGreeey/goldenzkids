@@ -29,10 +29,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['create_accoun
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active'])) {
     csrf_verify();
 
-    $targetId = strtoupper(trim((string) ($_POST['company_id'] ?? '')));
+    $targetId = trim((string) ($_POST['company_id'] ?? ''));
     $newActive = (int) ($_POST['new_active'] ?? 0) === 1 ? 1 : 0;
 
-    if (preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $targetId)
+    if (auth_username_valid($targetId)
         && $targetId !== (string) $_SESSION['company_id']
     ) {
         $ok = db_execute(
@@ -185,7 +185,7 @@ $superadminMobileTitle = 'User Accounts';
             <form method="GET" class="filter-form">
                 <div class="form-field">
                     <label for="q" class="label-with-icon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</label>
-                    <input type="search" id="q" name="q" value="<?= e($search) ?>" placeholder="ID or email">
+                    <input type="search" id="q" name="q" value="<?= e($search) ?>" placeholder="Username or email">
                 </div>
                 <div class="form-field">
                     <label for="role" class="label-with-icon"><i class="fa-solid fa-filter" aria-hidden="true"></i> Role</label>
@@ -210,7 +210,7 @@ $superadminMobileTitle = 'User Accounts';
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th><i class="fa-solid fa-id-card th-icon" aria-hidden="true"></i>Employee ID</th>
+                                <th><i class="fa-solid fa-id-card th-icon" aria-hidden="true"></i>Username</th>
                                 <th><i class="fa-solid fa-envelope th-icon" aria-hidden="true"></i>Email</th>
                                 <th><i class="fa-solid fa-user-tag th-icon" aria-hidden="true"></i>Role</th>
                                 <th><i class="fa-solid fa-signal th-icon" aria-hidden="true"></i>Status</th>

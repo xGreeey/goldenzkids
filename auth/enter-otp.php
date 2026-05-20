@@ -17,13 +17,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['otp'])) {
     csrf_verify();
 
     $username = trim((string) ($_POST['company_id'] ?? ''));
-    $company_id = strtoupper($username);
+    $company_id = $username;
     $otp = trim((string) ($_POST['otp'] ?? ''));
 
     if ($username === '') {
         $otp_Err = 'Please enter your username.';
-    } elseif (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
-        $otp_Err = 'Please check your username.';
+    } elseif (!auth_username_valid($company_id)) {
+        $otp_Err = 'Username must be alphanumeric and up to 20 characters.';
     } elseif ($otp === '') {
         $otp_Err = 'Please enter your verification code.';
     } elseif (!preg_match('/^[0-9]{6}$/', $otp)) {
@@ -98,6 +98,8 @@ if (empty($otp_success)) {
                         class="form-input no-toggle"
                         placeholder="Username"
                         value="<?= e($username) ?>"
+                        pattern="[A-Za-z0-9]{1,20}"
+                        maxlength="20"
                         autocomplete="username"
                         autocapitalize="off"
                         required

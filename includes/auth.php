@@ -30,6 +30,11 @@ function auth_password_policy_valid(string $password): bool
     return (bool) preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/', $password);
 }
 
+function auth_username_valid(string $username): bool
+{
+    return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
+}
+
 function auth_password_change_required_for_user(array $user): bool
 {
     $changedAt = trim((string) ($user['password_changed_at'] ?? ''));

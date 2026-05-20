@@ -39,6 +39,8 @@ if (!empty($error)) {
                         class="form-input no-toggle<?= !empty($company_idErr) ? ' input-error' : '' ?>"
                         placeholder="Username"
                         value="<?= e($company_id) ?>"
+                        pattern="[A-Za-z0-9]{1,20}"
+                        maxlength="20"
                         autocomplete="username"
                         autocapitalize="off"
                         spellcheck="false"

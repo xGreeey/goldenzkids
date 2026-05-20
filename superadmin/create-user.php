@@ -7,8 +7,8 @@ require_once __DIR__ . '/../includes/superadmin_user_form.php';
 
 auth_require_permission('superadmin.users.manage');
 
-$editId = strtoupper(trim((string) ($_GET['edit'] ?? '')));
-$isEdit = $editId !== '' && preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $editId);
+$editId = trim((string) ($_GET['edit'] ?? ''));
+$isEdit = $editId !== '' && auth_username_valid($editId);
 
 if (!$isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     header('Location: users.php?create=1');
@@ -42,8 +42,8 @@ if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
-    $editId = strtoupper(trim((string) ($_POST['company_id'] ?? $editId)));
-    $isEdit = preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $editId);
+    $editId = trim((string) ($_POST['company_id'] ?? $editId));
+    $isEdit = auth_username_valid($editId);
 
     $result = superadmin_handle_account_post($conn, $isEdit, $editId);
     $form = $result['form'];
@@ -99,12 +99,13 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                 <?= csrf_field() ?>
 
                 <div class="form-field">
-                    <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Employee ID</label>
+                    <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Username</label>
                     <input type="text" id="company_id" name="company_id" required
-                           pattern="ABC-2[0-9]{3}-[0-9]{4}"
+                           pattern="[A-Za-z0-9]{1,20}"
+                           maxlength="20"
                            value="<?= e($form['company_id']) ?>"
                            readonly
-                           placeholder="ABC-2024-0001">
+                           placeholder="Username">
                 </div>
 
                 <div class="form-field">

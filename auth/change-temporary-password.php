@@ -25,7 +25,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
     $companyId = (string) ($_SESSION['company_id'] ?? '');
 
-    $user = $companyId !== '' ? auth_find_user_by_company_id($conn, strtoupper($companyId)) : null;
+    $user = $companyId !== '' ? auth_find_user_by_company_id($conn, $companyId) : null;
 
     if ($user === null || !auth_verify_password($currentPassword, (string) ($user['password_hash'] ?? ''))) {
         $error = 'Current password is incorrect.';
@@ -41,7 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $conn,
             'UPDATE users SET password_hash = ?, password_changed_at = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE Company_ID = ?',
             'ss',
-            [$newHash, strtoupper($companyId)]
+            [$newHash, $companyId]
         );
 
         if ($ok) {

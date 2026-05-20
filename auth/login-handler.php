@@ -18,8 +18,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     if ($company_id === '') {
         $company_idErr = 'Please enter your username.';
-    } elseif (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
-        $company_idErr = 'Please check your username.';
+    } elseif (!auth_username_valid($company_id)) {
+        $company_idErr = 'Username must be alphanumeric and up to 20 characters.';
     }
 
     if ($password === '') {
@@ -27,8 +27,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     }
 
     if ($company_idErr === null && $passwordErr === null) {
-        $company_id = strtoupper($company_id);
-
         $user = auth_find_user_by_company_id($conn, $company_id);
         $authenticated = false;
         $permissions = [];

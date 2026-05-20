@@ -32,7 +32,7 @@ function superadmin_generate_temporary_password(int $length = 12): string
 /**
  * Send account temporary password to the user's email.
  */
-function superadmin_send_temporary_password_email(string $recipientEmail, string $companyId, string $temporaryPassword): bool
+function superadmin_send_temporary_password_email(string $recipientEmail, string $username, string $temporaryPassword): bool
 {
     $smtpUser = trim((string) ($_ENV['EMAIL'] ?? getenv('EMAIL') ?? ''));
     $smtpPass = trim((string) ($_ENV['APP_PASSWORD'] ?? getenv('APP_PASSWORD') ?? ''));
@@ -56,17 +56,17 @@ function superadmin_send_temporary_password_email(string $recipientEmail, string
         $mail->isHTML(true);
         $mail->Subject = 'Your Temporary Portal Password';
 
-        $safeCompanyId = htmlspecialchars($companyId, ENT_QUOTES, 'UTF-8');
+        $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
         $safeTempPassword = htmlspecialchars($temporaryPassword, ENT_QUOTES, 'UTF-8');
         $mail->Body = '<p>Hello,</p>'
             . '<p>Your account has been created.</p>'
-            . '<p><strong>Employee ID:</strong> ' . $safeCompanyId . '</p>'
+            . '<p><strong>Username:</strong> ' . $safeUsername . '</p>'
             . '<p><strong>Temporary password:</strong> <span style="font-size:16px; letter-spacing:1px;">'
             . $safeTempPassword
             . '</span></p>'
             . '<p>Please sign in and change your password immediately.</p>';
         $mail->AltBody = "Your account has been created.\n"
-            . "Employee ID: {$companyId}\n"
+            . "Username: {$username}\n"
             . "Temporary password: {$temporaryPassword}\n"
             . "Please sign in and change your password immediately.";
 
@@ -138,7 +138,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $accountTrail = superadmin_account_audit_trail($conn, $editId);
     }
 
-    $form['company_id'] = strtoupper(trim((string) ($_POST['company_id'] ?? $form['company_id'])));
+    $form['company_id'] = trim((string) ($_POST['company_id'] ?? $form['company_id']));
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
     $form['role'] = (string) ($_POST['role'] ?? '0');
     $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
@@ -149,8 +149,8 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $role = auth_normalize_role((int) $form['role']);
     }
 
-    if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $form['company_id'])) {
-        $error = 'Employee ID must match ABC-2###-#### (example: ABC-2024-0001).';
+    if (!auth_username_valid($form['company_id'])) {
+        $error = 'Username must be alphanumeric and up to 20 characters.';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
     } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
@@ -160,9 +160,9 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $alreadyExists = $exists && $exists->num_rows > 0;
 
         if (!$isEdit && $alreadyExists) {
-            $error = 'This employee ID is already registered.';
+            $error = 'This username is already registered.';
         } elseif ($isEdit && $form['company_id'] !== $editId) {
-            $error = 'Employee ID cannot be changed when editing.';
+            $error = 'Username cannot be changed when editing.';
         } else {
             $active = (int) $form['is_active'];
             $targetId = $isEdit ? $editId : $form['company_id'];
@@ -289,11 +289,12 @@ function superadmin_render_create_account_form(
         <input type="hidden" name="create_account" value="1">
 
         <div class="form-field">
-            <label for="<?= e($pid('company_id')) ?>" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Employee ID</label>
+            <label for="<?= e($pid('company_id')) ?>" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Username</label>
             <input type="text" id="<?= e($pid('company_id')) ?>" name="company_id" required
-                   pattern="ABC-2[0-9]{3}-[0-9]{4}"
+                   pattern="[A-Za-z0-9]{1,20}"
+                   maxlength="20"
                    value="<?= e($form['company_id']) ?>"
-                   placeholder="ABC-2024-0001">
+                   placeholder="Username">
         </div>
 
         <div class="form-field">

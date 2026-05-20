@@ -94,7 +94,7 @@ $superadminMobileTitle = 'Audit Log';
 <?php superadmin_page_styles(); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode superadmin-portal">
 
 <?php require __DIR__ . '/../includes/superadmin_sidebar.php'; ?>
 
@@ -124,7 +124,7 @@ $superadminMobileTitle = 'Audit Log';
         </div>
 
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Event history <span class="stat-hint">(<?= e((string) $total) ?>)</span></h2>
+            <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Event history <span class="stat-hint">(<?= e((string) $total) ?>)</span></h2>
 
             <?php if ($entries === []): ?>
                 <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No audit events match your filters.</p>

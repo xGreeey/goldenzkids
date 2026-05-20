@@ -29,8 +29,7 @@ function app_fonts_link(): string
 HTML;
 }
 
-/** Hover tooltip attributes (native title + styled data-tip). */
-/** Styled hover hint via [data-tip] CSS (no native title — avoids double tooltips). */
+/** Hover hint attributes [data-tip] (popover styling disabled globally — see theme_styles). */
 function ui_tooltip(string $label, string $position = ''): string
 {
     $pos = $position !== '' ? sprintf(' data-tip-pos="%s"', e($position)) : '';
@@ -322,52 +321,10 @@ function theme_render_css(): void
             --app-page-bg-light: var(--app-canvas-light-gradient);
         }
 
-        /* --- Hover tooltips ([data-tip]) --- */
-        [data-tip] {
-            position: relative;
-        }
-
+        /* --- Hover tooltips ([data-tip]) — disabled: no cursor/focus popovers site-wide --- */
         [data-tip]::after {
-            content: attr(data-tip);
-            position: absolute;
-            z-index: 12000;
-            left: 50%;
-            bottom: calc(100% + 8px);
-            transform: translateX(-50%) translateY(4px);
-            padding: 6px 10px;
-            max-width: min(240px, 70vw);
-            font-family: var(--font-body-family);
-            font-size: 0.75rem;
-            font-weight: 500;
-            line-height: 1.35;
-            text-align: center;
-            white-space: normal;
-            color: var(--color-white);
-            background: var(--app-ink-deep);
-            border-radius: 6px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-            pointer-events: none;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
-        }
-
-        [data-tip]:hover::after,
-        [data-tip]:focus-visible::after {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        [data-tip][data-tip-pos="bottom"]::after {
-            bottom: auto;
-            top: calc(100% + 8px);
-            transform: translateX(-50%) translateY(-4px);
-        }
-
-        [data-tip][data-tip-pos="bottom"]:hover::after,
-        [data-tip][data-tip-pos="bottom"]:focus-visible::after {
-            transform: translateX(-50%) translateY(0);
+            content: none !important;
+            display: none !important;
         }
 
         /* --- Typography (Bebas Neue · Inter) --- */

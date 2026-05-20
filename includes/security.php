@@ -135,6 +135,16 @@ function mobile_base_css(): string
         .nav-link, .delivery-btn, input[type="submit"], input[type="button"] {
             min-height: 44px;
         }
+        button.app-modal__close {
+            min-height: 30px;
+            min-width: 30px;
+        }
+        body.superadmin-portal .app-main .btn-primary,
+        body.superadmin-portal .app-main .btn-ghost,
+        body.superadmin-portal .app-main button.btn-primary,
+        body.superadmin-portal .app-main button.btn-ghost {
+            min-height: 34px;
+        }
         input, select, textarea, .form-input {
             font-size: 16px;
         }

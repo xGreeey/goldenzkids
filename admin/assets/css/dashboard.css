@@ -598,7 +598,8 @@
             line-height: 1.5;
         }
 
-        .btn-primary {
+        /* Gold CTA — admin memo compose only (not global .app-main) */
+        .panel--compose .btn-primary {
             width: 100%;
             display: inline-flex;
             align-items: center;
@@ -611,6 +612,7 @@
             font-weight: 700;
             color: var(--app-ink);
             background: var(--app-btn-gold);
+            background-image: var(--app-btn-gold);
             border: 1px solid rgba(var(--color-secondary-text-rgb), 0.35);
             border-radius: var(--radius-sm);
             cursor: pointer;
@@ -619,12 +621,13 @@
             letter-spacing: 0.03em;
         }
 
-        .btn-primary:hover {
+        .panel--compose .btn-primary:hover {
             background: var(--app-btn-gold-hover);
+            background-image: var(--app-btn-gold-hover);
             border-color: rgba(var(--color-secondary-text-rgb), 0.45);
         }
 
-        .btn-primary:active {
+        .panel--compose .btn-primary:active {
             transform: none;
         }
 

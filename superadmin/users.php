@@ -3,11 +3,29 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/superadmin_accountability.php';
+require_once __DIR__ . '/../includes/superadmin_user_form.php';
 
 auth_require_permission('superadmin.users.manage');
 
 $roleCol = auth_users_role_column($conn);
 $flash = null;
+$createForm = superadmin_default_form();
+$createError = null;
+$openCreateModal = isset($_GET['create']);
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['create_account'])) {
+    csrf_verify();
+    $result = superadmin_handle_account_post($conn, false, '');
+    $createForm = $result['form'];
+    $createError = $result['error'];
+    if ($result['success'] !== null) {
+        $flash = $result['success'];
+        $openCreateModal = false;
+        header('Location: users.php');
+        exit;
+    }
+    $openCreateModal = true;
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active'])) {
     csrf_verify();
@@ -31,10 +49,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active
                 $newActive ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED',
                 null
             );
+            $qs = [];
+            if (isset($_GET['q']) && trim((string) $_GET['q']) !== '') {
+                $qs['q'] = trim((string) $_GET['q']);
+            }
+            if (isset($_GET['role']) && (string) $_GET['role'] !== '') {
+                $qs['role'] = (string) $_GET['role'];
+            }
+            $tail = $qs === [] ? '' : '?' . http_build_query($qs);
+            header('Location: users.php' . $tail);
+            exit;
         }
-        $flash = $ok
-            ? ($newActive ? "Activated {$targetId}." : "Deactivated {$targetId}.")
-            : 'Could not update account status.';
+        $flash = 'Could not update account status.';
     } else {
         $flash = 'Invalid account or you cannot deactivate your own session.';
     }
@@ -106,9 +132,10 @@ $superadminMobileTitle = 'User Accounts';
     <style>
 <?php admin_shell_styles(); ?>
 <?php superadmin_page_styles(); ?>
+<?php superadmin_modal_styles(); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode superadmin-portal">
 
 <?php require __DIR__ . '/../includes/superadmin_sidebar.php'; ?>
 
@@ -139,11 +166,13 @@ $superadminMobileTitle = 'User Accounts';
                 </div>
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter</button>
             </form>
-            <a href="create-user.php" class="btn-primary"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> New account</a>
+            <button type="button" class="btn-primary" id="openCreateAccountModal">
+                <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Create account
+            </button>
         </div>
 
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-table-list" aria-hidden="true"></i> All accounts</h2>
+            <h2 class="panel-title">All accounts</h2>
             <?php if ($users === []): ?>
                 <p class="empty-state"><i class="fa-solid fa-users-slash" aria-hidden="true"></i>No accounts match your filters.</p>
             <?php else: ?>
@@ -180,7 +209,12 @@ $superadminMobileTitle = 'User Accounts';
                                     <td>
                                         <a href="create-user.php?edit=<?= rawurlencode($uid) ?>" class="btn-ghost"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit</a>
                                         <?php if (!$isSelf): ?>
-                                            <form method="POST" style="display:inline;">
+                                            <?php
+                                            $confirmToggle = $active
+                                                ? 'Are you sure you want to deactivate this account (' . $uid . ')? They will not be able to sign in until reactivated.'
+                                                : 'Are you sure you want to activate this account (' . $uid . ')? They will be able to sign in to the portal.';
+                                            ?>
+                                            <form method="POST" class="js-confirm-submit" style="display:inline;" data-confirm="<?= e($confirmToggle) ?>">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="company_id" value="<?= e($uid) ?>">
                                                 <input type="hidden" name="new_active" value="<?= $active ? '0' : '1' ?>">
@@ -198,6 +232,8 @@ $superadminMobileTitle = 'User Accounts';
                 </div>
             <?php endif; ?>
         </section>
+
+        <?php superadmin_create_account_modal($createForm, $createError, $openCreateModal); ?>
     </main>
 </div>
 

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/superadmin_accountability.php';
+
 /**
  * Shared create/edit account form and save handler for superadmin.
  */
@@ -89,6 +91,84 @@ function superadmin_default_form(string $companyId = ''): array
     ];
 }
 
+function superadmin_schema_table_exists(mysqli $conn, string $table): bool
+{
+    $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+    if ($table === '') {
+        return false;
+    }
+    $res = $conn->query("SHOW TABLES LIKE '{$table}'");
+
+    return $res instanceof mysqli_result && $res->num_rows > 0;
+}
+
+function superadmin_schema_column_exists(mysqli $conn, string $table, string $column): bool
+{
+    $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+    $column = preg_replace('/[^A-Za-z0-9_]/', '', $column);
+    if ($table === '' || $column === '') {
+        return false;
+    }
+    $res = $conn->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+
+    return $res instanceof mysqli_result && $res->num_rows > 0;
+}
+
+/**
+ * Rename portal login id (users.Company_ID) and update referencing rows.
+ * Caller must wrap in a transaction if needed. Uses FOREIGN_KEY_CHECKS=0 briefly.
+ */
+function superadmin_rename_portal_user_company_id(mysqli $conn, string $oldId, string $newId): bool
+{
+    if ($oldId === '' || $newId === '' || $oldId === $newId) {
+        return true;
+    }
+
+    $patch = static function (string $sql, string $types, array $params) use ($conn): bool {
+        return db_execute($conn, $sql, $types, $params);
+    };
+
+    if (!$conn->query('SET FOREIGN_KEY_CHECKS=0')) {
+        return false;
+    }
+
+    $ok = true;
+    if (superadmin_schema_table_exists($conn, 'guards')) {
+        $ok = $ok && $patch('UPDATE guards SET Head_ID = ? WHERE Head_ID = ?', 'ss', [$newId, $oldId]);
+        $ok = $ok && $patch('UPDATE guards SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'establishments')) {
+        $ok = $ok && $patch('UPDATE establishments SET company_id = ? WHERE company_id = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'dgd')) {
+        $ok = $ok && $patch('UPDATE dgd SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'memos')) {
+        $ok = $ok && $patch('UPDATE memos SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'memo_recipients')) {
+        $ok = $ok && $patch('UPDATE memo_recipients SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'internal_messages')) {
+        $ok = $ok && $patch('UPDATE internal_messages SET sender_company_id = ? WHERE sender_company_id = ?', 'ss', [$newId, $oldId]);
+        $ok = $ok && $patch('UPDATE internal_messages SET recipient_company_id = ? WHERE recipient_company_id = ?', 'ss', [$newId, $oldId]);
+    }
+    if (superadmin_schema_table_exists($conn, 'recording')) {
+        $ok = $ok && $patch('UPDATE recording SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+        if (superadmin_schema_column_exists($conn, 'recording', 'actor_company_id')) {
+            $ok = $ok && $patch('UPDATE recording SET actor_company_id = ? WHERE actor_company_id = ?', 'ss', [$newId, $oldId]);
+        }
+    }
+    if (superadmin_schema_table_exists($conn, 'portal_users')) {
+        $ok = $ok && $patch('UPDATE portal_users SET company_id = ? WHERE company_id = ?', 'ss', [$newId, $oldId]);
+    }
+    $ok = $ok && $patch('UPDATE users SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
+
+    $conn->query('SET FOREIGN_KEY_CHECKS=1');
+
+    return $ok;
+}
+
 /**
  * Process create or edit account POST.
  *
@@ -131,6 +211,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         }
         $row = $existing->fetch_assoc();
         $beforeState = [
+            'company_id' => (string) ($row['Company_ID'] ?? ''),
             'email' => (string) ($row['Email'] ?? ''),
             'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN),
             'is_active' => (int) ($row['is_active'] ?? 1),
@@ -142,7 +223,8 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
     $form['role'] = (string) ($_POST['role'] ?? (string) AUTH_ROLE_ADMIN);
     $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
-    $form['password'] = trim((string) ($_POST['password'] ?? ''));
+    /* Password is never set from POST: new accounts get an emailed temp password; edits do not change it here. */
+    $form['password'] = '';
 
     $role = auth_role_from_input($form['role']);
     if ($role === null) {
@@ -153,6 +235,8 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $error = 'Username must be alphanumeric and up to 20 characters.';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
+<<<<<<< HEAD
+=======
     } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
         $error = 'Password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
     } elseif (
@@ -161,17 +245,16 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         && auth_password_matches_existing_hash($form['password'], trim((string) ($row['password_hash'] ?? '')))
     ) {
         $error = 'New password cannot be the same as the current password.';
+>>>>>>> 1c79699d0c185e451e821df46b1ab711d2949f43
     } else {
         $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
         $alreadyExists = $exists && $exists->num_rows > 0;
 
         if (!$isEdit && $alreadyExists) {
             $error = 'This username is already registered.';
-        } elseif ($isEdit && $form['company_id'] !== $editId) {
-            $error = 'Username cannot be changed when editing.';
         } else {
             $active = (int) $form['is_active'];
-            $targetId = $isEdit ? $editId : $form['company_id'];
+            $newUsername = $form['company_id'];
 
             if ($isEdit && $editId === (string) ($_SESSION['company_id'] ?? '')) {
                 if ($active !== 1) {
@@ -185,26 +268,46 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
             }
 
             $ok = false;
-            if ($error === null && $isEdit && $form['password'] !== '') {
-                $hash = auth_hash_password($form['password']);
-                if ($alreadyExists) {
-                    $ok = db_execute(
-                        $conn,
-                        "UPDATE users SET Email = ?, password_hash = ?, {$roleCol} = ?, is_active = ?,
-                         password_changed_at = NOW() WHERE Company_ID = ?",
-                        'siiss',
-                        [$form['email'], $hash, $role, $active, $targetId]
-                    );
-                } else {
-                    $ok = db_execute(
-                        $conn,
-                        "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
-                         VALUES (?, ?, ?, ?, ?, NOW())",
-                        'sssii',
-                        [$targetId, $form['email'], $hash, $role, $active]
-                    );
+
+            if ($error === null && $isEdit) {
+                if ($newUsername !== $editId) {
+                    if ($editingSelf) {
+                        $error = 'You cannot change your own username.';
+                    } else {
+                        $taken = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$newUsername]);
+                        if ($taken && $taken->num_rows > 0) {
+                            $error = 'This username is already taken.';
+                        }
+                    }
                 }
-            } elseif ($error === null && !$alreadyExists) {
+
+                $finalId = $newUsername;
+                if ($error === null) {
+                    $conn->begin_transaction();
+                    try {
+                        if ($newUsername !== $editId && !$editingSelf) {
+                            if (!superadmin_rename_portal_user_company_id($conn, $editId, $newUsername)) {
+                                throw new RuntimeException('rename');
+                            }
+                        }
+                        if (!db_execute(
+                            $conn,
+                            "UPDATE users SET Email = ?, {$roleCol} = ?, is_active = ? WHERE Company_ID = ?",
+                            'siis',
+                            [$form['email'], $role, $active, $finalId]
+                        )) {
+                            throw new RuntimeException('update');
+                        }
+                        $conn->commit();
+                        $ok = true;
+                        $editId = $finalId;
+                    } catch (\Throwable $e) {
+                        $conn->rollback();
+                        $ok = false;
+                        $error = 'Could not save account. ' . ($e->getMessage() !== 'rename' && $e->getMessage() !== 'update' ? $conn->error : 'Please try again.');
+                    }
+                }
+            } elseif ($error === null && !$isEdit && !$alreadyExists) {
                 $temporaryPassword = superadmin_generate_temporary_password();
                 $hash = auth_hash_password($temporaryPassword);
 
@@ -214,15 +317,15 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
                      VALUES (?, ?, ?, ?, ?, NULL)",
                     'sssii',
-                    [$targetId, $form['email'], $hash, $role, $active]
+                    [$newUsername, $form['email'], $hash, $role, $active]
                 );
 
-                if (!empty($ok) && superadmin_send_temporary_password_email($form['email'], $targetId, $temporaryPassword)) {
+                if (!empty($ok) && superadmin_send_temporary_password_email($form['email'], $newUsername, $temporaryPassword)) {
                     db_execute(
                         $conn,
                         'UPDATE users SET password_changed_at = NULL WHERE Company_ID = ?',
                         's',
-                        [$targetId]
+                        [$newUsername]
                     );
                     $conn->commit();
                 } else {
@@ -230,15 +333,23 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     $ok = false;
                     $error = 'Could not send temporary password email. Account was not created.';
                 }
-            } elseif ($error === null && $alreadyExists) {
-                $ok = db_execute(
-                    $conn,
-                    "UPDATE users SET Email = ?, {$roleCol} = ?, is_active = ? WHERE Company_ID = ?",
-                    'siis',
-                    [$form['email'], $role, $active, $targetId]
-                );
+            } elseif ($error === null && !$isEdit) {
+                $error = 'This username is already registered.';
             }
             if ($error === null && !empty($ok)) {
+                $finalId = $newUsername;
+                if ($isEdit) {
+                    $accountTrail = superadmin_account_audit_trail($conn, $finalId);
+                }
+                $origCompany = (string) ($beforeState['company_id'] ?? '');
+                if ($isEdit && $newUsername !== $origCompany) {
+                    superadmin_log_account_event(
+                        $conn,
+                        $finalId,
+                        'ACCOUNT_UPDATED',
+                        'Username changed from ' . $origCompany . ' to ' . $newUsername
+                    );
+                }
                 $afterState = [
                     'email' => $form['email'],
                     'role' => $role,
@@ -247,15 +358,15 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                 ];
                 superadmin_log_account_diff(
                     $conn,
-                    $targetId,
+                    $finalId,
                     $beforeState ?? [],
                     $afterState,
-                    !$alreadyExists
+                    !$isEdit
                 );
                 $roleName = auth_role_name($role);
                 $success = $isEdit
-                    ? "Updated {$targetId} ({$roleName})."
-                    : "Created account {$targetId} ({$roleName}) and sent temporary password to email.";
+                    ? "Updated {$finalId} ({$roleName})."
+                    : "Created account {$finalId} ({$roleName}) and sent temporary password to email.";
                 if (!$isEdit) {
                     $form = superadmin_default_form();
                 }

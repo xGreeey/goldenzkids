@@ -716,6 +716,23 @@ function superadmin_page_styles(): void
             align-items: center;
         }
 
+        .is-hidden {
+            display: none !important;
+        }
+
+        .form-toolbar-sa {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--sa-gap-sm);
+            margin-top: 2px;
+        }
+
+        .form-toolbar-sa .btn-ghost,
+        .form-toolbar-sa .btn-primary {
+            margin-top: 0;
+        }
+
         .form-field label {
             display: block;
             font-size: 0.75rem;

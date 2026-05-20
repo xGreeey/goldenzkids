@@ -350,6 +350,137 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.reload();
     });
 
+    if (!window.__saEditAccountFormDelegation) {
+        window.__saEditAccountFormDelegation = true;
+        document.addEventListener('click', function (event) {
+            if (!document.body.classList.contains('superadmin-portal')) {
+                return;
+            }
+            var start = event.target.closest('[data-sa-edit-acc-start]');
+            var cancel = event.target.closest('[data-sa-edit-acc-cancel]');
+            if (!start && !cancel) {
+                return;
+            }
+            var form = event.target.closest('form[data-sa-edit-account-form]');
+            if (!form) {
+                return;
+            }
+            var editingSelf = form.getAttribute('data-editing-self') === '1';
+            var viewBar = form.querySelector('[data-sa-toolbar-view]');
+            var editBar = form.querySelector('[data-sa-toolbar-editing]');
+            var saveWrap = form.querySelector('[data-sa-save-wrap]');
+            var company = form.querySelector('[data-sa-edit-field="company"]');
+            var email = form.querySelector('[data-sa-edit-field="email"]');
+            var role = form.querySelector('[data-sa-edit-field="role"]');
+            var active = form.querySelector('[data-sa-edit-field="active"]');
+
+            function insertActiveFallback() {
+                if (editingSelf || !active) {
+                    return;
+                }
+                if (form.querySelector('[data-sa-active-fallback]')) {
+                    return;
+                }
+                var h = document.createElement('input');
+                h.type = 'hidden';
+                h.name = 'is_active';
+                h.value = active.checked ? '1' : '0';
+                h.setAttribute('data-sa-active-fallback', '');
+                active.parentNode.insertBefore(h, active);
+            }
+
+            function insertRoleFallback() {
+                if (editingSelf || !role) {
+                    return;
+                }
+                if (form.querySelector('[data-sa-role-fallback]')) {
+                    return;
+                }
+                var h = document.createElement('input');
+                h.type = 'hidden';
+                h.name = 'role';
+                h.value = role.value || '0';
+                h.setAttribute('data-sa-role-fallback', '');
+                role.parentNode.insertBefore(h, role);
+            }
+
+            if (start) {
+                form.setAttribute('data-sa-editing', '1');
+                if (email) {
+                    email.readOnly = false;
+                }
+                if (company && !editingSelf) {
+                    company.readOnly = false;
+                }
+                if (role && !role.hasAttribute('data-sa-role-locked')) {
+                    var rfb = form.querySelector('[data-sa-role-fallback]');
+                    if (rfb && rfb.parentNode) {
+                        rfb.parentNode.removeChild(rfb);
+                    }
+                    role.removeAttribute('disabled');
+                    role.setAttribute('name', 'role');
+                }
+                if (active && !editingSelf) {
+                    var afb = form.querySelector('[data-sa-active-fallback]');
+                    if (afb && afb.parentNode) {
+                        afb.parentNode.removeChild(afb);
+                    }
+                    active.removeAttribute('disabled');
+                    if (!active.getAttribute('name')) {
+                        active.setAttribute('name', 'is_active');
+                    }
+                }
+                if (viewBar) {
+                    viewBar.classList.add('is-hidden');
+                }
+                if (editBar) {
+                    editBar.classList.remove('is-hidden');
+                }
+                if (saveWrap) {
+                    saveWrap.classList.remove('is-hidden');
+                }
+                return;
+            }
+
+            if (cancel) {
+                form.removeAttribute('data-sa-editing');
+                var oc = form.getAttribute('data-orig-company') || '';
+                var oe = form.getAttribute('data-orig-email') || '';
+                var orv = form.getAttribute('data-orig-role') || '0';
+                var oa = form.getAttribute('data-orig-active') === '1';
+                if (company) {
+                    company.value = oc;
+                    company.readOnly = true;
+                }
+                if (email) {
+                    email.value = oe;
+                    email.readOnly = true;
+                }
+                if (role) {
+                    role.value = orv;
+                    role.setAttribute('disabled', '');
+                    role.removeAttribute('name');
+                    insertRoleFallback();
+                }
+                if (active && !editingSelf) {
+                    active.checked = oa;
+                    active.setAttribute('disabled', '');
+                    active.removeAttribute('name');
+                    insertActiveFallback();
+                }
+                if (viewBar) {
+                    viewBar.classList.remove('is-hidden');
+                }
+                if (editBar) {
+                    editBar.classList.add('is-hidden');
+                }
+                if (saveWrap) {
+                    saveWrap.classList.add('is-hidden');
+                }
+            }
+        });
+    }
+
     if (!history.state || !history.state.panelNav) {
         history.replaceState({ panelNav: true, url: window.location.href }, '', window.location.href);
     }

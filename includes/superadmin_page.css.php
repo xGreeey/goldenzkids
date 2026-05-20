@@ -205,6 +205,7 @@ function superadmin_page_styles(): void
         .sa-quick-actions__link {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             min-height: 44px;
             padding: 8px 10px 8px 12px;
@@ -243,8 +244,9 @@ function superadmin_page_styles(): void
         }
 
         .sa-quick-actions__label {
-            flex: 1;
+            flex: 0 1 auto;
             min-width: 0;
+            text-align: center;
         }
 
         .sa-quick-actions__chev {

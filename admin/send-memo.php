@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/app.php';
 auth_require_permission('admin.memo.send');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    header('Location: ' . app_url('admin/dashboard.php'));
+    header('Location: ' . app_url('admin/inbox.php'));
     exit();
 }
 
@@ -19,11 +19,11 @@ $memoType = trim((string) ($_POST['memo_type'] ?? ''));
 $bodyText = trim((string) ($_POST['content'] ?? ''));
 
 if ($senderId === '' || $distributionType === '' || $memoType === '' || $bodyText === '') {
-    redirect_with_alert('Please complete all required memo fields.', 'dashboard.php');
+    redirect_with_alert('Please complete all required memo fields.', 'inbox.php');
 }
 
 if ($distributionType === 'targeted' && $targetGuard === '') {
-    redirect_with_alert('Select a recipient for a targeted memo.', 'dashboard.php');
+    redirect_with_alert('Select a recipient for a targeted memo.', 'inbox.php');
 }
 
 $recipientIds = [];
@@ -37,7 +37,7 @@ if ($distributionType === 'broadcast') {
         }
     }
     if ($recipientIds === []) {
-        redirect_with_alert('No guards found on the roster for broadcast.', 'dashboard.php');
+        redirect_with_alert('No guards found on the roster for broadcast.', 'inbox.php');
     }
 } else {
     $recipientIds[] = strtoupper($targetGuard);
@@ -77,9 +77,9 @@ try {
     $stmtRecipient->close();
 
     $conn->commit();
-    redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'dashboard.php');
+    redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'inbox.php');
 } catch (Throwable $e) {
     $conn->rollback();
     error_log('send-memo: ' . $e->getMessage());
-    redirect_with_alert('Memo could not be sent. Please try again.', 'dashboard.php');
+    redirect_with_alert('Memo could not be sent. Please try again.', 'inbox.php');
 }

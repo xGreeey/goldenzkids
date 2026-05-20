@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/panel_navigation.php';
+require_once __DIR__ . '/superadmin_user_form.php';
+
 /**
  * Admin layout shell — sidebar, mobile nav, shared variables.
  * Call inside <style>: <?php admin_shell_styles(); ?>
@@ -266,14 +269,19 @@ function admin_shell_styles(): void
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 10px 14px;
             font-size: var(--font-body-size-sm);
             font-weight: 600;
             color: var(--app-ink-muted-on-dark);
             text-decoration: none;
             background: transparent;
             border: none;
-            transition: color var(--transition);
+            border-radius: var(--radius-sm);
+            position: relative;
+            transition:
+                background-color 0.08s ease,
+                color 0.08s ease,
+                box-shadow 0.08s ease;
         }
 
         .sidebar-link i {
@@ -281,15 +289,24 @@ function admin_shell_styles(): void
             text-align: center;
             font-size: 1rem;
             opacity: 1;
+            color: inherit;
         }
 
         .sidebar-link:hover {
             color: var(--app-ink-on-dark);
+            background: var(--bg-elevated);
         }
 
         .sidebar-link.active {
             color: var(--app-ink-on-dark);
             font-weight: 700;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: inset 3px 0 0 0 var(--brand-accent);
+        }
+
+        .sidebar-link.active i {
+            color: var(--brand-accent-text);
+            opacity: 1;
         }
 
         body.light-mode .brand-name {
@@ -302,11 +319,23 @@ function admin_shell_styles(): void
 
         body.light-mode .sidebar-link:hover {
             color: var(--app-ink);
+            background: var(--bg-elevated);
         }
 
         body.light-mode .sidebar-link.active {
             color: var(--app-ink);
             font-weight: 700;
+            background: var(--brand-accent-soft);
+            box-shadow: inset 3px 0 0 0 var(--brand-accent);
+        }
+
+        body.light-mode .sidebar-link.active i {
+            color: var(--brand-accent-text);
+        }
+
+        .sidebar-link:focus-visible {
+            outline: 2px solid var(--brand-accent);
+            outline-offset: 2px;
         }
 
         .sidebar-footer {
@@ -614,6 +643,9 @@ function admin_shell_styles(): void
             }
         }
     <?php
+    /* Ensure create-account modal CSS exists even after SPA panel swaps. */
+    superadmin_modal_styles();
+    panel_navigation_styles();
     echo mobile_base_css();
 }
 
@@ -626,6 +658,28 @@ function admin_shell_scripts(): void
     $loaded = true;
     ?>
 <script>
+(function () {
+    document.addEventListener(
+        'submit',
+        function (e) {
+            var form = e.target;
+            if (!form || form.nodeName !== 'FORM' || !form.classList.contains('js-confirm-submit')) {
+                return;
+            }
+            var msg = form.getAttribute('data-confirm');
+            if (!msg) {
+                return;
+            }
+            if (!window.confirm(msg)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        },
+        true
+    );
+})();
+</script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.sidebar-footer-icon[href="#"]').forEach(function (link) {
         link.addEventListener('click', function (event) {
@@ -635,5 +689,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
     <?php
+    panel_navigation_script();
+    superadmin_modal_script();
     theme_toggle_script();
 }

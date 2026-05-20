@@ -2,8 +2,54 @@
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/auth_layout.php';
 
+use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\PHPMailer;
+
 $email_Err = null;
 $email = '';
+
+/**
+ * Send password-reset OTP email to the employee.
+ */
+function send_password_reset_otp_email(string $recipientEmail, string $otpCode): bool
+{
+    $smtpUser = trim((string) ($_ENV['EMAIL'] ?? getenv('EMAIL') ?? ''));
+    $smtpPass = trim((string) ($_ENV['APP_PASSWORD'] ?? getenv('APP_PASSWORD') ?? ''));
+
+    if ($smtpUser === '' || $smtpPass === '') {
+        error_log('Password reset email failed: EMAIL/APP_PASSWORD missing in .env');
+        return false;
+    }
+
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+
+        $mail->setFrom($smtpUser, app_agency_name());
+        $mail->addAddress($recipientEmail);
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Your Password Reset Verification Code';
+        $mail->Body = '<p>Hello,</p>'
+            . '<p>Your verification code is: <strong style="font-size:18px; letter-spacing:2px;">'
+            . e($otpCode)
+            . '</strong></p>'
+            . '<p>This code expires in 15 minutes.</p>'
+            . '<p>If you did not request this, please ignore this email.</p>';
+        $mail->AltBody = "Your verification code is {$otpCode}. It expires in 15 minutes.";
+
+        return $mail->send();
+    } catch (Exception $exception) {
+        error_log('Password reset email failed: ' . $exception->getMessage());
+        return false;
+    }
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
@@ -26,14 +72,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         if ($email_exists_in_db) {
+            $otpCode = (string) random_int(100000, 999999);
             $_SESSION['password_reset_email'] = $guard_email;
-            $_SESSION['password_reset_otp'] = (string) random_int(100000, 999999);
+            $_SESSION['password_reset_otp'] = $otpCode;
             $_SESSION['password_reset_otp_expires'] = time() + 900;
-            header('Location: ' . app_url('auth/enter-otp.php'));
-            exit();
-        }
+            $_SESSION['password_reset_requested_at'] = time();
 
-        $email_Err = 'We could not verify that email. Contact HR or your supervisor for help.';
+            if (send_password_reset_otp_email($guard_email, $otpCode)) {
+                header('Location: ' . app_url('auth/enter-otp.php'));
+                exit();
+            }
+
+            unset(
+                $_SESSION['password_reset_email'],
+                $_SESSION['password_reset_otp'],
+                $_SESSION['password_reset_otp_expires'],
+                $_SESSION['password_reset_requested_at']
+            );
+            $email_Err = 'Unable to send verification code right now. Please try again in a moment.';
+        } else {
+            $email_Err = 'We could not verify that email. Contact HR or your supervisor for help.';
+        }
     }
 }
 

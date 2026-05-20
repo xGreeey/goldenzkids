@@ -18,10 +18,6 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-users-gear" aria-hidden="true"></i>
             User Accounts
         </a>
-        <a href="create-user.php" class="sidebar-link<?= $superadminNavActive === 'create-user' ? ' active' : '' ?>"<?= $superadminNavActive === 'create-user' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Create a new account') ?>>
-            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
-            Create Account
-        </a>
         <a href="audit-log.php" class="sidebar-link<?= $superadminNavActive === 'audit' ? ' active' : '' ?>"<?= $superadminNavActive === 'audit' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Full audit log') ?>>
             <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
             Audit Log

@@ -14,7 +14,7 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Review guard reports') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Messaging board and guard reports') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
         </a>

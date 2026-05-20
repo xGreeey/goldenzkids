@@ -21,7 +21,7 @@ function superadmin_layout_head(string $documentTitle): void
 <?php superadmin_page_styles(); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode superadmin-portal">
 <?php
     require __DIR__ . '/superadmin_sidebar.php';
     echo '<main class="app-main">';

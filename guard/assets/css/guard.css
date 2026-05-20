@@ -182,7 +182,7 @@
             font-weight: 600; transition: 0.3s;
         }
         body.guard-portal .btn-portal {
-            background-color: var(--btn-bg); color: var(--btn-text);
+            background: var(--btn-bg); color: var(--btn-text);
             padding: 10px 25px; text-decoration: none; font-size: 0.9rem; border: none; cursor: pointer;
         }
         body.guard-portal .btn-portal:hover { filter: brightness(1.05); }
@@ -220,6 +220,7 @@
             color: var(--panel-text); font-size: 1rem;
         }
         body.guard-portal .submit-btn {
+<<<<<<< HEAD
             width: 100%;
             background-color: var(--btn-bg);
             color: var(--btn-text);
@@ -246,6 +247,10 @@
             font-size: var(--font-body-size-sm);
             font-weight: 400;
             opacity: 0.88;
+=======
+            width: 100%; background: var(--btn-bg); color: var(--btn-text);
+            border: none; padding: 20px; font-size: 1.1rem; cursor: pointer; margin-top: 20px;
+>>>>>>> 28cb61a3a7ac020dec8ab7fd5168f58491335122
         }
         body.guard-portal .submit-btn:hover { filter: brightness(1.05); }
         body.guard-portal .footer-bottom {

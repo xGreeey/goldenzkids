@@ -2,10 +2,37 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/internal_messaging.php';
 
 auth_require_permission('admin.inbox.manage');
 
 $company_id = (string) $_SESSION['company_id'];
+
+$messagingAvailable = false;
+$messagingViewerId = $company_id;
+$messagingContacts = [];
+$messagingActivePeer = null;
+$messagingThread = [];
+$messagingPostUrl = 'send-internal-message.php';
+$messagingReturnUrl = 'inbox.php';
+
+try {
+    $messagingAvailable = internal_messages_table_exists($conn);
+    $messagingContacts = internal_messaging_list_contacts($conn, auth_user_role());
+    $messagingActivePeer = isset($_GET['peer']) ? trim((string) $_GET['peer']) : null;
+    if ($messagingActivePeer !== null && $messagingActivePeer !== ''
+        && !internal_messaging_validate_peer($conn, $messagingActivePeer, internal_messaging_peer_role(auth_user_role()))) {
+        $messagingActivePeer = null;
+    }
+    if (($messagingActivePeer === null || $messagingActivePeer === '') && count($messagingContacts) === 1) {
+        $messagingActivePeer = $messagingContacts[0]['company_id'];
+    }
+    if ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '') {
+        $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer);
+    }
+} catch (Throwable $e) {
+    error_log('admin/inbox messaging: ' . $e->getMessage());
+}
 
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
@@ -35,6 +62,8 @@ if ($guards_result && $guards_result->num_rows > 0) {
 
 $reports_result = $conn->query('SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv FROM dgd ORDER BY Time_of_Report DESC');
 
+$memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
+
 $adminNavActive = 'inbox';
 ?>
 <!DOCTYPE html>
@@ -42,11 +71,43 @@ $adminNavActive = 'inbox';
 <head>
     <meta charset="UTF-8">
     <?= mobile_meta_tags() ?>
-    <title><?= e(app_agency_name()) ?> | Report Inbox</title>
+    <title><?= e(app_agency_name()) ?> | Inbox</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
     <?= app_fonts_link() ?>
     <style>
 <?php admin_shell_styles(); ?>
+<?php readfile(__DIR__ . '/assets/css/dashboard.css'); ?>
+<?php readfile(__DIR__ . '/assets/css/messaging-board.css'); ?>
+
+        .inbox-top-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: clamp(20px, 2.5vw, 28px);
+            margin-bottom: clamp(24px, 3vw, 36px);
+            align-items: start;
+        }
+
+        @media (min-width: 1100px) {
+            .inbox-top-grid {
+                grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+            }
+        }
+
+        .panel--inbox {
+            animation: none;
+        }
+
+        body.light-mode .panel--inbox,
+        body.light-mode .messaging-board {
+            background: var(--app-card-bg);
+            border-color: var(--app-border);
+            color: var(--app-ink);
+        }
+
+        body.light-mode .messaging-board__title,
+        body.light-mode .panel--inbox .panel-title {
+            color: var(--app-ink-deep);
+        }
 
         .notif-list { display: flex; flex-direction: column; gap: 12px; }
         .notif-card {
@@ -382,13 +443,20 @@ $adminNavActive = 'inbox';
 
     <main class="app-main">
         <header class="page-header">
-            <h1 class="page-title">Report Inbox</h1>
-            <p class="page-subtitle">Review daily guard reports, update status, and view scanned forms. Select a report to open details.</p>
+            <h1 class="page-title">Inbox</h1>
+            <p class="page-subtitle">Internal communications, staff messaging, and daily guard report review.</p>
         </header>
 
         <?php if ($error !== null): ?>
             <div class="alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
+
+        <div class="inbox-top-grid">
+            <?php require __DIR__ . '/../includes/admin_internal_communications.php'; ?>
+            <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
+        </div>
+
+        <h2 class="inbox-section-title">Daily guard reports</h2>
 
         <div class="notif-list" id="alert-feed">
             <?php
@@ -618,7 +686,62 @@ $adminNavActive = 'inbox';
         msg.style.display = list.children.length === 0 ? 'block' : 'none';
     }
 
-    document.addEventListener('DOMContentLoaded', checkEmpty);
+    function setMemoProtocol(type) {
+        const distTypeInput = document.getElementById('distTypeValue');
+        const detailsContainer = document.getElementById('memoDetailsContainer');
+        const targetContainer = document.getElementById('targetGuardContainer');
+        const targetInput = document.getElementById('targetGuardInput');
+        const btnBroadcast = document.getElementById('btnBroadcast');
+        const btnTargeted = document.getElementById('btnTargeted');
+        if (!distTypeInput || !detailsContainer) return;
+
+        distTypeInput.value = type;
+        detailsContainer.classList.add('is-visible');
+
+        if (type === 'broadcast') {
+            btnBroadcast?.classList.add('active');
+            btnTargeted?.classList.remove('active');
+            targetContainer?.classList.remove('is-visible');
+            if (targetInput) targetInput.value = '';
+        } else if (type === 'targeted') {
+            btnTargeted?.classList.add('active');
+            btnBroadcast?.classList.remove('active');
+            targetContainer?.classList.add('is-visible');
+        }
+    }
+
+    const memoForm = document.getElementById('memoForm');
+    if (memoForm) {
+        document.getElementById('btnBroadcast')?.addEventListener('click', () => setMemoProtocol('broadcast'));
+        document.getElementById('btnTargeted')?.addEventListener('click', () => setMemoProtocol('targeted'));
+        memoForm.addEventListener('submit', function (event) {
+            const errors = [];
+            const distType = document.getElementById('distTypeValue')?.value || '';
+            const memoType = document.getElementById('memoTypeInput')?.value || '';
+            const content = (document.getElementById('memoContentInput')?.value || '').trim();
+
+            if (!distType) {
+                errors.push('Delivery scope (company-wide or individual)');
+            } else if (distType === 'targeted' && !document.getElementById('targetGuardInput')?.value) {
+                errors.push('Recipient employee');
+            }
+            if (!memoType) errors.push('Message category');
+            if (content === '') errors.push('Memo body');
+
+            if (errors.length > 0) {
+                event.preventDefault();
+                alert('Please complete the required fields before publishing:\n\n• ' + errors.join('\n• '));
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        checkEmpty();
+        const thread = document.getElementById('messagingThreadScroll');
+        if (thread) {
+            thread.scrollTop = thread.scrollHeight;
+        }
+    });
 </script>
 <?php admin_shell_scripts(); ?>
 

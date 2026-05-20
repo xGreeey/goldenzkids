@@ -25,6 +25,26 @@ function auth_verify_password(string $password, string $passwordHash): bool
     return password_verify($password, $passwordHash);
 }
 
+function auth_password_policy_valid(string $password): bool
+{
+    return (bool) preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/', $password);
+}
+
+function auth_username_valid(string $username): bool
+{
+    return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
+}
+
+function auth_password_change_required_for_user(array $user): bool
+{
+    $changedAt = trim((string) ($user['password_changed_at'] ?? ''));
+    if ($changedAt === '' || $changedAt === '0000-00-00 00:00:00') {
+        return true;
+    }
+
+    return false;
+}
+
 function auth_role_name(int $role): string
 {
     return match (auth_normalize_role($role)) {
@@ -113,6 +133,7 @@ function auth_permissions_for_role(int $role): array
     $guard = [
         'guard.portal.access',
         'guard.inbox.view',
+        'guard.messaging.send',
         'guard.corner.view',
         'guard.reports.submit',
     ];
@@ -120,6 +141,7 @@ function auth_permissions_for_role(int $role): array
     $admin = [
         'admin.dashboard.view',
         'admin.inbox.manage',
+        'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
     ];
@@ -143,7 +165,7 @@ function auth_permissions_for_role(int $role): array
 
 /**
  * @param array<string,mixed> $row
- * @return array{company_id:string,email:?string,password_hash:string,role:int,role_name:string,is_active:int}
+ * @return array{company_id:string,email:?string,password_hash:string,role:int,role_name:string,is_active:int,password_changed_at:?string}
  */
 function auth_map_user_row(array $row): array
 {
@@ -158,6 +180,9 @@ function auth_map_user_row(array $row): array
         'role' => $role,
         'role_name' => auth_role_name($role),
         'is_active' => (int) ($row['is_active'] ?? 1),
+        'password_changed_at' => isset($row['password_changed_at']) && $row['password_changed_at'] !== null
+            ? (string) $row['password_changed_at']
+            : null,
     ];
 }
 
@@ -169,7 +194,7 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
 
     $roleCol = auth_users_role_column($conn);
     $sql = "SELECT u.Company_ID AS company_id, u.Email AS email, u.password_hash,
-                   u.{$roleCol} AS role, u.is_active, u.locked_until
+                   u.{$roleCol} AS role, u.is_active, u.locked_until, u.password_changed_at
             FROM users u
             WHERE u.Company_ID = ? AND u.password_hash IS NOT NULL AND u.password_hash != ''
             LIMIT 1";
@@ -193,6 +218,27 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
     }
 
     return auth_map_user_row($row);
+}
+
+function auth_is_deactivated_account(mysqli $conn, string $companyId): bool
+{
+    if ($companyId === '') {
+        return false;
+    }
+
+    $row = db_query(
+        $conn,
+        'SELECT is_active FROM users WHERE Company_ID = ? LIMIT 1',
+        's',
+        [$companyId]
+    );
+    if (!$row || $row->num_rows === 0) {
+        return false;
+    }
+
+    $record = $row->fetch_assoc();
+
+    return ((int) ($record['is_active'] ?? 1)) === 0;
 }
 
 /**
@@ -238,6 +284,7 @@ function auth_login_session(array $user, array $permissions): void
     $_SESSION['role'] = $role;
     $_SESSION['role_name'] = $user['role_name'] ?? auth_role_name($role);
     $_SESSION['permissions'] = $permissions;
+    $_SESSION['must_change_password'] = auth_password_change_required_for_user($user) ? 1 : 0;
 
     unset($_SESSION['user_id'], $_SESSION['role_id'], $_SESSION['role_slug']);
 
@@ -250,6 +297,10 @@ function auth_login_session(array $user, array $permissions): void
 
 function auth_login_redirect_url(int $role): string
 {
+    if ((int) ($_SESSION['must_change_password'] ?? 0) === 1) {
+        return app_url('auth/change-temporary-password.php');
+    }
+
     $role = auth_normalize_role($role);
 
     return match ($role) {
@@ -257,6 +308,11 @@ function auth_login_redirect_url(int $role): string
         AUTH_ROLE_ADMIN => app_url('admin/dashboard.php'),
         default => app_url('guard/portal.php'),
     };
+}
+
+function auth_must_change_password(): bool
+{
+    return auth_is_logged_in() && (int) ($_SESSION['must_change_password'] ?? 0) === 1;
 }
 
 function auth_record_login(mysqli $conn, string $companyId): void
@@ -362,6 +418,15 @@ function auth_enforce_area_access(): void
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 
+    if (auth_must_change_password()) {
+        $isChangePasswordPage = str_contains($script, '/auth/change-temporary-password.php');
+        $isLogoutPage = str_contains($script, '/auth/logout');
+        if (!$isChangePasswordPage && !$isLogoutPage) {
+            header('Location: ' . app_url('auth/change-temporary-password.php'));
+            exit();
+        }
+    }
+
     if (str_contains($script, '/superadmin/') && !auth_role_is(AUTH_ROLE_SUPERADMIN)) {
         header('Location: ' . auth_login_redirect_url(auth_user_role()));
         exit();
@@ -401,7 +466,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
         }
     }
 
-    $stmt = $conn->prepare('SELECT Pin, Designation, Email FROM users WHERE Company_ID = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT Pin, Designation, Email, is_active FROM users WHERE Company_ID = ? LIMIT 1');
     if (!$stmt) {
         return null;
     }
@@ -411,7 +476,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$row) {
+    if (!$row || !(int) ($row['is_active'] ?? 1)) {
         return null;
     }
 
@@ -432,7 +497,7 @@ function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin)
         'email' => $row['Email'] ?? null,
         'password_hash' => '',
         'role' => $role,
-        'is_active' => 1,
+        'is_active' => (int) ($row['is_active'] ?? 1),
     ]);
 
     return [

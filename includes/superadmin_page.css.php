@@ -670,15 +670,27 @@ function superadmin_page_styles(): void
         }
 
         .badge.status-badge--active {
-            color: var(--success);
-            border-color: var(--success);
-            background: var(--success-soft);
+            color: #15803d;
+            border-color: #22c55e;
+            background: #dcfce7;
         }
 
         .badge.status-badge--inactive {
-            color: var(--danger);
-            border-color: var(--danger);
-            background: var(--danger-soft);
+            color: #b91c1c;
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        body:not(.light-mode) .badge.status-badge--active {
+            color: #86efac;
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.18);
+        }
+
+        body:not(.light-mode) .badge.status-badge--inactive {
+            color: #fca5a5;
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.18);
         }
 
         .badge--guard { background: var(--accent-blue-soft); color: var(--accent-blue); }

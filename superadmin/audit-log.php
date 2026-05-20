@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/superadmin_accountability.php';
 
 auth_require_permission('superadmin.audit.view');
 
-$perPage = 25;
+$perPage = 10;
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($page - 1) * $perPage;
 
@@ -124,7 +124,7 @@ $superadminMobileTitle = 'Audit Log';
         </div>
 
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Event history <span class="stat-hint">(<?= e((string) $total) ?>)</span></h2>
+            <h2 class="panel-title">Event history <span class="stat-hint">(<?= e((string) $total) ?>)</span></h2>
 
             <?php if ($entries === []): ?>
                 <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No audit events match your filters.</p>
@@ -171,6 +171,14 @@ $superadminMobileTitle = 'Audit Log';
 
                 <?php if ($totalPages > 1): ?>
                     <nav class="pagination" aria-label="Audit log pages">
+                        <?php if ($page > 1): ?>
+                            <?php
+                            $prevQuery = array_merge($queryBase, ['page' => $page - 1]);
+                            $prevHref = 'audit-log.php?' . http_build_query($prevQuery);
+                            ?>
+                            <a href="<?= e($prevHref) ?>" aria-label="Previous page">Prev</a>
+                        <?php endif; ?>
+
                         <?php for ($p = 1; $p <= $totalPages; $p++): ?>
                             <?php
                             $pageQuery = array_merge($queryBase, ['page' => $p]);
@@ -182,6 +190,14 @@ $superadminMobileTitle = 'Audit Log';
                                 <a href="<?= e($href) ?>"><?= $p ?></a>
                             <?php endif; ?>
                         <?php endfor; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <?php
+                            $nextQuery = array_merge($queryBase, ['page' => $page + 1]);
+                            $nextHref = 'audit-log.php?' . http_build_query($nextQuery);
+                            ?>
+                            <a href="<?= e($nextHref) ?>" aria-label="Next page">Next</a>
+                        <?php endif; ?>
                     </nav>
                 <?php endif; ?>
             <?php endif; ?>

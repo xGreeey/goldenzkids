@@ -67,6 +67,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active
 
 $search = trim((string) ($_GET['q'] ?? ''));
 $filterRole = $_GET['role'] ?? '';
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$perPage = 10;
 $params = [];
 $types = '';
 $where = [];
@@ -88,18 +90,37 @@ if ($filterRole !== '' && $filterRole !== 'all') {
     }
 }
 
-$sql = "SELECT Company_ID, Email, {$roleCol} AS role, is_active, last_login_at, created_at
-        FROM users";
+$fromSql = " FROM users";
 if ($where !== []) {
-    $sql .= ' WHERE ' . implode(' AND ', $where);
+    $fromSql .= ' WHERE ' . implode(' AND ', $where);
 }
-$sql .= ' ORDER BY created_at DESC';
+
+$totalRows = 0;
+$countSql = "SELECT COUNT(*) AS c" . $fromSql;
+if ($params === []) {
+    $countResult = $conn->query($countSql);
+} else {
+    $countResult = db_query($conn, $countSql, $types, $params);
+}
+if ($countResult) {
+    $totalRows = (int) (($countResult->fetch_assoc()['c'] ?? 0));
+}
+
+$totalPages = max(1, (int) ceil($totalRows / $perPage));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = ($page - 1) * $perPage;
+
+$sql = "SELECT Company_ID, Email, {$roleCol} AS role, is_active, last_login_at, created_at"
+    . $fromSql
+    . ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
 
 $users = [];
 if ($params === []) {
-    $result = $conn->query($sql);
+    $result = db_query($conn, $sql, 'ii', [$perPage, $offset]);
 } else {
-    $result = db_query($conn, $sql, $types, $params);
+    $result = db_query($conn, $sql, $types . 'ii', [...$params, $perPage, $offset]);
 }
 
 if ($result) {
@@ -115,6 +136,18 @@ function superadmin_role_badge(int $role): string
         AUTH_ROLE_SUPERADMIN => 'badge--super',
         default => 'badge--guard',
     };
+}
+
+function superadmin_page_url(int $targetPage, string $search, string $filterRole): string
+{
+    $q = ['page' => max(1, $targetPage)];
+    if ($search !== '') {
+        $q['q'] = $search;
+    }
+    if ($filterRole !== '' && $filterRole !== 'all') {
+        $q['role'] = $filterRole;
+    }
+    return 'users.php?' . http_build_query($q);
 }
 
 $superadminNavActive = 'users';
@@ -227,6 +260,23 @@ $superadminMobileTitle = 'User Accounts';
                         </tbody>
                     </table>
                 </div>
+                <?php if ($totalPages > 1): ?>
+                    <nav class="pagination" aria-label="Accounts pagination">
+                        <?php if ($page > 1): ?>
+                            <a href="<?= e(superadmin_page_url($page - 1, $search, (string) $filterRole)) ?>" aria-label="Previous page">Prev</a>
+                        <?php endif; ?>
+                        <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+                            <?php if ($p === $page): ?>
+                                <span class="current" aria-current="page"><?= e((string) $p) ?></span>
+                            <?php else: ?>
+                                <a href="<?= e(superadmin_page_url($p, $search, (string) $filterRole)) ?>"><?= e((string) $p) ?></a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        <?php if ($page < $totalPages): ?>
+                            <a href="<?= e(superadmin_page_url($page + 1, $search, (string) $filterRole)) ?>" aria-label="Next page">Next</a>
+                        <?php endif; ?>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
 

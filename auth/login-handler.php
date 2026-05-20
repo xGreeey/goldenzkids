@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 $company_id = '';
 $pin = '';
@@ -7,12 +8,13 @@ $company_idErr = null;
 $pin_Err = null;
 $error = null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    csrf_verify();
+
     $company_id = trim($_POST['company_id'] ?? '');
     $pin = trim($_POST['pin'] ?? '');
 
-    $d = strtotime('now');
-    $time_of_event = date('Y-m-d H:i:s', $d);
+    $time_of_event = date('Y-m-d H:i:s');
 
     if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
         $company_idErr = 'Enter a valid employee ID (example: ABC-2001-0042).';
@@ -25,61 +27,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($company_idErr === null && $pin_Err === null) {
         $company_id = strtoupper($company_id);
 
-        $stmt = $conn->prepare('SELECT Pin, Designation FROM users WHERE Company_ID = ? LIMIT 1');
-        $stmt->bind_param('s', $company_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-        $stmt->close();
+        $user = auth_find_user_by_company_id($conn, $company_id);
+        $authenticated = false;
+        $permissions = [];
 
-        $storedPin = '';
-        if ($row) {
-            // Pin column is int(6) in MySQL — compare as strings to avoid type mismatch
-            $storedPin = str_pad((string)($row['Pin'] ?? ''), 6, '0', STR_PAD_LEFT);
+        if ($user !== null && auth_verify_password($pin, $user['password_hash'])) {
+            $authenticated = true;
+            $permissions = auth_permissions_for_role($user['role']);
+
+            if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
+                $newHash = auth_hash_password($pin);
+                db_execute(
+                    $conn,
+                    'UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE Company_ID = ?',
+                    'ss',
+                    [$newHash, $company_id]
+                );
+            }
+        } else {
+            $legacy = auth_attempt_legacy_login($conn, $company_id, $pin);
+            if ($legacy !== null) {
+                $authenticated = true;
+                $user = $legacy['user'];
+                $permissions = $legacy['permissions'];
+            } elseif ($user !== null) {
+                auth_record_failed_login($conn, $company_id);
+            }
         }
 
-        if (!$row || !hash_equals($storedPin, $pin)) {
+        if (!$authenticated || $user === null) {
             $error = 'Invalid employee ID or access code. Please try again.';
         } else {
-            $designation = strtoupper(trim($row['Designation'] ?? ''));
+            $role = auth_normalize_role($user['role']);
+            $roleLabel = auth_role_label_for_recording($role);
 
-            if ($designation === 'GUARD') {
-                $log = $conn->prepare(
-                    'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)'
-                );
-                $event = 'LOGIN';
-                $role = 'GUARD';
-                $log->bind_param('ssss', $company_id, $role, $event, $time_of_event);
-                $insertOk = $log->execute();
-                $log->close();
+            $log = $conn->prepare(
+                'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)'
+            );
+            $event = 'LOGIN';
+            $log->bind_param('ssss', $company_id, $roleLabel, $event, $time_of_event);
+            $insertOk = $log->execute();
+            $log->close();
 
-                if ($insertOk) {
-                    $_SESSION['company_id'] = $company_id;
-                    $_SESSION['designation'] = 'GUARD';
-                    header('Location: ' . app_url('guard/portal.php'));
-                    exit();
-                }
-                $error = 'Unable to complete sign-in. Please contact support.';
-            } elseif ($designation === 'ADMIN') {
-                $log = $conn->prepare(
-                    'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)'
-                );
-                $event = 'LOGIN';
-                $role = 'ADMIN';
-                $log->bind_param('ssss', $company_id, $role, $event, $time_of_event);
-                $insertOk = $log->execute();
-                $log->close();
-
-                if ($insertOk) {
-                    $_SESSION['company_id'] = $company_id;
-                    $_SESSION['designation'] = 'ADMIN';
-                    header('Location: ' . app_url('admin/dashboard.php'));
-                    exit();
-                }
-                $error = 'Unable to complete sign-in. Please contact support.';
-            } else {
-                $error = 'Invalid employee ID or access code. Please try again.';
+            if ($insertOk) {
+                auth_login_session($user, $permissions);
+                auth_record_login($conn, $company_id);
+                header('Location: ' . auth_login_redirect_url($role));
+                exit();
             }
+
+            $error = 'Unable to complete sign-in. Please contact support.';
         }
     }
 }

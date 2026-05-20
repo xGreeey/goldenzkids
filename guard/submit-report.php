@@ -12,6 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     return;
 }
 
+csrf_verify();
+
 $file_error = null;
 $uploadOk = 0;
 $sent_file = '';
@@ -62,9 +64,7 @@ if (!isset($_FILES['report_scan']) || $_FILES['report_scan']['error'] !== UPLOAD
 }
 
 if ($uploadOk !== 1) {
-    $message = addslashes($file_error ?? 'Upload failed.');
-    echo "<script>alert('{$message}'); window.location.href = 'portal.php';</script>";
-    exit();
+    redirect_with_alert($file_error ?? 'Upload failed.', 'portal.php');
 }
 
 $extracted_ai_text = '';
@@ -122,20 +122,13 @@ $sql = 'INSERT INTO DGD (Company_ID, Establishment, Template_Path, Template, Tim
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    echo "<script>alert('Database error. Please contact admin.'); window.location.href = 'portal.php';</script>";
-    exit();
+    redirect_with_alert('Database error. Please contact admin.', 'portal.php');
 }
 
 $stmt->bind_param('sssssss', $company_id, $encrypted_est, $encrypted_temp_path, $template_name, $time_of_event, $encrypted_ai_text, $iv_base64);
 
 if ($stmt->execute()) {
-    echo "<script>
-            alert('Nasend na ang report! (Report successfully sent!)');
-            window.location.href = 'portal.php';
-          </script>";
-    exit();
+    redirect_with_alert('Nasend na ang report! (Report successfully sent!)', 'portal.php');
 }
 
-$dbError = addslashes($stmt->error);
-echo "<script>alert('Report failed to save: {$dbError}'); window.location.href = 'portal.php';</script>";
-exit();
+redirect_with_alert('Report failed to save. Please try again.', 'portal.php');

@@ -264,6 +264,7 @@
           
 
             <form id="forgotpin" action="" method="POST">
+                <?= csrf_field() ?>
                 <input type="hidden" id="login">
                     <div class="input-group">
                         <div class="input-label">

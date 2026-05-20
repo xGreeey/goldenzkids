@@ -1,4 +1,5 @@
-php_value display_errors On
+# Production: hide PHP errors from visitors (local dev can use php.ini)
+php_flag display_errors Off
 php_value mbstring.http_input auto
 php_value date.timezone Asia/Taipei
 
@@ -20,5 +21,18 @@ RewriteRule ^logout-admin\.php$ auth/logout-admin.php [R=301,L,NC]
 RewriteRule ^logout-guard\.php$ auth/logout-guard.php [R=301,L,NC]
 RewriteRule ^fetch_alerts\.php$ api/fetch-alerts.php [R=301,L,NC]
 
+# Block direct web access to sensitive paths
+RewriteRule ^(config|vendor|credentials|database/migrations|database/scripts|\.env)(/|$) - [F,L]
+
+# HTTPS redirect (skip localhost for XAMPP development)
 RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} !^localhost(:\d+)?$ [NC]
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(:\d+)?$ [NC]
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>

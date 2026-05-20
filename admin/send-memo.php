@@ -1,11 +1,16 @@
 <?php
 require_once __DIR__ . '/../config/app.php';
 
-if($_SERVER["REQUEST_METHOD"] == "POST") {
- $distribution_type = $_POST["distribution_type"];
- $target_guard = $_POST["target_guard"];
- $memo_type = $_POST["memo_type"];
- $body_text = $_POST["content"];
+auth_require_permission('admin.memo.send');
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+ csrf_verify();
+
+ $distribution_type = trim((string) ($_POST['distribution_type'] ?? ''));
+ $target_guard = trim((string) ($_POST['target_guard'] ?? ''));
+ $memo_type = trim((string) ($_POST['memo_type'] ?? ''));
+ $body_text = trim((string) ($_POST['content'] ?? ''));
+ $company_id = (string) ($_SESSION['company_id'] ?? '');
     
    
     
@@ -20,11 +25,8 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
  $stmt2 -> bind_param("s", $company_id);
 
 
-if ($stmt1 ->execute() AND $stmt2 -> execute()) {
-echo   "<script> alert('Memo sent successfully! (Nasend na ang memo!)');
-                window.location.href = 'dashboard.php';
-              </script>;";
-    
+if ($stmt1->execute() && $stmt2->execute()) {
+    redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'dashboard.php');
 }
  
 }

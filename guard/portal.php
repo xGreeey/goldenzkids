@@ -1,4 +1,8 @@
-<?php require_once __DIR__ . '/../config/app.php'; require __DIR__ . '/submit-report.php'; ?>
+<?php
+require_once __DIR__ . '/../config/app.php';
+auth_require_permission('guard.portal.access');
+require __DIR__ . '/submit-report.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -145,6 +149,7 @@
         .footer-logo { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-gold); margin-bottom: 5px; filter: grayscale(30%); }
         
         /* --- MOBILE RESPONSIVE FIXES --- */
+<?= mobile_base_css() ?>
         @media (max-width: 768px) {
             header { flex-direction: column; height: auto; padding: 20px; gap: 15px; text-align: center; } 
             .nav-left { flex-direction: column; gap: 10px; }
@@ -163,7 +168,7 @@
 
     <div class="top-bar">
         <div class="marquee-content" style="text-transform: uppercase; font-weight: bold; color: var(--accent-gold);">
-            <?= $marquee_text ?? 'ALL SYSTEMS SECURE // NO CRITICAL ALERTS' ?> <?= $marquee_text ?? 'ALL SYSTEMS SECURE // NO CRITICAL ALERTS' ?>
+            <?= e($marquee_text ?? 'ALL SYSTEMS SECURE // NO CRITICAL ALERTS') ?> <?= e($marquee_text ?? 'ALL SYSTEMS SECURE // NO CRITICAL ALERTS') ?>
         </div>
     </div>
 
@@ -181,13 +186,17 @@
                 <i class="fa-solid fa-sun"></i>
             </button>
 
-            <a href="../auth/logout-guard.php" class="btn btn-portal">LOGOUT</a>
+            <form method="POST" action="../auth/logout-guard.php" style="display:inline;margin:0;">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-portal" style="border:none;cursor:pointer;font:inherit;">LOGOUT</button>
+            </form>
         </nav>
     </header>
 
     <div class="main-container">
 
         <form action="" method="POST" enctype="multipart/form-data">
+            <?= csrf_field() ?>
        
             <div class="portal-section">
                 <span class="section-tag">[HAKBANG 01 / STEP 01]</span>
@@ -262,7 +271,9 @@
                 if (!btnDiv.dataset.originalHtml) {
                     btnDiv.dataset.originalHtml = btnDiv.innerHTML;
                 }
-                btnDiv.innerHTML = `✅ UPLOADED NA (UPLOADED):<br><span style="font-family: 'Roboto Mono'; font-size: 0.8rem; color: #00ff00;">${fileName}</span>`;
+                const safeName = document.createElement('div');
+                safeName.textContent = fileName;
+                btnDiv.innerHTML = '✅ UPLOADED NA (UPLOADED):<br><span style="font-family: Roboto Mono; font-size: 0.8rem; color: #00ff00;">' + safeName.innerHTML + '</span>';
             }
         }
 

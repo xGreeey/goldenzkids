@@ -113,6 +113,7 @@ function auth_permissions_for_role(int $role): array
     $guard = [
         'guard.portal.access',
         'guard.inbox.view',
+        'guard.messaging.send',
         'guard.corner.view',
         'guard.reports.submit',
     ];
@@ -120,6 +121,7 @@ function auth_permissions_for_role(int $role): array
     $admin = [
         'admin.dashboard.view',
         'admin.inbox.manage',
+        'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
     ];

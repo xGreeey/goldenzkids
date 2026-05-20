@@ -1,9 +1,27 @@
 <?php
 require_once __DIR__ . '/php/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/internal_messaging.php';
 
 auth_require_permission('guard.inbox.view');
 
-$company_id = $_SESSION['company_id'];
+$company_id = (string) $_SESSION['company_id'];
+
+$messagingAvailable = internal_messages_table_exists($conn);
+$messagingViewerId = $company_id;
+$messagingContacts = internal_messaging_list_contacts($conn, auth_user_role());
+$messagingActivePeer = isset($_GET['peer']) ? trim((string) $_GET['peer']) : null;
+if ($messagingActivePeer !== null && $messagingActivePeer !== ''
+    && !internal_messaging_validate_peer($conn, $messagingActivePeer, internal_messaging_peer_role(auth_user_role()))) {
+    $messagingActivePeer = null;
+}
+if (($messagingActivePeer === null || $messagingActivePeer === '') && count($messagingContacts) === 1) {
+    $messagingActivePeer = $messagingContacts[0]['company_id'];
+}
+$messagingThread = ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '')
+    ? internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer)
+    : [];
+$messagingPostUrl = guard_url('send-internal-message.php');
+$messagingReturnUrl = guard_url('inbox.php');
 
 $guards_result = db_query($conn, 'SELECT Company_ID, First_Name, Last_Name, Middle_Name FROM guards');
 $guard_dict = [];
@@ -23,10 +41,34 @@ $reports_result = db_query(
 guard_head('Inbox', 'guard-portal guard-inbox');
 guard_layout_header_back();
 ?>
+    <style>
+<?php readfile(dirname(__DIR__) . '/admin/assets/css/messaging-board.css'); ?>
+        body.guard-portal.guard-inbox .messaging-board {
+            --bg-panel: rgba(17, 13, 36, 0.92);
+            --border: rgba(245, 196, 0, 0.35);
+            --border-strong: rgba(245, 196, 0, 0.5);
+            --bg-elevated: rgba(0, 0, 0, 0.25);
+            --app-ink-deep: var(--accent-gold);
+            --app-ink-muted: rgba(255, 255, 255, 0.72);
+            --accent-blue-soft: rgba(245, 196, 0, 0.15);
+            --accent-blue: var(--accent-gold);
+            --gradient-primary-btn: var(--gradient-brand-deep);
+        }
+        body.guard-portal.guard-inbox .inbox-section-title {
+            color: var(--accent-gold);
+            margin: 1.5rem 0 1rem;
+            font-size: 1rem;
+            letter-spacing: 0.06em;
+        }
+    </style>
     <div class="container">
         <div class="page-header">
-            <h1 class="page-title">ALERT CENTER</h1>
+            <h1 class="page-title">INBOX</h1>
         </div>
+
+        <?php require dirname(__DIR__) . '/includes/messaging_board.php'; ?>
+
+        <h2 class="inbox-section-title">MY REPORT ALERTS</h2>
 
         <div class="notif-list" id="alert-feed">
             <?php if ($reports_result && $reports_result->num_rows > 0): ?>
@@ -108,5 +150,13 @@ guard_layout_header_back();
         <span class="close-viewer" aria-hidden="true">&times;</span>
         <img id="fullScreenImg" src="" alt="Full screen scan">
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const thread = document.getElementById('messagingThreadScroll');
+            if (thread) {
+                thread.scrollTop = thread.scrollHeight;
+            }
+        });
+    </script>
 <?php
 guard_footer();

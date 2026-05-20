@@ -22,7 +22,6 @@ $reports_week_query = $conn->query('SELECT COUNT(*) AS total FROM dgd WHERE YEAR
 $total_weekly = $reports_week_query ? (int) $reports_week_query->fetch_assoc()['total'] : 0;
 
 $roster_query = $conn->query('SELECT Company_ID, First_Name, Last_Name, Post_Assigned FROM guards ORDER BY Last_Name ASC LIMIT 10');
-$memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
 
 $adminNavActive = 'dashboard';
 ?>
@@ -45,7 +44,7 @@ $adminNavActive = 'dashboard';
 <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Operations Dashboard</h1>
-            <p class="page-subtitle">Monitor field personnel, daily guard reports, and pending review items. Compose secured internal communications from this workspace.</p>
+            <p class="page-subtitle">Monitor field personnel, daily guard reports, and pending review items.</p>
         </header>
 
         <section class="kpi-grid" aria-label="Key performance indicators">
@@ -159,139 +158,10 @@ $adminNavActive = 'dashboard';
                 </section>
             </div>
 
-            <section class="panel panel--compose" aria-labelledby="compose-heading">
-                <div class="panel-head">
-                    <h2 id="compose-heading" class="panel-title">
-                        <i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i>
-                        Internal communications
-                    </h2>
-                </div>
-                <div class="panel-body">
-                    <form action="send-memo.php" method="POST" id="memoForm" novalidate>
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="distribution_type" id="distTypeValue" value="">
-
-                        <span class="form-section-label">Delivery scope<span class="required-mark">*</span></span>
-                        <div class="delivery-options" role="group" aria-label="Delivery scope">
-                            <button type="button" class="delivery-btn" id="btnBroadcast" data-protocol="broadcast"<?= ui_tooltip('Send to all personnel on roster') ?>>
-                                <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
-                                <span class="delivery-btn-title">Company-wide</span>
-                                <span class="delivery-btn-desc">Send to all personnel on roster</span>
-                            </button>
-                            <button type="button" class="delivery-btn" id="btnTargeted" data-protocol="targeted"<?= ui_tooltip('Send to one selected employee') ?>>
-                                <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
-                                <span class="delivery-btn-title">Individual recipient</span>
-                                <span class="delivery-btn-desc">Directed memo, including notice to explain</span>
-                            </button>
-                        </div>
-
-                        <div id="memoDetailsContainer" class="form-details">
-                            <div id="targetGuardContainer" class="recipient-block">
-                                <div class="field">
-                                    <label for="targetGuardInput" class="field-label field-label--alert">Select recipient<span class="required-mark">*</span></label>
-                                    <select name="target_guard" id="targetGuardInput" class="field-select">
-                                        <option value="" disabled selected>Choose an employee…</option>
-                                        <?php
-                                        if ($memo_guards_query && $memo_guards_query->num_rows > 0) {
-                                            $memo_guards_query->data_seek(0);
-                                            while ($row = $memo_guards_query->fetch_assoc()) {
-                                                $label = htmlspecialchars((string) $row['Last_Name'])
-                                                    . ', ' . htmlspecialchars((string) $row['First_Name'])
-                                                    . ' (ID: ' . htmlspecialchars((string) $row['Company_ID']) . ')';
-                                                echo '<option value="' . htmlspecialchars((string) $row['Company_ID']) . '">' . $label . '</option>';
-                                            }
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                                <div class="field">
-                                    <label for="deadlineDate" class="field-label field-label--alert">Response due date</label>
-                                    <input type="date" name="deadline_date" id="deadlineDate" class="field-input">
-                                    <p class="field-hint">Optional — required for compliance-related notices</p>
-                                </div>
-                            </div>
-
-                            <div class="field">
-                                <label for="memoTypeInput" class="field-label">Message category<span class="required-mark">*</span></label>
-                                <select name="memo_type" id="memoTypeInput" class="field-select" required>
-                                    <option value="" disabled selected>Select a category…</option>
-                                    <option value="DIRECTIVE">Policy directive — rules and procedure updates</option>
-                                    <option value="NOTICE">General notice — informational updates</option>
-                                    <option value="NTE">Notice to explain — formal compliance request</option>
-                                    <option value="BOLO">Security advisory — threat or watch notice</option>
-                                </select>
-                            </div>
-
-                            <div class="field">
-                                <label for="memoContentInput" class="field-label">Memo body<span class="required-mark">*</span></label>
-                                <textarea name="content" id="memoContentInput" class="field-textarea" rows="8" placeholder="Enter the official memo text. Content is encrypted (AES-256) before storage."></textarea>
-                            </div>
-
-                            <button type="submit" name="generate_memo" class="btn-primary"<?= ui_tooltip('Encrypt and publish secured memo') ?>>
-                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
-                                Publish secured memo
-                            </button>
-
-                            <p class="security-note">
-                                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
-                                <span>All memo content is encrypted at rest. Distribution is logged for audit compliance.</span>
-                            </p>
-                        </div>
-                    </form>
-                </div>
-            </section>
         </div>
-        </main>
-    </div>
+</main>
 
     <script>
-        function setProtocol(type) {
-            const distTypeInput = document.getElementById('distTypeValue');
-            const detailsContainer = document.getElementById('memoDetailsContainer');
-            const targetContainer = document.getElementById('targetGuardContainer');
-            const targetInput = document.getElementById('targetGuardInput');
-            const btnBroadcast = document.getElementById('btnBroadcast');
-            const btnTargeted = document.getElementById('btnTargeted');
-
-            distTypeInput.value = type;
-            detailsContainer.classList.add('is-visible');
-
-            if (type === 'broadcast') {
-                btnBroadcast.classList.add('active');
-                btnTargeted.classList.remove('active');
-                targetContainer.classList.remove('is-visible');
-                targetInput.value = '';
-            } else if (type === 'targeted') {
-                btnTargeted.classList.add('active');
-                btnBroadcast.classList.remove('active');
-                targetContainer.classList.add('is-visible');
-            }
-        }
-
-        document.getElementById('btnBroadcast').addEventListener('click', () => setProtocol('broadcast'));
-        document.getElementById('btnTargeted').addEventListener('click', () => setProtocol('targeted'));
-
-        document.getElementById('memoForm').addEventListener('submit', function (event) {
-            const errors = [];
-            const distType = document.getElementById('distTypeValue').value;
-            const memoType = document.getElementById('memoTypeInput').value;
-            const content = document.getElementById('memoContentInput').value.trim();
-
-            if (!distType) {
-                errors.push('Delivery scope (company-wide or individual)');
-            } else if (distType === 'targeted' && !document.getElementById('targetGuardInput').value) {
-                errors.push('Recipient employee');
-            }
-
-            if (!memoType) errors.push('Message category');
-            if (content === '') errors.push('Memo body');
-
-            if (errors.length > 0) {
-                event.preventDefault();
-                alert('Please complete the required fields before publishing:\n\n• ' + errors.join('\n• '));
-            }
-        });
-
         document.addEventListener('DOMContentLoaded', function () {
             const body = document.body;
             const pendingCount = <?= $total_pending ?>;

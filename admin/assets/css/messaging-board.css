@@ -1,0 +1,225 @@
+.messaging-board {
+    background: var(--bg-panel, var(--app-card-bg));
+    border: 1px solid var(--border, var(--app-border));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm, var(--app-shadow-sm));
+    margin-bottom: 0;
+    overflow: hidden;
+    min-height: 320px;
+}
+
+.messaging-board__head {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.messaging-board__title {
+    margin: 0 0 6px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--app-ink-deep);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.messaging-board__subtitle {
+    margin: 0;
+    font-size: var(--font-body-size-sm);
+    color: var(--app-ink-muted);
+    line-height: 1.45;
+}
+
+.messaging-board__notice,
+.messaging-board__empty,
+.messaging-board__placeholder {
+    padding: 20px 22px;
+    margin: 0;
+    font-size: var(--font-body-size-sm);
+    color: var(--app-ink-muted);
+}
+
+.messaging-board__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 320px;
+}
+
+@media (min-width: 768px) {
+    .messaging-board__layout {
+        grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+    }
+}
+
+.messaging-board__contacts {
+    border-bottom: 1px solid var(--border);
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+    .messaging-board__contacts {
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+        max-height: none;
+    }
+}
+
+.messaging-contact-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+}
+
+.messaging-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+}
+
+.messaging-contact:hover {
+    background: var(--bg-elevated);
+}
+
+.messaging-contact.is-active {
+    background: var(--accent-blue-soft);
+    border: 1px solid var(--accent-blue);
+}
+
+.messaging-contact__label {
+    font-size: var(--font-body-size-sm);
+    font-weight: 600;
+}
+
+.messaging-contact__id {
+    font-size: var(--font-body-size-xs);
+    color: var(--app-ink-muted);
+}
+
+.messaging-contact__badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    min-width: 1.25rem;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.messaging-board__thread {
+    display: flex;
+    flex-direction: column;
+    min-height: 280px;
+}
+
+.messaging-thread__header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.messaging-thread__meta {
+    font-size: var(--font-body-size-xs);
+    color: var(--app-ink-muted);
+}
+
+.messaging-thread__messages {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 360px;
+}
+
+.messaging-bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+}
+
+.messaging-bubble--mine {
+    align-self: flex-end;
+    background: var(--accent-blue-soft);
+    border-color: var(--accent-blue);
+}
+
+.messaging-bubble__text {
+    margin: 0 0 6px;
+    font-size: var(--font-body-size-sm);
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.messaging-bubble__time {
+    font-size: var(--font-body-size-xs);
+    color: var(--app-ink-muted);
+}
+
+.messaging-compose {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    align-items: flex-end;
+}
+
+.messaging-compose__input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--font-body-size-sm);
+    resize: vertical;
+}
+
+.messaging-compose__submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-primary-btn);
+    color: var(--color-white);
+    font-weight: 700;
+    font-size: var(--font-body-size-sm);
+    cursor: pointer;
+}
+
+.inbox-section-title {
+    margin: 0 0 14px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--app-ink-deep);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

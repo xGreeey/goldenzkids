@@ -54,7 +54,6 @@ if (!empty($error)) {
                 <div class="input-group">
                     <div class="label-row">
                         <label class="input-label" for="password">Password</label>
-                        <a href="auth/forgot-access-code.php" class="forgot-link">Forgot password?</a>
                     </div>
                     <div class="input-wrap">
                         <input
@@ -80,6 +79,9 @@ if (!empty($error)) {
                 <button type="submit" class="btn-signin" id="submitBtn">
                     <span id="submitBtnText">Sign in</span>
                 </button>
+                <p class="form-footer">
+                    <a href="<?= e(app_url('auth/forgot-access-code.php')) ?>" class="forgot-link">Forgot password?</a>
+                </p>
             </form>
 <?php
 auth_card_support_footer('Need assistance?', 'Contact your site supervisor or the HR department.');

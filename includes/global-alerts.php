@@ -5,7 +5,7 @@
         right: -110%;
         background: var(--bg-surface, #f9fafb);
         border-left: 4px solid var(--brand-accent, #a89b7a);
-        color: var(--text-primary, #3d4a5c);
+        color: var(--text-primary, #003049);
         padding: 16px;
         border-radius: 4px;
         box-shadow: -5px 10px 30px rgba(0,0,0,0.8);
@@ -14,7 +14,7 @@
         gap: 12px;
         z-index: 9999;
         transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-family: var(--font-body-family, 'Inter', system-ui, sans-serif);
         width: min(350px, calc(100vw - 32px));
         max-width: 100%;
     }
@@ -27,7 +27,7 @@
     }
     .toast-icon {
         font-size: 2rem;
-        color: var(--brand-accent, #a89b7a);
+        color: var(--brand-accent-text, var(--brand-accent, #9a8200));
         animation: pulse 2s infinite;
     }
     @keyframes pulse {
@@ -68,8 +68,14 @@
 
         // 2. The Knocking Function
         function checkNewAlerts() {
-            fetch('<?= app_url('api/fetch-alerts.php') ?>')
-                .then(response => response.json())
+            fetch('<?= app_url('api/fetch-alerts.php') ?>', { credentials: 'same-origin' })
+                .then(response => {
+                    const type = response.headers.get('content-type') || '';
+                    if (!response.ok || !type.includes('application/json')) {
+                        throw new Error('Invalid alert response');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     let currentCount = data.count;
 

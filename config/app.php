@@ -7,6 +7,8 @@ require_once __DIR__ . '/session.php';
 require_once APP_ROOT . '/includes/security.php';
 require_once APP_ROOT . '/includes/db.php';
 require_once APP_ROOT . '/includes/auth.php';
+require_once APP_ROOT . '/includes/theme.php';
+require_once APP_ROOT . '/includes/admin_shell.php';
 
 auth_enforce_area_access();
 

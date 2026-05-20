@@ -87,7 +87,7 @@ function migrate_run_sql_file(mysqli $conn, string $path): void
     }
 }
 
-migrate_out('ABC Security Agency — database migrations');
+migrate_out(app_agency_name() . ' — database migrations');
 migrate_out(str_repeat('-', 50));
 
 migrate_ensure_tracking_table($conn);

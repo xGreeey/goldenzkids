@@ -16,12 +16,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     $time_of_event = date('Y-m-d H:i:s');
 
-    if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
-        $company_idErr = 'Enter a valid employee ID (example: ABC-2001-0042).';
+    if ($company_id === '') {
+        $company_idErr = 'Please enter your username.';
+    } elseif (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
+        $company_idErr = 'Please check your username.';
     }
 
-    if (!preg_match('/^[0-9]{6}$/', $pin)) {
-        $pin_Err = 'Access code must be exactly 6 digits.';
+    if ($pin === '') {
+        $pin_Err = 'Please enter your password.';
+    } elseif (!preg_match('/^[0-9]{6}$/', $pin)) {
+        $pin_Err = 'Please check your password.';
     }
 
     if ($company_idErr === null && $pin_Err === null) {
@@ -56,7 +60,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         if (!$authenticated || $user === null) {
-            $error = 'Invalid employee ID or access code. Please try again.';
+            $error = 'Invalid username or password. Please try again.';
         } else {
             $role = auth_normalize_role($user['role']);
             $roleLabel = auth_role_label_for_recording($role);
@@ -69,14 +73,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $insertOk = $log->execute();
             $log->close();
 
-            if ($insertOk) {
-                auth_login_session($user, $permissions);
-                auth_record_login($conn, $company_id);
-                header('Location: ' . auth_login_redirect_url($role));
-                exit();
+            if (!$insertOk) {
+                error_log('Login audit insert failed for ' . $company_id . ': ' . $conn->error);
             }
 
-            $error = 'Unable to complete sign-in. Please contact support.';
+            auth_login_session($user, $permissions);
+            auth_record_login($conn, $company_id);
+            header('Location: ' . auth_login_redirect_url($role));
+            exit();
         }
     }
 }

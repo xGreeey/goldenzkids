@@ -2,51 +2,61 @@
 declare(strict_types=1);
 
 $adminNavActive = $adminNavActive ?? 'dashboard';
-$adminMobileTitle = $adminMobileTitle ?? 'Operations';
+$adminProfile = admin_sidebar_profile();
 ?>
-<div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
-
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
-        <img src="https://i.imgur.com/uOClOiX.jpeg" alt="ABC Security" class="brand-logo" onerror="this.src='https://via.placeholder.com/42/0f2744/c9a227?text=ABC'">
-        <div class="brand-text">
-            <span class="brand-name">ABC Security Agency</span>
-            <span class="brand-tagline">Enterprise Operations Portal</span>
-        </div>
+        <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo">
     </div>
 
     <nav class="sidebar-nav" aria-label="Workspace">
-        <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?>>
+        <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Operations dashboard') ?>>
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?>>
+        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Review guard reports') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
-            Report Inbox
+            Inbox
         </a>
     </nav>
 
     <div class="sidebar-footer">
-        <form method="POST" action="../auth/logout-admin.php" class="sidebar-logout-form">
-            <?= csrf_field() ?>
-            <button type="submit" class="sidebar-link sidebar-link--signout">
-                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-                Sign Out
-            </button>
-        </form>
-    </div>
-    <div class="sidebar-appearance">
-        <button type="button" id="themeToggle" class="btn-appearance" title="Switch to dark mode" aria-label="Toggle light or dark appearance">
-            <i class="fa-solid fa-moon" aria-hidden="true"></i>
-            Appearance
-        </button>
+        <div class="sidebar-footer-user">
+            <span class="sidebar-footer-name"><?= e($adminProfile['name']) ?></span>
+            <div class="sidebar-footer-meta">
+                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
+                <span class="sidebar-footer-email" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['email']) ?></span>
+            </div>
+        </div>
+
+        <div class="sidebar-footer-settings">
+            <div class="sidebar-footer-settings-row">
+                <span class="sidebar-footer-label">Settings</span>
+                <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
+                    <a href="#" class="sidebar-footer-icon" aria-label="Audit Logs"<?= ui_tooltip('Audit logs', 'bottom') ?>>
+                        <?= admin_sidebar_icon('audit') ?>
+                    </a>
+                    <a href="#" class="sidebar-footer-icon" aria-label="Settings"<?= ui_tooltip('Account settings', 'bottom') ?>>
+                        <?= admin_sidebar_icon('settings') ?>
+                    </a>
+                    <form method="POST" action="../auth/logout-admin.php" class="sidebar-footer-logout">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="sidebar-footer-icon" aria-label="Sign Out"<?= ui_tooltip('Sign out', 'bottom') ?>>
+                            <?= admin_sidebar_icon('logout') ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="sidebar-footer-theme">
+                <?= theme_toggle_markup([
+                    'id' => 'sidebarThemeToggle',
+                    'mode' => 'light-class',
+                    'title' => 'Toggle light or dark appearance',
+                    'tipPosition' => 'bottom',
+                ]) ?>
+            </div>
+        </div>
     </div>
 </aside>
 
 <div class="app-shell">
-    <div class="mobile-topbar">
-        <button type="button" class="btn-menu" id="sidebarToggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="appSidebar">
-            <i class="fa-solid fa-bars" aria-hidden="true"></i>
-        </button>
-        <span class="mobile-topbar-title"><?= e($adminMobileTitle) ?></span>
-    </div>

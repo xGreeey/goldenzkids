@@ -15,17 +15,20 @@ require_once $appRoot . '/includes/auth.php';
 $companyId = strtoupper(trim($argv[1] ?? ''));
 $password = $argv[2] ?? '';
 $roleInput = trim($argv[3] ?? '');
-$email = isset($argv[4]) ? trim($argv[4]) : null;
+$email = isset($argv[4]) ? trim($argv[4]) : '';
+if ($email === '') {
+    $email = strtolower($companyId) . '@noemail.local';
+}
 
 if ($companyId === '' || $password === '' || $roleInput === '') {
     fwrite(STDERR, "Usage: php database/scripts/create_user.php COMPANY_ID PASSWORD ROLE [EMAIL]\n");
     fwrite(STDERR, "  ROLE: 0|headguard  1|admin  2|superadmin\n");
-    fwrite(STDERR, "  Example: php database/scripts/create_user.php ABC-2001-0042 123456 admin\n");
+    fwrite(STDERR, "  Example: php database/scripts/create_user.php COMPANY_ID 123456 admin\n");
     exit(1);
 }
 
 if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $companyId)) {
-    fwrite(STDERR, "Invalid company_id format (expected ABC-2###-####).\n");
+    fwrite(STDERR, "Invalid company_id format.\n");
     exit(1);
 }
 

@@ -9,7 +9,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
 $time_of_event = date('Y-m-d H:i:s');
 $company_id = (string) ($_SESSION['company_id'] ?? '');
-$role = 'ADMIN';
+$role = (string) ($_SESSION['designation'] ?? 'ADMIN');
+if (!in_array($role, ['ADMIN', 'SUPERADMIN', 'HEADGUARD', 'GUARD'], true)) {
+    $role = auth_role_label_for_recording(auth_role());
+}
 $event = 'LOGOUT';
 
 $logging_out = false;
@@ -29,7 +32,7 @@ if ($company_id !== '') {
     );
 }
 
-if ($logging_out) {
+if ($logging_out || $company_id !== '') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();

@@ -1,364 +1,126 @@
-<?php require_once __DIR__ . '/../config/app.php'; require __DIR__ . '/forgot-access-api.php'; ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security Agency | Login Terminal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Antic&family=Oswald:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* BRAND COLORS */
-            --primary-blue: #1e153f;
-            --darker-blue: #17162f;
-            --accent-gold: #febd59;
-            
-            /* UI COLORS */
-            --text-white: #ffffff;
-            --text-gray: #e0e0e0;
-            --bg-light: #f4f6f8;
-            --panel-bg: #110d24;
-            --input-bg: #110d24;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Antic', 'Roboto', 'Arial', sans-serif; 
-            background-color: var(--primary-blue);
-            color: var(--text-white);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
-
-        h1, h2, h3, h4, .nav-link, .btn {
-            font-family: 'Oswald', sans-serif; 
-            text-transform: uppercase;
-        }
-
-        header {
-            background-color: var(--darker-blue);
-            padding: 0 5%;
-            height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 3px solid var(--accent-gold);
-            z-index: 100;
-        }
-
-        .nav-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .logo-img {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--accent-gold);
-        }
-
-        .agency-name {
-            font-family: 'Oswald', sans-serif; 
-            font-size: 1.2rem; 
-            letter-spacing: 1px;
-            line-height: 1.1;
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--primary-blue);
-            padding: 40px 20px;
-        }
-
-        .login-card {
-            background-color: var(--panel-bg);
-            border: 1px solid rgba(254, 189, 89, 0.3);
-            width: 100%;
-            max-width: 500px;
-            padding: 40px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            position: relative;
-        }
-
-        .login-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-        }
-
-        .login-title {
-            color: var(--accent-gold);
-            font-size: 2rem;
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-            border-bottom: 1px solid #ffffff30;
-            padding-bottom: 15px;
-        }
-
-        .login-subtitle {
-            font-family: 'Roboto Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--text-white);
-            margin-bottom: 30px;
-            opacity: 0.9;
-        }
-
-        .role-toggle {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .btn-role {
-            flex: 1;
-            padding: 15px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 1rem;
-            letter-spacing: 1px;
-            cursor: pointer;
-            text-align: center;
-            border: 1px solid #ffffff30;
-            background: transparent;
-            color: #ffffff;
-            transition: 0.3s;
-        }
-
-        .btn-role.active {
-            background-color: var(--accent-gold);
-            color: var(--darker-blue);
-            border-color: var(--accent-gold);
-            font-weight: bold;
-        }
-
-        .btn-role:hover:not(.active) {
-            border-color: var(--accent-gold);
-        }
-
-        .input-group {
-            margin-bottom: 25px;
-        }
-
-       
-
-        .input-label {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-white);
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.85rem;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .index {
-            color: var(--accent-gold);
-            text-decoration: underline;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--input-bg);
-            border: 1px solid #ffffff30;
-            color: var(--text-white);
-            font-family: 'Roboto', sans-serif;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        .form-input:focus {
-            border-color: var(--accent-gold);
-            background-color: var(--darker-blue);
-        }
-
-        .form-input::placeholder {
-            color: rgba(255, 255, 255, 0.3);
-            font-style: italic;
-            font-size: 0.9rem;
-        }
-
-        .btn-authorize {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--accent-gold);
-            color: var(--darker-blue);
-            border: none;
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.1rem;
-            font-weight: bold;
-            letter-spacing: 2px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: 0.3s;
-        }
-
-        .btn-authorize:hover {
-            background-color: #ffcf87;
-            box-shadow: 0 0 15px rgba(254, 189, 89, 0.4);
-        }
-
-        .first-time-link {
-            display: block;
-            text-align: center;
-            margin-top: 30px;
-            color: var(--accent-gold);
-            font-family: 'Roboto Mono', monospace;
-            font-size: 0.8rem;
-            text-decoration: none;
-            opacity: 0.8;
-            padding-top: 20px;
-            border-top: 1px dotted #ffffff20;
-        }
-
-        .first-time-link:hover {
-            opacity: 1;
-            text-decoration: underline;
-        }
-
-        /* Hide admin inputs by default */
-        #admin-inputs {
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            header { flex-direction: column; height: auto; padding: 20px; text-align: center; }
-            .nav-left { flex-direction: column; }
-            .login-card { padding: 25px; }
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="nav-left">
-            <img src="https://i.imgur.com/uOClOiX.jpeg" alt="Logo" class="logo-img">
-            <div class="agency-name">ABC SECURITY AGENCY
-        </div>
-    </header>
-
-    <div class="main-content">
-        
-        <div class="login-card">
-            <h1 class="login-title">Pin Recovery</h1>
-          
-
-            <form id="forgotpin" action="" method="POST">
-                <?= csrf_field() ?>
-                <input type="hidden" id="login">
-                    <div class="input-group">
-                        <div class="input-label">
-                            <span>Company ID</span>
-                        </div>
-                         <input type="text" name="company_id" id="company_id" class="form-input" placeholder="I-type ang Email na binigay ng HQ" required>
-                             <div class="input-label">
-                            <span>One Time Password</span>
-                        </div>
-                            <input type="password" name="otp" id="otp" class="form-input" placeholder="• • • • • •" maxlength="6" required inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g,'');">
-                         <a href="<?= app_url('index.php') ?>" class="index">Back</a>
-                <button type="submit" class="btn-authorize" id="submit-btn-text">AUTHORIZE FIELD ACCESS</button>
-                    </div>
-                </div>
-                 
-                
-            </form>
-        </div>
-
-    </div>
 <?php
-  if ($email_Err != null) {
-    ?><style>.company_id-error{display: block; color: red;}</style><?php
-  }
+require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/auth_layout.php';
 
+$otp_Err = null;
+$otp_success = null;
+$username = '';
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL); 
-  
+if (empty($_SESSION['password_reset_email'])) {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        header('Location: ' . app_url('auth/forgot-access-code.php'));
+        exit();
+    }
+}
 
-?>
-    <script>
-       /* function selectRole(role) {
-            // Get Elements
-            const btnGuard = document.getElementById('btnGuard');
-            const btnAdmin = document.getElementById('btnAdmin');
-            const guardInputs = document.getElementById('guard-inputs');
-            const adminInputs = document.getElementById('admin-inputs');
-            const roleInput = document.getElementById('login_role');
-            const subtitleText = document.getElementById('subtitle-text');
-            const submitBtnText = document.getElementById('submit-btn-text');
-            const firstTimeLink = document.getElementById('first-time-link');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['otp'])) {
+    csrf_verify();
 
-            // Form Fields for toggling 'required' attribute
-            const gId = document.getElementById('guard_id');
-            const gPin = document.getElementById('guard_pin');
-            const aUser = document.getElementById('admin_user');
-            const aPass = document.getElementById('admin_pass');
+    $username = trim((string) ($_POST['company_id'] ?? ''));
+    $company_id = strtoupper($username);
+    $otp = trim((string) ($_POST['otp'] ?? ''));
 
-            if (role === 'guard') {
-                // UI Changes
-                btnGuard.classList.add('active');
-                btnAdmin.classList.remove('active');
-                guardInputs.style.display = 'block';
-                adminInputs.style.display = 'none';
-                firstTimeLink.style.display = 'block';
-                
-                // Text Updates
-                subtitleText.innerText = '// AUTHENTICATION SEQUENCE // FIELD UNIT';
-                submitBtnText.innerText = 'AUTHORIZE FIELD ACCESS';
-                
-                // Backend Value
-                roleInput.value = 'guard';
+    if ($username === '') {
+        $otp_Err = 'Please enter your username.';
+    } elseif (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
+        $otp_Err = 'Please check your username.';
+    } elseif ($otp === '') {
+        $otp_Err = 'Please enter your verification code.';
+    } elseif (!preg_match('/^[0-9]{6}$/', $otp)) {
+        $otp_Err = 'Please check your verification code.';
+    } elseif (empty($_SESSION['password_reset_otp']) || empty($_SESSION['password_reset_email'])) {
+        $otp_Err = 'Your session expired. Please start again from forgot password.';
+    } elseif (time() > (int) ($_SESSION['password_reset_otp_expires'] ?? 0)) {
+        $otp_Err = 'Your session expired. Please request a new reset link.';
+    } else {
+        $stmt = $conn->prepare(
+            'SELECT Company_ID FROM users WHERE Company_ID = ? AND Email = ? LIMIT 1'
+        );
+        $email = (string) $_SESSION['password_reset_email'];
+        $stmt->bind_param('ss', $company_id, $email);
+        $stmt->execute();
+        $match = $stmt->get_result();
+        $stmt->close();
 
-                // Toggle Required Attributes (Prevents HTML5 validation errors on hidden fields)
-                gId.required = true;
-                gPin.required = true;
-                aUser.required = false;
-                aPass.required = false;
+        if (!$match || $match->num_rows !== 1) {
+            $otp_Err = 'We could not verify those details. Please try again or contact HR.';
+        } elseif (!hash_equals((string) $_SESSION['password_reset_otp'], $otp)) {
+            $otp_Err = 'We could not verify those details. Please try again or contact HR.';
+        } else {
+            unset($_SESSION['password_reset_otp'], $_SESSION['password_reset_otp_expires']);
+            $otp_success = 'Verification complete. Contact HR to finish resetting your password.';
+        }
+    }
+}
 
-            } else {
-                // UI Changes
-                btnAdmin.classList.add('active');
-                btnGuard.classList.remove('active');
-                adminInputs.style.display = 'block';
-                guardInputs.style.display = 'none';
-                firstTimeLink.style.display = 'none'; // Admins don't need the PIN creation link
-                
-                // Text Updates
-                subtitleText.innerText = '// AUTHENTICATION SEQUENCE // CENTRAL COMMAND';
-                submitBtnText.innerText = 'AUTHORIZE CENTRAL ACCESS';
-                
-                // Backend Value
-                roleInput.value = 'admin';
+$isLocal = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1'], true)
+    || str_contains($_SERVER['HTTP_HOST'] ?? '', 'localhost');
+if ($isLocal) {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '0');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+}
 
-                // Toggle Required Attributes
-                aUser.required = true;
-                aPass.required = true;
-                gId.required = false;
-                gPin.required = false;
-            }
-        } */
-    </script>
+auth_page_head('Verify identity', 'Verify your identity to reset your portal password.');
+auth_body_start();
+auth_main_open();
+auth_module_open();
+auth_card_back_link(app_url('auth/forgot-access-code.php'), 'Back');
+auth_card_intro(
+    'Verify identity',
+    'Enter your username and the verification code provided to you.'
+);
 
-</body>
-</html>
+if (!empty($otp_success)) {
+    auth_alert_success($otp_success);
+}
+if (!empty($otp_Err)) {
+    auth_alert_error($otp_Err);
+}
+if ($isLocal && !empty($_SESSION['password_reset_otp']) && empty($otp_success)) {
+    ?>
+            <p class="auth-dev-notice">Local development only ? verification code: <?= e((string) $_SESSION['password_reset_otp']) ?></p>
+    <?php
+}
+
+if (empty($otp_success)) {
+    ?>
+            <form class="login-form" action="" method="POST" novalidate>
+                <?= csrf_field() ?>
+                <div class="input-group">
+                    <label class="input-label" for="username">Username</label>
+                    <input
+                        type="text"
+                        name="company_id"
+                        id="username"
+                        class="form-input no-toggle"
+                        placeholder="Username"
+                        value="<?= e($username) ?>"
+                        autocomplete="username"
+                        autocapitalize="off"
+                        required
+                    >
+                </div>
+                <div class="input-group">
+                    <label class="input-label" for="verification_code">Verification code</label>
+                    <input
+                        type="password"
+                        name="otp"
+                        id="verification_code"
+                        class="form-input no-toggle"
+                        placeholder="Verification code"
+                        autocomplete="one-time-code"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn-signin">Verify</button>
+            </form>
+    <?php
+}
+
+auth_module_close();
+auth_main_close();
+auth_page_end();

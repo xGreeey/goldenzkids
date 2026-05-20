@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../../config/app.php';
 
 use Google\Cloud\DocumentAI\V1\DocumentProcessorServiceClient;
 use Google\Cloud\DocumentAI\V1\ProcessRequest;
@@ -7,10 +7,12 @@ use Google\Cloud\DocumentAI\V1\RawDocument;
 
 $company_id = $_SESSION['company_id'] ?? '';
 
-// Included by GuardPortal on every page load — only handle form submissions.
+// Included by guard portal on every page load — only handle form submissions.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     return;
 }
+
+auth_require_permission('guard.reports.submit');
 
 csrf_verify();
 

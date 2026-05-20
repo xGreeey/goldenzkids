@@ -157,7 +157,7 @@ INSERT INTO `schema_migrations` (`migration`, `batch`) VALUES
 ('001_create_rbac_tables.sql', 1),
 ('002_seed_roles_permissions.sql', 1),
 ('php/003_migrate_legacy_users.php', 1),
-('005_alter_users_hashed_auth.sql', 1),
+('php/005_alter_users_hashed_auth.php', 1),
 ('php/005_hash_users_pins.php', 1),
 ('php/006_repair_users_password_hashes.php', 1),
 ('php/007_numeric_user_roles.php', 1),

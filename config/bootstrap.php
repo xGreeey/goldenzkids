@@ -36,3 +36,20 @@ function app_require(string $relativePath): void
 }
 
 define('UPLOADS_URL', app_url('uploads/'));
+
+define('APP_AGENCY_NAME', 'Golden Z-5 Security & Investigation Agency, Inc.');
+
+function app_agency_name(): string
+{
+    return APP_AGENCY_NAME;
+}
+
+function app_agency_name_upper(): string
+{
+    return strtoupper(APP_AGENCY_NAME);
+}
+
+function app_logo_url(): string
+{
+    return app_url('includes/goldenz_logo.png');
+}

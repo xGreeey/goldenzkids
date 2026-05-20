@@ -23,7 +23,7 @@ return static function (mysqli $conn): void {
     }
 
     if (!in_array('password_hash', $colNames, true)) {
-        echo "  [skip] Run 005_alter_users_hashed_auth.sql first (password_hash column missing).\n";
+        echo "  [skip] Run php/005_alter_users_hashed_auth.php first (password_hash column missing).\n";
         return;
     }
 

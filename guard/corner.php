@@ -1,5 +1,5 @@
-<?php
-require_once __DIR__ . '/../config/app.php';
+﻿<?php
+require_once __DIR__ . '/php/bootstrap.php';
 
 auth_require_permission('guard.corner.view');
 
@@ -10,173 +10,9 @@ auth_require_permission('guard.corner.view');
 // 4. The Decryption Key
 $encryption_key = "ABC_SecureKey_2026_xYz12345"; // Must match the admin key!
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security Agency | Guard Corner</title>
-    <link href="https://fonts.googleapis.com/css2?family=Antic&family=Oswald:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-blue: #1e153f;
-            --darker-blue: #17162f;
-            --accent-gold: #febd59;
-            --text-white: #ffffff;
-            --text-gray: #e0e0e0;
-            --alert-red: #ff3333;
-            --info-blue: #00ccff;
-            --panel-bg: #110d24;
-        }
-
-        /* --- LIGHT MODE THEME OVERRIDES --- */
-        body.light-mode {
-            --primary-blue: #f4f6f8;   
-            --darker-blue: #e2e8f0;    
-            --panel-bg: #ffffff;       
-            --text-white: #0f172a;     
-            --text-gray: #475569;
-        }
-        
-        body.light-mode .info-card, body.light-mode .scroll-card { border-color: #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        body.light-mode .memo-item { border-bottom-color: #cbd5e1; }
-        body.light-mode .page-title, body.light-mode .card-header { color: #0f172a; }
-        body.light-mode .tag-sub { color: #475569; }
-        
-        /* Special light mode adjustment for the dark gun safety card */
-        body.light-mode .gun-safety-card { background-color: #fef2f2; border-color: #f87171; }
-        body.light-mode .gun-safety-card .safety-title { color: #dc2626; }
-        body.light-mode .gun-safety-card .safety-rule { color: #0f172a; border-bottom-color: #fca5a5; }
-        body.light-mode .gun-safety-card .tag-sub { color: #ef4444; }
-
-        /* The Theme Toggle Button Style */
-        .btn-theme {
-            background: transparent; border: none; color: var(--accent-gold);
-            font-size: 1.2rem; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; justify-content: center;
-            width: 40px; height: 40px; border-radius: 50%;
-        }
-        .btn-theme:hover { background: rgba(254, 189, 89, 0.1); }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Attica', 'Antic', 'Roboto', 'Arial', sans-serif; 
-            background-color: var(--primary-blue);
-            color: var(--text-white);
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        h1, h2, h3, h4, .btn { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
-
-        /* --- HEADER STYLES --- */
-        header {
-            background-color: var(--darker-blue); padding: 0 5%; height: 80px;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 3px solid var(--accent-gold); position: sticky; top: 0; z-index: 1000;
-            transition: background-color 0.3s ease;
-        }
-
-        .logo-area { display: flex; align-items: center; gap: 15px; }
-        .logo-img { 
-            width: 55px !important; 
-            height: 55px !important; 
-            border-radius: 50% !important; 
-            object-fit: cover !important; 
-            aspect-ratio: 1 / 1 !important; 
-            border: 2px solid var(--accent-gold);
-            flex-shrink: 0; 
-            background-color: var(--panel-bg);
-            color: transparent; 
-        }
-        .agency-name { font-family: 'Oswald', sans-serif; font-size: 1.2rem; letter-spacing: 1px; line-height: 1.1; }
-
-        .btn-back {
-            color: var(--accent-gold); text-decoration: none; font-family: 'Oswald', sans-serif; font-size: 0.9rem;
-            border: 1px solid var(--accent-gold); padding: 8px 20px; transition: 0.3s;
-            display: flex; align-items: center; gap: 10px; white-space: nowrap;
-        }
-        .btn-back:hover { background-color: var(--accent-gold); color: var(--darker-blue); font-weight: bold; }
-
-        /* --- LAYOUT STYLES --- */
-        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-
-        .page-title { font-size: 3rem; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px solid #ffffff20; padding-bottom: 20px; transition: color 0.3s ease;}
-        .page-subtitle { font-family: 'Roboto Mono', monospace; opacity: 0.7; margin-bottom: 40px; }
-
-        .tag-sub { display: block; font-size: 0.8em; opacity: 0.6; font-style: italic; font-weight: normal; margin-top: 2px; font-family: 'Roboto', sans-serif; transition: color 0.3s ease;}
-
-        .top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
-        .info-card { background-color: var(--panel-bg); border: 1px solid #ffffff20; padding: 30px; position: relative; margin-bottom: 30px; transition: background-color 0.3s ease, border-color 0.3s ease;}
-        .card-header { color: var(--accent-gold); font-size: 1.5rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; transition: color 0.3s ease;}
-
-        .memo-item { margin-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px; transition: border-color 0.3s ease;}
-        .memo-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-
-        .knowledge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 50px; }
-
-        .scroll-card { background-color: var(--panel-bg); border-top: 3px solid var(--accent-gold); padding: 30px; height: 600px; overflow-y: auto; margin-bottom: 0; transition: background-color 0.3s ease, border-color 0.3s ease;}
-        .scroll-card::-webkit-scrollbar { width: 8px; }
-        .scroll-card::-webkit-scrollbar-thumb { background-color: var(--accent-gold); }
-        .scroll-card::-webkit-scrollbar-track { background-color: #000; }
-
-        .order-list { list-style: none; counter-reset: order-counter; }
-        .order-list li { margin-bottom: 25px; padding-left: 40px; position: relative; line-height: 1.4; opacity: 0.95; font-weight: bold; }
-        .order-list li::before {
-            counter-increment: order-counter; content: counter(order-counter); position: absolute; left: 0; top: 0;
-            font-family: 'Oswald', sans-serif; font-size: 1.2rem; color: var(--accent-gold); font-weight: bold;
-        }
-
-        .gun-safety-card { background-color: #1a0505; border: 1px solid var(--alert-red); padding: 30px; margin-bottom: 30px; transition: background-color 0.3s ease, border-color 0.3s ease;}
-        .safety-title { color: var(--alert-red); font-size: 2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; transition: color 0.3s ease;}
-        .safety-rule { margin-bottom: 15px; font-size: 1.1rem; font-weight: bold; border-bottom: 1px dashed #ff333350; padding-bottom: 10px; transition: color 0.3s ease, border-color 0.3s ease;}
-        
-        /* --- FOOTER STYLES --- */
-        .footer-bottom { background-color: var(--darker-blue); padding: 40px 5%; text-align: center; border-top: 3px solid var(--accent-gold); margin-top: 50px; transition: background-color 0.3s ease;}
-        .footer-branding { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .footer-logo { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-gold); margin-bottom: 5px; filter: grayscale(30%); }
-
-        /* --- THE MOBILE FIX --- */
-        @media (max-width: 768px) {
-            header { padding: 15px 5%; height: auto; gap: 15px; flex-direction: column; text-align: center;}
-            .logo-area { flex-direction: column; gap: 10px; }
-            .container { padding: 20px 15px; } 
-            .page-title { font-size: 2.2rem; }
-            .page-subtitle { margin-bottom: 25px; }
-            .btn-back { padding: 8px 12px; font-size: 0.8rem; }
-            .btn-back span { display: none; } 
-            .top-grid { grid-template-columns: 1fr; }
-            .knowledge-grid { grid-template-columns: 1fr; }
-            .scroll-card { height: auto; max-height: 400px; }
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="logo-area">
-            <img src="https://i.imgur.com/uOClOiX.jpeg" 
-                 alt="ABC Security Logo" 
-                 class="logo-img"
-                 onerror="this.src='https://via.placeholder.com/55/17162f/febd59?text=ABC'">
-            <div class="agency-name">ABC SECURITY AGENCY</div>
-        </div>
-        
-        <nav style="display: flex; align-items: center; gap: 20px;">
-            <button id="themeToggle" class="btn-theme" title="Toggle Light/Dark Mode">
-                <i class="fa-solid fa-sun"></i>
-            </button>
-
-            <a href="portal.php" class="btn-back">
-                RETURN TO PORTAL <span>(BALIK SA PORTAL)</span>
-            </a>
-        </nav>
-    </header>
-
+<?php guard_head('Guard Corner', 'guard-portal guard-corner');
+guard_layout_header_back();
+?>
     <div class="container">
         
         <h1 class="page-title">GUARD CORNER <span class="tag-sub" style="display:inline; font-size: 0.5em; vertical-align: middle;">(SULOK NG GUWARDIYA)</span></h1>
@@ -223,7 +59,7 @@ $encryption_key = "ABC_SecureKey_2026_xYz12345"; // Must match the admin key!
                         allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
                     </iframe>
                     
-                    <a href="https://www.facebook.com/csg.sosia.pnp" target="_blank" style="display: block; padding: 12px; background: #1877f2; color: white; text-decoration: none; border-radius: 5px; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; font-weight: bold; border: 1px solid #ffffff40;">
+                    <a href="https://www.facebook.com/csg.sosia.pnp" target="_blank" style="display: block; padding: 12px; background: #1877f2; color: white; text-decoration: none; border-radius: 5px; font-family: var(--font-body-family); font-size: 0.9rem; font-weight: bold; border: 1px solid #ffffff40;">
                         &#8594; OPEN SOSIA OFFICIAL PAGE
                     </a>
                 </div>
@@ -243,7 +79,7 @@ $encryption_key = "ABC_SecureKey_2026_xYz12345"; // Must match the admin key!
                         allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share">
                     </iframe>
                     
-                    <a href="https://www.facebook.com/PADPAOINCSINCE1958" target="_blank" style="display: block; padding: 12px; background: #1877f2; color: white; text-decoration: none; border-radius: 5px; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; font-weight: bold; border: 1px solid #ffffff40;">
+                    <a href="https://www.facebook.com/PADPAOINCSINCE1958" target="_blank" style="display: block; padding: 12px; background: #1877f2; color: white; text-decoration: none; border-radius: 5px; font-family: var(--font-body-family); font-size: 0.9rem; font-weight: bold; border: 1px solid #ffffff40;">
                         &#8594; OPEN PADPAO OFFICIAL PAGE
                     </a>
                 </div>
@@ -331,23 +167,23 @@ $encryption_key = "ABC_SecureKey_2026_xYz12345"; // Must match the admin key!
 
                 <ul style="list-style: none; padding: 0; line-height: 1.6;">
                     <li style="margin-bottom: 15px;">
-                        ► Shall carry with him at all times his license and identification card.
+                        &bull; Shall carry with him at all times his license and identification card.
                         <span class="tag-sub">Dapat dalhin sa lahat ng oras ang kanyang lisensya at identification card.</span>
                     </li>
                     <li style="margin-bottom: 15px;">
-                        ► Shall not use his license and privileges to the prejudice of the public.
+                        &bull; Shall not use his license and privileges to the prejudice of the public.
                         <span class="tag-sub">Hindi dapat gamitin ang kanyang lisensya at pribilehiyo sa ikapipinsala ng publiko.</span>
                     </li>
                     <li style="margin-bottom: 15px;">
-                        ► Shall not engage in any unnecessary conversation with anybody except in the discharge of his duties.
+                        &bull; Shall not engage in any unnecessary conversation with anybody except in the discharge of his duties.
                         <span class="tag-sub">Hindi dapat makisali sa anumang hindi kinakailangang pakikipag-usap kaninuman maliban sa pagtupad ng kanyang mga tungkulin.</span>
                     </li>
                     <li style="margin-bottom: 15px;">
-                        ► Shall not read newspapers, magazines, books, etc., while on duty.
+                        &bull; Shall not read newspapers, magazines, books, etc., while on duty.
                         <span class="tag-sub">Hindi dapat magbasa ng dyaryo, magasin, libro, atbp., habang nasa duty.</span>
                     </li>
                     <li style="margin-bottom: 15px;">
-                        ► Shall not drink any alcoholic beverages immediately before and during his tour of duty.
+                        &bull; Shall not drink any alcoholic beverages immediately before and during his tour of duty.
                         <span class="tag-sub">Hindi dapat uminom ng anumang nakalalasing na inumin bago at habang nasa oras ng duty.</span>
                     </li>
                 </ul>
@@ -381,48 +217,4 @@ $encryption_key = "ABC_SecureKey_2026_xYz12345"; // Must match the admin key!
         </div>
 
     </div>
-
-    <footer class="footer-bottom">
-        <div class="footer-branding">
-            <img src="https://i.imgur.com/uOClOiX.jpeg" alt="ABC Logo" class="footer-logo" onerror="this.src='https://via.placeholder.com/60/17162f/febd59?text=ABC'">
-            <div style="font-size: 0.8rem; letter-spacing: 2px; font-family: 'Oswald'; color: var(--accent-gold);">
-                CENTRAL COMMAND HEADQUARTERS
-            </div>
-            <h2 style="font-family: 'Oswald', sans-serif; font-size: 1.2rem; letter-spacing: 1px; margin: 0;">Intramuros, Manila, PH | +63 2 8000 0000</h2>
-            <p style="opacity: 0.7; font-size: 0.8rem; margin: 0; font-family: 'Roboto', sans-serif;">ABC SECURITY AGENCY</p>
-        </div>
-    </footer>
-
-    <script>
-        // --- THEME TOGGLE LOGIC ---
-        document.addEventListener("DOMContentLoaded", function() {
-            const themeToggleBtn = document.getElementById('themeToggle');
-            const themeIcon = themeToggleBtn.querySelector('i');
-            const body = document.body;
-
-            // 1. Check the browser's memory for their saved theme
-            const savedTheme = localStorage.getItem('abc_theme');
-            
-            // 2. If they previously chose light mode, apply it immediately
-            if (savedTheme === 'light') {
-                body.classList.add('light-mode');
-                themeIcon.classList.replace('fa-sun', 'fa-moon');
-            }
-
-            // 3. Listen for clicks on the Sun/Moon button
-            themeToggleBtn.addEventListener('click', () => {
-                body.classList.toggle('light-mode');
-                
-                // Save the preference
-                if (body.classList.contains('light-mode')) {
-                    localStorage.setItem('abc_theme', 'light');
-                    themeIcon.classList.replace('fa-sun', 'fa-moon');
-                } else {
-                    localStorage.setItem('abc_theme', 'dark');
-                    themeIcon.classList.replace('fa-moon', 'fa-sun');
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+<?php guard_footer();

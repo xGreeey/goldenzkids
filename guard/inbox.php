@@ -4,6 +4,9 @@ require_once dirname(__DIR__) . '/includes/internal_messaging.php';
 
 auth_require_permission('guard.inbox.view');
 
+<<<<<<< HEAD
+guard_render_app_page(
+=======
 $company_id = (string) $_SESSION['company_id'];
 
 $messagingAvailable = internal_messages_table_exists($conn);
@@ -32,11 +35,27 @@ if ($guards_result && $guards_result->num_rows > 0) {
 }
 
 $reports_result = db_query(
+>>>>>>> 28cb61a3a7ac020dec8ab7fd5168f58491335122
     $conn,
-    'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, iv FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC',
-    's',
-    [$company_id]
+    [
+        'title' => 'Inbox',
+        'activeNav' => 'inbox',
+        'headerPrimaryTabActive' => false,
+        'headerSecondaryHref' => guard_url('inbox.php'),
+        'headerSecondaryLabel' => 'Emergency Codes',
+        'headerSecondaryActive' => true,
+        'locationOpensEstablishmentPicker' => false,
+        'showAvatar' => true,
+        'showGreeting' => true,
+        'showSearch' => false,
+        'showTabs' => false,
+        'searchInputId' => 'guardInboxSearch',
+        'searchPlaceholder' => 'Search...',
+        'primaryTabLabel' => 'Around Me',
+    ]
 );
+<<<<<<< HEAD
+=======
 
 guard_head('Inbox', 'guard-portal guard-inbox');
 guard_layout_header_back();
@@ -160,3 +179,4 @@ guard_layout_header_back();
     </script>
 <?php
 guard_footer();
+>>>>>>> 28cb61a3a7ac020dec8ab7fd5168f58491335122

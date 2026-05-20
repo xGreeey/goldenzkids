@@ -44,12 +44,6 @@
             --text-gray: var(--app-ink-muted-on-dark);
         }
 
-        body.light-mode .top-bar {
-            background: var(--app-sidebar-surface);
-            border-bottom: 1px solid var(--app-border);
-            color: var(--color-primary);
-        }
-
         body.light-mode header {
             background: var(--app-sidebar-surface);
             box-shadow: inset 0 -2px 0 0 rgba(var(--color-secondary-rgb), 0.55);
@@ -90,6 +84,7 @@
 
         body.guard-portal h1, body.guard-portal h2, body.guard-portal h3, body.guard-portal h4,
         body.guard-portal .agency-name, body.guard-portal .page-title,
+        body.guard-portal .portal-title, body.guard-portal .section-title,
         body.guard-portal .section-header-text,
         body.guard-portal .notif-title, body.guard-portal .modal-header h2, body.guard-portal .card-header {
             font-family: var(--font-heading-family) !important;
@@ -98,13 +93,14 @@
         }
 
         body.guard-portal .section-tag, body.guard-portal .timestamp, body.guard-portal .modal-subtitle,
-        body.guard-portal .modal-info, body.guard-portal .form-label-sub, body.guard-portal .top-bar,
+        body.guard-portal .modal-info, body.guard-portal .form-label-sub,
         body.guard-portal .form-control, body.guard-portal select.form-control {
             font-family: var(--font-body-family) !important;
         }
 
         body.guard-portal h1, body.guard-portal h2, body.guard-portal h3, body.guard-portal h4,
-        body.guard-portal .page-title, body.guard-portal .section-header-text {
+        body.guard-portal .page-title, body.guard-portal .portal-title,
+        body.guard-portal .section-title, body.guard-portal .section-header-text {
             text-transform: none !important;
         }
 
@@ -116,35 +112,66 @@
 
         /* --- Guard layout (portal, inbox, corner)  use <body class="guard-portal"> --- */
         body.guard-portal {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            min-height: 100dvh;
             background: var(--app-canvas-bg);
             color: var(--text-white);
             overflow-x: hidden;
             transition: background 0.25s ease, color 0.25s ease;
         }
+
         body.guard-portal header {
+            flex-shrink: 0;
             background: var(--app-sidebar-surface);
             transition: background 0.25s ease;
-            padding: 0 5%; height: 80px;
-            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px clamp(16px, 5%, 40px);
+            min-height: 72px;
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
             border-bottom: none;
             position: sticky;
             top: 0;
             z-index: 1000;
         }
+
+        body.guard-portal header.guard-header-desktop {
+            justify-content: flex-start;
+            gap: 14px;
+        }
+
+        body.guard-portal header .nav-links {
+            margin-left: auto;
+        }
+
+        body.guard-portal header .logo-img {
+            flex-shrink: 0;
+            width: auto;
+            height: 52px;
+            max-width: min(160px, 42vw);
+            object-fit: contain;
+            object-position: left center;
+            border: none;
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            display: block;
+        }
+
         body.guard-portal header::after {
             content: '';
             position: absolute;
-            left: 0; right: 0; bottom: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             height: 4px;
             background: var(--gradient-accent-bar);
         }
-        body.guard-portal .logo-img {
-            width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
-            border: 2px solid transparent;
-            background:
-                linear-gradient(var(--color-white), var(--color-white)) padding-box,
-                var(--gradient-ring) border-box;
-        }
+
         body.guard-portal .agency-name { font-size: 1.2rem; line-height: 1.1; }
         body.guard-portal .nav-link {
             color: var(--text-white); text-decoration: none; font-size: 0.9rem;
@@ -165,16 +192,20 @@
             display: inline-flex; align-items: center; gap: 10px;
         }
         body.guard-portal .btn-back:hover { background-color: var(--accent-gold); color: var(--color-primary); }
-        body.guard-portal .portal-section, body.guard-portal .notif-card {
+        body.guard-portal .portal-section,
+        body.guard-portal .notif-card {
             position: relative;
             border: 1px solid var(--app-border-on-dark);
             background: var(--app-card-bg);
             color: var(--panel-text);
-            padding: 30px;
-            margin-bottom: 30px;
+            padding: clamp(20px, 3vw, 28px);
             box-shadow: var(--app-shadow-sm);
             overflow: hidden;
             transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+        }
+
+        body.guard-portal .portal-form .portal-section {
+            margin-bottom: 0;
         }
 
         body.guard-portal.light-mode .portal-section,
@@ -189,8 +220,37 @@
             color: var(--panel-text); font-size: 1rem;
         }
         body.guard-portal .submit-btn {
+<<<<<<< HEAD
+            width: 100%;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            border: none;
+            border-radius: 8px;
+            padding: 18px 20px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            line-height: 1.35;
+        }
+
+        body.guard-portal .submit-btn-title {
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        body.guard-portal .submit-btn-hint {
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-sm);
+            font-weight: 400;
+            opacity: 0.88;
+=======
             width: 100%; background: var(--btn-bg); color: var(--btn-text);
             border: none; padding: 20px; font-size: 1.1rem; cursor: pointer; margin-top: 20px;
+>>>>>>> 28cb61a3a7ac020dec8ab7fd5168f58491335122
         }
         body.guard-portal .submit-btn:hover { filter: brightness(1.05); }
         body.guard-portal .footer-bottom {
@@ -223,60 +283,1041 @@
         }
 
         /* --- Page: portal --- */
-        body.guard-portal .top-bar {
-            background: var(--gradient-brand-deep); color: var(--text-white);
-            padding: 8px 0; font-size: 0.8rem; white-space: nowrap; overflow: hidden;
-            border-bottom: 1px solid var(--accent-gold); font-family: var(--font-body-family);
+        body.guard-portal .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            align-items: center;
+            justify-content: flex-end;
         }
-        body.guard-portal .marquee-content {
-            display: inline-block; animation: scroll-left 25s linear infinite; padding-left: 100%;
+
+        body.guard-portal .nav-link { letter-spacing: 0.04em; }
+
+        body.guard-portal.light-mode .nav-link {
+            color: var(--color-primary);
+            opacity: 0.75;
         }
-        @keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
-        body.guard-portal .nav-links { display: flex; gap: 30px; align-items: center; }
-        body.guard-portal .nav-link { letter-spacing: 1px; }
-        body.guard-portal .main-container { padding: 40px 5%; max-width: 1000px; margin: 0 auto; }
-        body.guard-portal .portal-section { position: relative; }
-        body.guard-portal .section-tag {
-            color: var(--accent-gold); font-family: var(--font-body-family); font-size: 0.8rem;
-            margin-bottom: 15px; display: block; text-transform: uppercase;
+
+        body.guard-portal.light-mode .nav-link:hover {
+            opacity: 1;
+            color: var(--accent-gold-text);
         }
-        body.guard-portal .section-header-text {
-            font-size: 2rem; line-height: 1.2; margin-bottom: 25px; color: var(--panel-text);
+
+        body.guard-portal .main-container {
+            flex: 1 0 auto;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 42rem;
+            margin: 0 auto;
+            padding: clamp(24px, 4vw, 40px) clamp(16px, 5%, 32px) clamp(32px, 5vw, 48px);
         }
-        body.guard-portal .form-group { margin-bottom: 25px; }
-        body.guard-portal .form-label-sub {
-            display: block; font-family: var(--font-body-family); font-size: 0.75rem;
-            color: var(--text-gray); margin-bottom: 10px; opacity: 0.8;
+
+        /* Portal home — typography & forms aligned with auth-sign-in (login module) */
+        body.guard-portal.guard-portal-home {
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size);
+            line-height: var(--font-body-line);
         }
-        body.guard-portal .form-control {
-            font-family: var(--font-body-family); outline: none; appearance: none;
+
+        body.guard-portal.guard-portal-home .agency-name {
+            font-family: var(--font-heading-family);
+            font-weight: 400;
+            font-size: 1.125rem;
+            letter-spacing: var(--font-heading-letter);
+            line-height: 1.2;
+            color: var(--color-primary);
+            text-transform: none;
         }
-        body.guard-portal .form-control:focus { border-color: #fff; box-shadow: 0 0 10px rgba(254, 189, 89, 0.5); }
-        body.guard-portal select.form-control {
-            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23febd59%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
-            background-repeat: no-repeat; background-position: right 15px top 50%; background-size: 12px auto;
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .agency-name {
+            color: var(--app-ink-on-dark);
         }
-        body.guard-portal .upload-btn-wrapper { position: relative; overflow: hidden; display: block; margin-bottom: 15px; }
+
+        body.guard-portal.guard-portal-home.light-mode .nav-link {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: var(--font-label-letter);
+            color: var(--color-primary);
+            opacity: 0.8;
+        }
+
+        body.guard-portal.guard-portal-home.light-mode .nav-link:hover {
+            opacity: 1;
+            color: var(--color-primary);
+        }
+
+        body.guard-portal.guard-portal-home.light-mode .btn-portal {
+            font-family: var(--font-body-family);
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        body.guard-portal.guard-portal-home.light-mode .portal-section {
+            background: var(--color-white);
+            border: 1px solid var(--color-border-subtle);
+            color: var(--color-primary);
+            border-radius: 12px;
+            box-shadow:
+                0 1px 2px rgba(var(--color-primary-rgb), 0.07),
+                0 6px 18px rgba(var(--color-primary-rgb), 0.09);
+        }
+
+        body.guard-portal .portal-intro {
+            margin: 0 0 clamp(20px, 3vw, 28px);
+            padding: 0 0 clamp(16px, 2.5vw, 20px);
+            border-bottom: 1px solid var(--color-border-subtle);
+        }
+
+        body.guard-portal:not(.light-mode) .portal-intro {
+            border-bottom-color: var(--app-border-on-dark);
+        }
+
+        body.guard-portal .portal-title {
+            margin: 0 0 6px;
+            font-family: var(--font-heading-family);
+            font-size: 1.5rem;
+            font-weight: 400;
+            letter-spacing: var(--font-heading-letter);
+            line-height: 1.25;
+            color: var(--trivium-ink);
+        }
+
+        body.guard-portal:not(.light-mode) .portal-title {
+            color: var(--panel-text);
+        }
+
+        body.guard-portal .portal-subtitle {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: var(--color-text-muted);
+            max-width: 40ch;
+        }
+
+        body.guard-portal:not(.light-mode) .portal-subtitle {
+            color: var(--text-gray);
+        }
+
+        body.guard-portal .portal-alert {
+            margin: 0 0 20px;
+            width: 100%;
+            font-size: 0.875rem;
+            line-height: 1.45;
+        }
+
+        body.guard-portal .portal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        body.guard-portal .portal-section--evidence {
+            border-top: 3px solid var(--alert-red);
+        }
+
+        body.guard-portal .section-step {
+            margin: 0 0 10px;
+            font-family: var(--font-body-family);
+            font-size: 0.8125rem;
+            font-weight: 600;
+            letter-spacing: var(--font-label-letter);
+            text-transform: uppercase;
+            color: var(--color-secondary-text);
+        }
+
+        body.guard-portal .section-step--alert {
+            color: var(--alert-red);
+        }
+
+        body.guard-portal:not(.light-mode) .section-step {
+            color: var(--accent-gold-text);
+        }
+
+        body.guard-portal .section-title {
+            margin: 0 0 16px;
+            font-family: var(--font-heading-family);
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: var(--font-heading-letter);
+            line-height: 1.25;
+            color: var(--trivium-ink);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        body.guard-portal:not(.light-mode) .section-title {
+            color: var(--panel-text);
+        }
+
+        body.guard-portal .section-desc {
+            font-family: var(--font-body-family);
+            font-size: 0.875rem;
+            font-weight: 400;
+            letter-spacing: normal;
+            line-height: 1.45;
+            color: var(--color-text-muted);
+            text-transform: none;
+        }
+
+        body.guard-portal:not(.light-mode) .section-desc {
+            color: var(--text-gray);
+        }
+
+        body.guard-portal.guard-portal-home .input-group {
+            margin-bottom: 0;
+            width: 100%;
+            min-width: 0;
+        }
+
+        body.guard-portal.guard-portal-home .input-label {
+            display: block;
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-sm);
+            font-weight: 600;
+            letter-spacing: var(--font-label-letter);
+            margin-bottom: 8px;
+            color: var(--trivium-ink);
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .input-label {
+            color: var(--panel-text);
+        }
+
+        body.guard-portal.guard-portal-home .field-hint {
+            margin: 0 0 10px;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: var(--color-text-muted);
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .field-hint {
+            color: var(--text-gray);
+        }
+
+        body.guard-portal.guard-portal-home .form-input {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            padding: 14px;
+            box-sizing: border-box;
+            background: var(--color-input);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-family: var(--font-body-family);
+            font-size: 1rem;
+            color: var(--color-text);
+            outline: none;
+            appearance: none;
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .form-input {
+            background: var(--input-bg);
+            border-color: var(--app-border-on-dark);
+            color: var(--panel-text);
+        }
+
+        body.guard-portal.guard-portal-home .form-input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        body.guard-portal.guard-portal-home .form-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-focus-ring);
+        }
+
+        body.guard-portal.guard-portal-home select.form-input--select {
+            padding-right: 40px;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23003049%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 14px top 50%;
+            background-size: 12px auto;
+        }
+
+        body.guard-portal.guard-portal-home .btn-signin {
+            width: 100%;
+            margin-top: 0;
+            padding: 14px;
+            font-family: var(--font-body-family);
+            font-weight: 700;
+            font-size: 0.8125rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            line-height: 1.35;
+            background: var(--gradient-signin-btn);
+            color: var(--color-primary);
+            border: 1px solid rgba(var(--color-secondary-text-rgb), 0.35);
+            border-radius: 6px;
+            box-shadow: none;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        body.guard-portal.guard-portal-home .btn-signin:hover:not(:disabled) {
+            background: var(--gradient-signin-btn-hover);
+            color: var(--color-primary);
+            filter: none;
+            transform: none;
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .btn-signin {
+            background: var(--gradient-signin-btn);
+            color: var(--color-primary);
+            border-color: rgba(var(--color-secondary-rgb), 0.45);
+        }
+
+        body.guard-portal.guard-portal-home .portal-submit-note {
+            margin: 10px 0 0;
+            text-align: center;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: var(--color-text-muted);
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .portal-submit-note {
+            color: var(--text-gray);
+        }
+        body.guard-portal .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: block;
+            min-height: 120px;
+            border-radius: 8px;
+        }
+
         body.guard-portal .upload-btn {
-            border: 1px dashed var(--accent-gold); color: var(--panel-text); background-color: transparent;
-            padding: 20px; width: 100%; font-size: 1rem; letter-spacing: 1px;
-            cursor: pointer; transition: 0.3s; text-align: center;
+            border: 2px dashed var(--accent-gold);
+            border-radius: 8px;
+            color: var(--panel-text);
+            background-color: transparent;
+            padding: 24px 20px;
+            width: 100%;
+            min-height: 120px;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        body.guard-portal .upload-btn:hover { background-color: rgba(254, 189, 89, 0.1); }
+
+        body.guard-portal .upload-btn i {
+            font-size: 1.5rem;
+            color: var(--accent-gold-text);
+        }
+
+        body.guard-portal.guard-portal-home .upload-btn-title {
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-sm);
+            font-weight: 600;
+            letter-spacing: var(--font-label-letter);
+            color: var(--trivium-ink);
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .upload-btn-title {
+            color: var(--panel-text);
+        }
+
+        body.guard-portal.guard-portal-home .upload-btn-hint {
+            font-family: var(--font-body-family);
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: var(--color-text-muted);
+        }
+
+        body.guard-portal.guard-portal-home:not(.light-mode) .upload-btn-hint {
+            color: var(--text-gray);
+        }
+
+        body.guard-portal.guard-portal-home .upload-btn {
+            border-color: var(--color-border);
+            border-radius: 4px;
+        }
+
+        body.guard-portal.guard-portal-home.light-mode .upload-btn:hover {
+            background: var(--color-input);
+            border-color: var(--color-primary);
+        }
+
+        body.guard-portal .upload-btn:hover {
+            background-color: rgba(254, 189, 89, 0.08);
+            border-color: var(--accent-gold-text);
+        }
+
         body.guard-portal .upload-btn-wrapper input[type=file] {
-            font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 0;
         }
+
+        body.guard-portal .portal-actions {
+            padding-top: 4px;
+        }
+
         @media (max-width: 768px) {
-            header { flex-direction: column; height: auto; padding: 20px; gap: 15px; text-align: center; } 
-            .nav-left { flex-direction: column; gap: 10px; }
-            .nav-links { 
-                display: flex; 
-                flex-direction: column; 
-                width: 100%; 
-                gap: 15px; 
-            } 
-            .btn-portal, .nav-link { width: 100%; text-align: center; display: block; padding: 12px; }
-            .section-header-text { font-size: 1.8rem; } 
+            body.guard-portal header.guard-header-desktop {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            body.guard-portal header.guard-header-desktop .logo-img {
+                margin-left: auto;
+                margin-right: auto;
+                object-position: center;
+            }
+
+            body.guard-portal header .nav-links {
+                margin-left: 0;
+                flex-direction: column;
+                width: 100%;
+                justify-content: center;
+            }
+            body.guard-portal .nav-link {
+                width: 100%;
+                text-align: center;
+                display: block;
+                padding: 12px;
+            }
+
+            body.guard-portal .btn-portal {
+                width: 100%;
+                text-align: center;
+                display: block;
+                padding: 12px;
+            }
+
+            body.guard-portal .main-container {
+                max-width: 100%;
+            }
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+
+        body.guard-mobile-shell .guard-mobile-app-header,
+        body.guard-mobile-shell .guard-mobile-tabbar {
+            display: none;
+        }
+
+        /* Portal shell structure: separate header, body, and footer blocks. */
+        body.guard-portal-home .guard-portal-layout {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        body.guard-portal-home .guard-portal-layout__header,
+        body.guard-portal-home .guard-portal-layout__footer {
+            flex-shrink: 0;
+        }
+
+        body.guard-portal-home .guard-portal-layout__body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            display: block;
+        }
+
+        /* Portal web orientation: keep the location header visible. */
+        body.guard-portal-home.guard-mobile-shell header.guard-mobile-app-header {
+            display: block;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 80;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            padding: 12px clamp(14px, 2.4vw, 26px) 14px;
+            text-align: left;
+        }
+
+        body.guard-portal header.guard-mobile-app-header {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 6;
+            display: none;
+            min-height: 0;
+            padding: 0;
+            gap: 0;
+            align-items: stretch;
+            justify-content: flex-start;
+            background: transparent;
+            box-shadow: none;
+            flex-direction: column;
+        }
+
+        body.guard-portal header.guard-mobile-app-header::after {
+            display: none;
+        }
+
+        /* --- Guard mobile emergency shell (fixed chrome, scroll middle) --- */
+        :root {
+            --guard-mock-shell: #0066ff;
+            --guard-mobile-page-bg: var(--app-canvas-bg);
+        }
+
+        @media (max-width: 719px) {
+            body.guard-portal-home.guard-mobile-shell .guard-portal-layout {
+                min-height: 100dvh;
+                height: 100dvh;
+                overflow: hidden;
+            }
+
+            body.guard-portal-home.guard-mobile-shell .guard-portal-layout__body {
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            body.guard-mobile-shell {
+                --guard-mobile-page-bg: var(--app-canvas-bg);
+            }
+
+            body.guard-mobile-shell.light-mode {
+                --guard-mobile-page-bg: #f8f9fa;
+            }
+
+            body.guard-mobile-shell {
+                background: var(--guard-mobile-page-bg);
+            }
+
+            html:has(body.guard-mobile-shell) {
+                height: 100%;
+                overflow: hidden;
+            }
+
+            body.guard-mobile-shell {
+                height: 100dvh;
+                max-height: 100dvh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                padding-bottom: 0 !important;
+            }
+
+            body.guard-mobile-shell .guard-desktop-chrome {
+                display: none !important;
+            }
+
+            body.guard-mobile-shell footer.guard-footer-desktop {
+                display: none !important;
+            }
+
+            body.guard-mobile-shell header.guard-mobile-app-header {
+                display: block;
+                flex-shrink: 0;
+                position: relative;
+                z-index: 200;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tabbar {
+                display: block;
+                flex-shrink: 0;
+            }
+
+            body.guard-mobile-shell .guard-mobile-scroll {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* App header strip (mock: white strip on light gray canvas) */
+            body.guard-mobile-shell.light-mode .guard-mobile-app-header {
+                background: #ffffff;
+                border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+                box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header {
+                border-bottom-color: rgba(255, 255, 255, 0.08);
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header {
+                padding: calc(12px + env(safe-area-inset-top)) clamp(14px, 4vw, 22px) 14px;
+                background: var(--guard-mobile-page-bg);
+                text-align: left;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__top {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 10px;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__location {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            body.guard-mobile-shell .guard-mobile-location-chip,
+            body.guard-mobile-shell .guard-mobile-location-chip--static {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                width: 100%;
+                max-width: 100%;
+                padding: 16px 24px;
+                margin: 0;
+                border: none;
+                background: #1f4a72;
+                color: #ffffff;
+                font-family: var(--font-body-family);
+                font-size: 1rem;
+                font-weight: 500;
+                letter-spacing: 0.01em;
+                cursor: default;
+                min-height: 78px;
+                text-align: left;
+                border-radius: 0 0 28px 28px;
+                box-shadow: 0 10px 22px rgba(17, 41, 64, 0.2);
+            }
+
+            body.guard-mobile-shell button.guard-mobile-location-chip {
+                cursor: pointer;
+            }
+
+            body.guard-mobile-shell .guard-mobile-location-chip__text {
+                flex: 1 1 auto;
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            body.guard-mobile-shell .guard-mobile-location-chip .fa-location-dot {
+                flex-shrink: 0;
+                color: #ffffff;
+                font-size: 1.15rem;
+            }
+
+            body.guard-mobile-shell .guard-mobile-location-chip .fa-chevron-down {
+                margin-left: auto;
+                font-size: 1rem;
+                opacity: 0.9;
+            }
+
+            body.guard-mobile-shell .guard-mobile-location-chip__chevron-dim {
+                opacity: 0.9;
+                font-size: 1rem;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__avatar {
+                flex-shrink: 0;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: linear-gradient(145deg, #3b82f6, var(--guard-mock-shell));
+                color: #fff;
+                font-weight: 700;
+                font-size: 1.05rem;
+                display: grid;
+                place-items: center;
+                box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
+                font-family: var(--font-body-family);
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__greeting {
+                margin: 0 0 12px;
+                font-family: var(--font-body-family);
+                font-size: 0.8125rem;
+                font-weight: 400;
+                line-height: 1.5;
+                color: #94a3b8;
+            }
+
+            body.guard-mobile-shell.light-mode .guard-mobile-app-header__greeting {
+                color: #9ca3af;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__hello {
+                font-weight: 500;
+                color: #94a3b8;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__who {
+                font-weight: 600;
+                color: #475569;
+            }
+
+            body.guard-mobile-shell.light-mode .guard-mobile-app-header__who {
+                color: #64748b;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__subtitle {
+                display: block;
+                margin-top: 3px;
+                color: #94a3b8;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__greeting {
+                color: var(--text-gray);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__hello,
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__subtitle {
+                color: var(--text-gray);
+                opacity: 0.92;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__who {
+                color: #fff;
+                font-weight: 600;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__search-wrap {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 16px;
+                margin-bottom: 14px;
+                border-radius: 999px;
+                background: #f8fafc;
+                border: 1px solid rgba(148, 163, 184, 0.45);
+            }
+
+            body.guard-mobile-shell.light-mode .guard-mobile-app-header .guard-mobile-app-header__search-wrap {
+                background: #f9fafb;
+                border-color: rgba(148, 163, 184, 0.5);
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__search-icon {
+                color: var(--guard-mock-shell);
+                font-size: 0.95rem;
+                opacity: 0.85;
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__search {
+                flex: 1 1 auto;
+                border: none;
+                background: transparent;
+                outline: none;
+                font-family: var(--font-body-family);
+                font-size: 0.875rem;
+                color: var(--color-primary, #0f172a);
+                min-width: 0;
+                padding: 0;
+                margin: 0;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__search {
+                color: var(--panel-text);
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__search::placeholder {
+                color: rgba(100, 116, 139, 0.9);
+            }
+
+            body.guard-mobile-shell .guard-mobile-app-header__tabs {
+                display: flex;
+                gap: 4px;
+                padding: 4px;
+                border-radius: 999px;
+                background: rgba(0, 102, 255, 0.07);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-app-header__tabs {
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            body.guard-mobile-shell .guard-mobile-seg {
+                flex: 1 1 0;
+                text-align: center;
+                padding: 9px 10px;
+                border-radius: 999px;
+                font-family: var(--font-body-family);
+                font-size: 0.78125rem;
+                font-weight: 600;
+                text-decoration: none;
+                color: #64748b;
+                transition: background 0.18s ease, color 0.18s ease;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-seg {
+                color: rgba(255, 255, 255, 0.72);
+            }
+
+            body.guard-mobile-shell .guard-mobile-seg.is-active {
+                background: var(--guard-mock-shell);
+                color: #fff;
+                box-shadow:
+                    0 4px 14px rgba(0, 102, 255, 0.32),
+                    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-seg.is-active {
+                background: var(--guard-mock-shell);
+                color: #fff;
+            }
+
+            body.guard-mobile-shell.guard-corner .guard-mobile-scroll .container {
+                margin-top: 12px;
+            }
+
+            body.guard-mobile-shell.guard-inbox .guard-mobile-scroll .container {
+                margin-top: 8px;
+            }
+
+            /* Bottom bar + labeled tabs + FAB notch */
+
+            body.guard-mobile-shell .guard-mobile-tabbar {
+                overflow: visible;
+                z-index: 120;
+                padding: 0;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                background: var(--guard-mock-shell);
+                border-radius: 24px 24px 0 0;
+                position: relative;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tabbar::before {
+                content: none;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tabbar__rail {
+                position: relative;
+                z-index: 1;
+                overflow: visible;
+                display: grid;
+                grid-template-columns: 1fr 1fr 56px 1fr 1fr;
+                align-items: end;
+                justify-items: stretch;
+                column-gap: 2px;
+                padding: 8px max(14px, env(safe-area-inset-left))
+                    calc(8px + env(safe-area-inset-bottom))
+                    max(10px, env(safe-area-inset-right));
+                padding-top: 12px;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+                    0 -6px 24px rgba(0, 24, 64, 0.12);
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab {
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0;
+                min-height: 52px;
+                padding: 2px;
+                color: rgba(255, 255, 255, 0.88);
+                text-decoration: none;
+                border-radius: 10px;
+                transition: color 0.15s ease, background 0.15s ease;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab:hover {
+                color: #fff;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab.is-active {
+                color: #fff;
+                font-weight: 700;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab__label {
+                display: none;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab i {
+                font-size: 1.75rem;
+            }
+
+            body.guard-mobile-shell .guard-mobile-tab--inactive {
+                pointer-events: none;
+                opacity: 0.86;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-wrap {
+                position: relative;
+                justify-self: center;
+                align-self: end;
+                width: 62px;
+                margin-bottom: 0;
+                overflow: visible;
+                z-index: 2;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+                list-style: none;
+                cursor: pointer;
+                margin: -38px auto 0;
+                padding: 0;
+                width: 62px;
+                height: 62px;
+                border-radius: 50%;
+                display: grid;
+                place-items: center;
+                background: var(--guard-mock-shell);
+                color: #fff;
+                border: 6px solid #ffffff;
+                box-sizing: border-box;
+                box-shadow:
+                    0 8px 22px rgba(0, 0, 0, 0.2),
+                    0 2px 0 rgba(255, 255, 255, 0.12) inset;
+                outline: none;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+                font-size: 1.42rem;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab__inner {
+                display: grid;
+                place-items: center;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet {
+                display: none;
+                position: absolute;
+                left: 50%;
+                bottom: calc(100% + 14px);
+                transform: translateX(-50%);
+                width: min(240px, 86vw);
+                padding: 8px;
+                border-radius: 14px;
+                background: var(--color-white);
+                border: 1px solid rgba(21, 62, 99, 0.12);
+                box-shadow:
+                    0 8px 32px rgba(0, 48, 73, 0.18),
+                    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+                z-index: 300;
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-wrap.is-open .guard-mobile-fab-sheet {
+                display: block;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-fab-sheet {
+                background: var(--app-card-bg);
+                border-color: rgba(255, 255, 255, 0.12);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__item {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+                text-align: left;
+                padding: 12px 14px;
+                border: none;
+                border-radius: 10px;
+                background: transparent;
+                font-family: var(--font-body-family);
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: var(--color-primary);
+                cursor: pointer;
+                text-decoration: none;
+                margin-bottom: 4px;
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-fab-sheet__item {
+                color: var(--app-ink-on-dark);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__item:hover {
+                background: var(--color-input);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-fab-sheet__item:hover {
+                background: rgba(255, 255, 255, 0.06);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__item--logout {
+                color: var(--alert-red);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__theme {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                padding: 10px 12px;
+                margin-bottom: 4px;
+                border-radius: 10px;
+                background: rgba(29, 78, 216, 0.06);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-fab-sheet__theme {
+                background: rgba(255, 255, 255, 0.06);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__theme-label {
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: var(--color-primary);
+            }
+
+            body.guard-mobile-shell:not(.light-mode) .guard-mobile-fab-sheet__theme-label {
+                color: var(--app-ink-muted-on-dark);
+            }
+
+            body.guard-mobile-shell .guard-mobile-fab-sheet__theme .theme-switch {
+                transform: scale(0.85);
+                transform-origin: right center;
+            }
+
+            body.guard-mobile-shell.guard-portal-home .portal-intro {
+                display: none;
+            }
+
+            body.guard-mobile-shell.guard-portal-home .main-container {
+                flex: unset;
+                padding-bottom: clamp(24px, 5vw, 40px);
+            }
+        }
+
+        /* Portal web orientation: force visible split header/body/footer. */
+        @media (min-width: 720px) {
+            body.guard-portal-home.guard-mobile-shell header.guard-mobile-app-header {
+                display: block !important;
+            }
+
+            body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+                display: block !important;
+            }
+
+            body.guard-portal-home.guard-mobile-shell .guard-portal-layout {
+                min-height: 100vh;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            body.guard-portal-home.guard-mobile-shell .guard-portal-layout__body {
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
         }
 
         /* --- Page: inbox --- */
@@ -380,7 +1421,13 @@
         body.guard-portal.guard-corner header { background: var(--gradient-brand-deep); }
         body.guard-portal .logo-area { display: flex; align-items: center; gap: 15px; }
         body.guard-portal.guard-corner .logo-img {
-            width: 55px; height: 55px; background-color: var(--panel-bg);
+            width: auto;
+            height: 52px;
+            max-width: min(160px, 42vw);
+            object-fit: contain;
+            border: none;
+            background: none;
+            border-radius: 0;
         }
 
         /* --- LAYOUT STYLES --- */
@@ -436,7 +1483,1464 @@
         .guard-header-nav { display: flex; align-items: center; gap: 20px; }
         .guard-footer-agency { opacity: 0.7; font-size: 0.8rem; margin: 0; }
         .guard-form-error {
-            color: var(--alert-red); text-align: center; margin: 15px auto; max-width: 1000px;
-            font-family: var(--font-body-family); padding: 15px;
-            background: rgba(255, 51, 51, 0.1); border: 1px dashed var(--alert-red); font-size: 1.1rem;
+            color: var(--alert-red);
+            text-align: center;
+            font-family: var(--font-body-family);
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: rgba(255, 51, 51, 0.1);
+            border: 1px dashed var(--alert-red);
+            font-size: var(--font-body-size-sm);
+            box-sizing: border-box;
+        }
+
+        /* =========================
+           Guard Redesign V2 (final overrides)
+           ========================= */
+        body.guard-portal.guard-mobile-shell {
+            --guard-v2-blue: #1f4a72;
+            --guard-v2-ink: #0f172a;
+            --guard-v2-bg: #eef2f6;
+            background: var(--guard-v2-bg) !important;
+        }
+
+        html,
+        body.guard-portal.guard-mobile-shell {
+            margin: 0;
+            padding: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-portal-layout {
+            min-height: 100vh;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-portal-layout__header,
+        body.guard-portal.guard-mobile-shell .guard-portal-layout__footer {
+            flex-shrink: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-portal-layout__body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 clamp(16px, 3vw, 28px) 22px;
+        }
+
+        body.guard-portal.guard-mobile-shell #guard-portal-main.main-container {
+            width: 100%;
+            max-width: none;
+            margin: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell header.guard-mobile-app-header {
+            display: block !important;
+            position: relative;
+            z-index: 90;
+            padding: 0 0 14px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__top {
+            margin: 0;
+            gap: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip,
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip--static {
+            width: 100%;
+            border-radius: 0 0 28px 28px;
+            background: var(--guard-v2-blue);
+            color: #fff;
+            padding: 16px 24px;
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 24px rgba(15, 30, 48, 0.22);
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip .fa-location-dot,
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip--static .fa-location-dot {
+            color: #fff;
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip .fa-chevron-down,
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip__chevron-dim {
+            margin-left: auto;
+            color: #fff;
+            opacity: 0.9;
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-location-chip__text {
+            flex: 1 1 auto;
+            text-align: center;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__greeting,
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__search-wrap,
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__tabs,
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__avatar {
+            display: none !important;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar {
+            display: block !important;
+            background: #1e4a74;
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar__rail {
+            padding: 10px max(12px, env(safe-area-inset-left))
+                calc(10px + env(safe-area-inset-bottom))
+                max(12px, env(safe-area-inset-right));
+            padding-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 62px 1fr 1fr;
+            align-items: center;
+            justify-items: center;
+            column-gap: 4px;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar::before,
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab__label {
+            display: none !important;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab {
+            min-height: 46px;
+            color: rgba(255, 255, 255, 0.95);
+            padding: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.65rem;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab.is-active {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 62px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 62px;
+            height: 62px;
+            margin-top: -36px;
+            border: 6px solid #fff;
+            background: #ffffff;
+            color: #1e4a74;
+            box-shadow:
+                0 10px 24px rgba(12, 29, 45, 0.24),
+                0 0 0 2px rgba(30, 74, 116, 0.22) inset;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.28rem;
+        }
+
+        body.guard-portal.guard-mobile-shell .portal-intro {
+            margin-bottom: 16px;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell .portal-title {
+            color: var(--guard-v2-ink);
+        }
+
+        /* AppFrame-style container contract: header / main / footer / modals */
+        body.guard-portal.guard-mobile-shell .guard-app-frame {
+            min-height: 100vh;
+            min-height: 100dvh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__footer {
+            flex: 0 0 auto;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__main {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            overscroll-behavior: contain;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__modals:empty {
+            display: none;
+        }
+
+        /* Canonical AppFrame structure contract */
+        body.guard-portal.guard-mobile-shell .guard-app-frame__header {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: 0 !important;
+            overflow: hidden !important;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__main {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 14px 16px 18px;
+        }
+
+        body.guard-portal.guard-mobile-shell #hds-main.guard-app-frame__main,
+        body.guard-portal.guard-mobile-shell #guard-portal-main.guard-app-frame__main {
+            max-width: none;
+            width: 100%;
+            margin: 0;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__main > .guard-dynamic-content {
+            min-height: 62vh;
+            display: flex;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-app-frame__main > .guard-dynamic-content > .guard-dynamic-content__canvas {
+            flex: 1 1 auto;
+        }
+
+        /* ===== Portal Mobile UI (Emergency App style) ===== */
+        body.guard-portal-home.guard-mobile-shell {
+            --guard-emergency-blue: #1b63ff;
+            --guard-emergency-blue-deep: #174fbf;
+            --guard-emergency-bg: #f3f5f8;
+            background: var(--guard-emergency-bg) !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame {
+            background: var(--guard-emergency-bg);
+            min-height: 100dvh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__header {
+            position: sticky;
+            top: 0;
+            z-index: 220;
+            background: #ffffff;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        body.guard-portal-home.guard-mobile-shell header.guard-mobile-app-header {
+            display: block !important;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+            padding: 12px 16px 14px;
+            box-shadow: none;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__top {
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__location {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip {
+            min-height: 0;
+            padding: 0;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            background: transparent;
+            color: #0f172a;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip .fa-location-dot {
+            color: var(--guard-emergency-blue);
+            font-size: 0.95rem;
+            width: auto;
+            margin-top: 3px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip__text {
+            text-align: left;
+            font-size: 1.5rem;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip .fa-chevron-down {
+            margin-left: 4px;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(140deg, #ff8a48, #d94b2b);
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: 0 4px 14px rgba(217, 75, 43, 0.36);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__greeting {
+            display: block !important;
+            margin: 0 0 12px;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__hello,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__who {
+            display: none;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__subtitle {
+            color: #94a3b8;
+            margin-top: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__search-wrap {
+            display: flex !important;
+            background: #eef1f5;
+            border: none;
+            box-shadow: none;
+            border-radius: 999px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__search-icon {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__search {
+            font-size: 0.9rem;
+            color: #334155;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__search::placeholder {
+            color: #9aa5b1;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header__tabs {
+            display: flex !important;
+            background: #ebeff4;
+            border-radius: 999px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-seg {
+            color: #7c8796;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 9px 10px;
+            border-radius: 999px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-seg.is-active {
+            background: linear-gradient(135deg, var(--guard-emergency-blue), var(--guard-emergency-blue-deep));
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(27, 99, 255, 0.35);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__main {
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 14px 16px 18px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell #hds-main.guard-app-frame__main,
+        body.guard-portal-home.guard-mobile-shell #guard-portal-main.main-container {
+            max-width: none;
+            margin: 0;
+            width: 100%;
+            padding: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-dynamic-content {
+            min-height: 62vh;
+            display: flex;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-dynamic-content__canvas {
+            flex: 1 1 auto;
+            border-radius: 18px;
+            border: 1px dashed rgba(148, 163, 184, 0.35);
+            background: rgba(255, 255, 255, 0.58);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 230;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            display: block !important;
+            background: linear-gradient(160deg, #1f66ff, #1550cc);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -8px 22px rgba(20, 57, 128, 0.24);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar__rail {
+            grid-template-columns: 1fr 1fr 64px 1fr 1fr;
+            padding: 10px max(12px, env(safe-area-inset-left))
+                calc(9px + env(safe-area-inset-bottom))
+                max(12px, env(safe-area-inset-right));
+            padding-top: 12px;
+            align-items: end;
+            justify-items: center;
+            gap: 2px;
+            background: transparent;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__label {
+            display: block !important;
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.92);
+            margin-top: 2px;
+            line-height: 1.1;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab {
+            min-height: 46px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            color: rgba(255, 255, 255, 0.95);
+            text-decoration: none;
+            padding: 2px;
+            border-radius: 10px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.25rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active .guard-mobile-tab__label {
+            font-weight: 700;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 64px;
+            justify-self: center;
+            align-self: end;
+            margin-bottom: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 64px;
+            height: 64px;
+            margin-top: -34px;
+            border-radius: 50%;
+            border: 6px solid #fff;
+            background: #fff;
+            color: var(--guard-emergency-blue);
+            box-shadow:
+                0 10px 22px rgba(13, 42, 103, 0.28),
+                0 0 0 2px rgba(27, 99, 255, 0.16) inset;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.22rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab__label {
+            display: block;
+            margin-top: 4px;
+            text-align: center;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.01em;
+            line-height: 1;
+        }
+
+        /* Bottom navigation component refinements (floating emergency nav) */
+        body.guard-portal.guard-mobile-shell .guard-app-frame__footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 260;
+            padding: 0 max(10px, env(safe-area-inset-left))
+                env(safe-area-inset-bottom)
+                max(10px, env(safe-area-inset-right));
+            background: transparent;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar {
+            background: linear-gradient(160deg, #0d6efd 0%, #0b58d0 100%);
+            border-radius: 20px 20px 0 0;
+            box-shadow:
+                0 -10px 28px rgba(10, 37, 90, 0.28),
+                0 1px 0 rgba(255, 255, 255, 0.18) inset;
+            overflow: visible;
+            isolation: isolate;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar__rail {
+            display: grid;
+            grid-template-columns: 1fr 1fr 70px 1fr 1fr;
+            align-items: end;
+            justify-items: center;
+            column-gap: 4px;
+            padding: 10px 12px calc(8px + env(safe-area-inset-bottom));
+            padding-top: 14px;
+            background: transparent;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab {
+            min-height: 48px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 3px;
+            color: rgba(255, 255, 255, 0.72);
+            text-decoration: none;
+            padding: 2px 4px;
+            border-radius: 10px;
+            transition: color 0.18s ease, transform 0.18s ease, background-color 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.22rem;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab__label {
+            display: block !important;
+            font-size: 0.64rem;
+            font-weight: 500;
+            line-height: 1;
+            color: inherit;
+            letter-spacing: 0.01em;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab:hover,
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab:focus-visible {
+            color: rgba(255, 255, 255, 0.92);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab.is-active {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab.is-active .guard-mobile-tab__label {
+            font-weight: 700;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 70px;
+            justify-self: center;
+            align-self: end;
+            margin-bottom: 0;
+            z-index: 3;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 66px;
+            height: 66px;
+            margin: -38px auto 0;
+            border-radius: 50%;
+            border: 6px solid #ffffff;
+            background: #ffffff;
+            color: #0d6efd;
+            box-shadow:
+                0 14px 24px rgba(10, 37, 90, 0.36),
+                0 0 0 2px rgba(13, 110, 253, 0.18) inset;
+            transition: transform 0.18s ease, box-shadow 0.2s ease;
+            outline: none;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab:hover,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab:focus-visible {
+            transform: translateY(-2px);
+            box-shadow:
+                0 16px 28px rgba(10, 37, 90, 0.4),
+                0 0 0 3px rgba(13, 110, 253, 0.22) inset;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.24rem;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab__label {
+            display: block;
+            margin-top: 4px;
+            text-align: center;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.96);
+            line-height: 1;
+            letter-spacing: 0.01em;
+        }
+
+        /* Nav mechanism match: center notch + elevated action */
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            position: relative;
+            overflow: visible;
+            border-radius: 30px;
+            background: #1768f2;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 94px;
+            height: 46px;
+            transform: translate(-50%, -60%);
+            background: var(--guard-emergency-bg, #f3f5f8);
+            border-radius: 999px 999px 0 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar__rail {
+            position: relative;
+            z-index: 1;
+            grid-template-columns: 1fr 1fr 74px 1fr 1fr;
+            padding-top: 18px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab {
+            min-height: 54px;
+            gap: 6px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.15rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__label {
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.72);
+            font-weight: 500;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active .guard-mobile-tab__label {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active {
+            background: transparent;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 74px;
+            z-index: 3;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 68px;
+            height: 68px;
+            margin-top: -44px;
+            border: 6px solid #dbe9ff;
+            background: linear-gradient(155deg, #2f88ff, #1768f2);
+            color: #ffffff;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.3rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab__label {
+            display: none;
+        }
+
+        /* Photo-match polish: navigation bar geometry and visual balance */
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__footer {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            background: #1768f2 !important;
+            border-radius: 26px 26px 30px 30px;
+            box-shadow: 0 -8px 20px rgba(17, 57, 130, 0.28);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar::before {
+            width: 102px;
+            height: 50px;
+            transform: translate(-50%, -62%);
+            background: var(--guard-emergency-bg, #f3f5f8);
+            border-radius: 999px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar__rail {
+            grid-template-columns: 1fr 1fr 78px 1fr 1fr;
+            padding: 12px 18px calc(10px + env(safe-area-inset-bottom));
+            padding-top: 16px;
+            column-gap: 8px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab {
+            min-height: 56px;
+            gap: 5px;
+            color: rgba(255, 255, 255, 0.86);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.16rem;
+            opacity: 0.95;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__label {
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active i,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active .guard-mobile-tab__label {
+            color: #ffffff;
+            opacity: 1;
+            font-weight: 700;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 78px;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 70px;
+            height: 70px;
+            margin-top: -46px;
+            border: 6px solid #dce9ff;
+            background: linear-gradient(160deg, #2f88ff 0%, #1768f2 100%);
+            color: #ffffff;
+            box-shadow:
+                0 10px 24px rgba(14, 45, 110, 0.34),
+                0 0 0 2px rgba(255, 255, 255, 0.35) inset;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.28rem;
+        }
+
+        /* ===== System Principles Layer (Helios-inspired) =====
+           Consistency, accessibility, hierarchy, and scalable tokens.
+           Ref: https://helios.hashicorp.design/
+        */
+        :root {
+            --sys-radius-xs: 8px;
+            --sys-radius-sm: 12px;
+            --sys-radius-md: 16px;
+            --sys-radius-lg: 20px;
+            --sys-space-1: 4px;
+            --sys-space-2: 8px;
+            --sys-space-3: 12px;
+            --sys-space-4: 16px;
+            --sys-space-5: 20px;
+            --sys-shadow-1: 0 2px 6px rgba(15, 23, 42, 0.08);
+            --sys-shadow-2: 0 8px 18px rgba(15, 23, 42, 0.12);
+            --sys-focus-ring: 0 0 0 3px rgba(27, 99, 255, 0.28);
+            --sys-ink-primary: #0f172a;
+            --sys-ink-secondary: #475569;
+            --sys-ink-muted: #64748b;
+        }
+
+        body.guard-portal.guard-mobile-shell {
+            color: var(--sys-ink-primary);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header,
+        body.guard-portal.guard-mobile-shell .guard-mobile-tabbar,
+        body.guard-portal.guard-mobile-shell .guard-dynamic-content__canvas,
+        body.guard-portal.guard-mobile-shell .portal-section,
+        body.guard-portal.guard-mobile-shell .notif-card,
+        body.guard-portal.guard-mobile-shell .info-card {
+            box-shadow: var(--sys-shadow-1);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header,
+        body.guard-portal.guard-mobile-shell .portal-section,
+        body.guard-portal.guard-mobile-shell .notif-card,
+        body.guard-portal.guard-mobile-shell .info-card,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-sheet {
+            border-radius: var(--sys-radius-md);
+        }
+
+        body.guard-portal.guard-mobile-shell .portal-title,
+        body.guard-portal.guard-mobile-shell .page-title {
+            color: var(--sys-ink-primary);
+            line-height: 1.25;
+        }
+
+        body.guard-portal.guard-mobile-shell .portal-subtitle,
+        body.guard-portal.guard-mobile-shell .page-subtitle,
+        body.guard-portal.guard-mobile-shell .guard-mobile-app-header__subtitle {
+            color: var(--sys-ink-muted);
+        }
+
+        body.guard-portal.guard-mobile-shell button,
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab,
+        body.guard-portal.guard-mobile-shell .guard-mobile-seg,
+        body.guard-portal.guard-mobile-shell .btn-signin,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-sheet__item {
+            min-height: 44px;
+        }
+
+        body.guard-portal.guard-mobile-shell button:focus-visible,
+        body.guard-portal.guard-mobile-shell a:focus-visible,
+        body.guard-portal.guard-mobile-shell input:focus-visible,
+        body.guard-portal.guard-mobile-shell select:focus-visible,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab:focus-visible {
+            outline: none;
+            box-shadow: var(--sys-focus-ring);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab,
+        body.guard-portal.guard-mobile-shell .guard-mobile-seg,
+        body.guard-portal.guard-mobile-shell .btn-signin,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab-sheet__item {
+            transition: transform 0.14s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-mobile-tab:active,
+        body.guard-portal.guard-mobile-shell .guard-mobile-seg:active,
+        body.guard-portal.guard-mobile-shell .btn-signin:active,
+        body.guard-portal.guard-mobile-shell .guard-mobile-fab:active {
+            transform: translateY(1px);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body.guard-portal.guard-mobile-shell *,
+            body.guard-portal.guard-mobile-shell *::before,
+            body.guard-portal.guard-mobile-shell *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* Hotfixes: menu state bugs */
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-sheet {
+            display: none !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap.is-open .guard-mobile-fab-sheet {
+            display: block !important;
+        }
+
+        /* Final visual lock: Dribbble first photo style */
+        body.guard-portal-home.guard-mobile-shell {
+            --drb-blue: #1768f2;
+            --drb-bg: #f2f4f7;
+            background: var(--drb-bg) !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame {
+            background: var(--drb-bg) !important;
+            min-height: 100dvh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__header {
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+            z-index: 300;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-app-header {
+            padding: 12px 16px 12px !important;
+            background: #fff !important;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            gap: 8px !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip__text {
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            color: #1f2937 !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__main {
+            padding: 12px 14px 14px !important;
+            overflow-y: auto;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-dynamic-content__canvas {
+            border-radius: 18px !important;
+            background: #eef2f6 !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important;
+            min-height: 58vh;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__footer {
+            padding: 0 !important;
+            z-index: 320;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            background: var(--drb-blue) !important;
+            border-radius: 28px 28px 0 0 !important;
+            box-shadow: 0 -8px 20px rgba(16, 49, 113, 0.28) !important;
+            overflow: visible !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar::before {
+            content: '' !important;
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translate(-50%, -60%);
+            width: 98px;
+            height: 48px;
+            border-radius: 999px;
+            background: var(--drb-bg);
+            z-index: 0;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar__rail {
+            position: relative;
+            z-index: 1;
+            grid-template-columns: 1fr 1fr 74px 1fr 1fr !important;
+            padding: 12px 18px calc(10px + env(safe-area-inset-bottom)) !important;
+            padding-top: 16px !important;
+            column-gap: 8px !important;
+            background: transparent !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab {
+            min-height: 54px !important;
+            gap: 4px !important;
+            color: rgba(255, 255, 255, 0.74) !important;
+            background: transparent !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab i {
+            font-size: 1.14rem !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__label {
+            display: block !important;
+            font-size: 0.6rem !important;
+            color: inherit !important;
+            font-weight: 500 !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active {
+            color: #fff !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab.is-active .guard-mobile-tab__label {
+            font-weight: 700 !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 74px !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 68px !important;
+            height: 68px !important;
+            margin-top: -44px !important;
+            border: 6px solid #dfe9fb !important;
+            background: linear-gradient(155deg, #2f88ff, #1768f2) !important;
+            color: #fff !important;
+            box-shadow: 0 10px 24px rgba(14, 45, 110, 0.33) !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.24rem !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab__label {
+            display: none !important;
+        }
+
+        /* Login-module brand alignment (final token bridge) */
+        body.guard-portal-home.guard-mobile-shell {
+            --drb-blue: var(--color-primary);
+            --drb-blue-deep: color-mix(in srgb, var(--color-primary) 78%, var(--color-secondary));
+            --drb-bg: var(--app-canvas-bg, #f3f5f8);
+            font-family: var(--font-body-family);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-app-frame__header {
+            background: var(--color-white);
+            box-shadow: var(--app-shadow-sm);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-location-chip__text {
+            color: var(--color-primary);
+            font-family: var(--font-body-family);
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-dynamic-content__canvas {
+            background: var(--color-white);
+            border-color: var(--color-border-subtle);
+            box-shadow: var(--app-shadow-sm);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar {
+            background: var(--gradient-brand-deep);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab {
+            font-family: var(--font-body-family);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            background: var(--color-white);
+            color: var(--color-primary);
+            border-color: var(--color-white);
+        }
+
+        /* Center emergency action (photo-matched button UI) */
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap {
+            width: 76px !important;
+            height: 76px;
+            display: grid;
+            place-items: start center;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab {
+            width: 68px !important;
+            height: 68px !important;
+            margin-top: -44px !important;
+            border-radius: 50%;
+            border: 6px solid color-mix(in srgb, var(--color-white) 74%, var(--color-secondary) 26%) !important;
+            background: var(--gradient-primary-btn) !important;
+            color: var(--color-white) !important;
+            display: grid !important;
+            place-items: center !important;
+            box-shadow:
+                0 10px 24px rgba(var(--color-primary-rgb), 0.34),
+                0 2px 0 rgba(var(--color-secondary-rgb), 0.28) inset !important;
+            position: relative;
+            isolation: isolate;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 2px solid rgba(var(--color-secondary-rgb), 0.45);
+            z-index: -1;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab__inner {
+            display: grid;
+            place-items: center;
+            line-height: 1;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-fab-wrap .guard-mobile-fab i {
+            font-size: 1.32rem !important;
+            color: var(--color-white) !important;
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        /* Simple basic footer navigation (icons + labels) */
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar--simple {
+            background: var(--color-white) !important;
+            border-top: 1px solid var(--color-border-subtle) !important;
+            border-radius: 0 !important;
+            box-shadow: 0 -2px 12px rgba(var(--color-primary-rgb), 0.08) !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar--simple::before {
+            display: none !important;
+            content: none !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tabbar__rail--simple {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 2px !important;
+            padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) !important;
+            background: transparent !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple {
+            min-height: 56px !important;
+            border-radius: 10px !important;
+            color: var(--color-text-muted) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 4px !important;
+            text-decoration: none !important;
+            background: transparent !important;
+            border: 1px solid transparent !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple .guard-mobile-tab__content,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button .guard-mobile-tab__content {
+            min-height: 46px;
+            width: 100%;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: background-color 0.16s ease, color 0.16s ease, transform 0.08s ease;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple i {
+            font-size: 1rem !important;
+            color: currentColor !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple .guard-mobile-tab__icon,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button .guard-mobile-tab__icon {
+            display: inline-grid !important;
+            place-items: center;
+            width: 1.15rem;
+            height: 1.15rem;
+            line-height: 1;
+            color: currentColor !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__icon svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            fill: currentColor;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple .guard-mobile-tab__label {
+            display: block !important;
+            font-size: 0.68rem !important;
+            font-weight: 600 !important;
+            color: currentColor !important;
+            line-height: 1.1;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple.is-active {
+            color: var(--color-primary) !important;
+            border-color: transparent !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple.is-active .guard-mobile-tab__content {
+            background: color-mix(in srgb, var(--color-primary) 8%, var(--color-white)) !important;
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--logout {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button {
+            width: 100%;
+            min-height: 56px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--color-text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button i {
+            font-size: 1rem;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button:hover,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button:focus-visible {
+            color: #b42318;
+            outline: none;
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button:hover .guard-mobile-tab__content,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button:focus-visible .guard-mobile-tab__content {
+            background: color-mix(in srgb, #b42318 8%, var(--color-white));
+        }
+
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab--simple:active .guard-mobile-tab__content,
+        body.guard-portal-home.guard-mobile-shell .guard-mobile-tab__button:active .guard-mobile-tab__content {
+            transform: scale(0.97);
+            background: color-mix(in srgb, var(--color-primary) 12%, var(--color-white));
+        }
+
+        /* Foodpanda-inspired location picker row */
+        body.guard-portal.guard-mobile-shell .guard-location-selector {
+            position: sticky;
+            top: 0;
+            z-index: 60;
+            margin: 0 0 10px;
+            padding-top: 2px;
+            background: var(--app-canvas-bg);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__trigger {
+            width: 100%;
+            min-height: 58px;
+            border: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent);
+            background: var(--color-white);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--color-primary);
+            font-family: var(--font-body-family);
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow:
+                0 1px 2px rgba(var(--color-primary-rgb), 0.06),
+                0 8px 20px rgba(var(--color-primary-rgb), 0.08);
+            transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.08s ease;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__trigger:hover,
+        body.guard-portal.guard-mobile-shell .guard-location-selector__trigger:focus-visible {
+            border-color: color-mix(in srgb, var(--color-primary) 28%, transparent);
+            box-shadow:
+                0 1px 3px rgba(var(--color-primary-rgb), 0.08),
+                0 10px 24px rgba(var(--color-primary-rgb), 0.12);
+            outline: none;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__trigger:active {
+            transform: translateY(1px);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: inline-grid;
+            place-items: center;
+            background: color-mix(in srgb, var(--color-primary) 9%, var(--color-white));
+            color: var(--color-primary);
+            flex: 0 0 auto;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__icon .fa-location-dot {
+            color: var(--color-primary);
+            font-size: 0.92rem;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1 1 auto;
+            align-items: flex-start;
+            gap: 1px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__eyebrow {
+            font-size: 0.68rem;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-text-muted);
+            font-weight: 700;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__chevron {
+            margin-left: auto;
+            font-size: 0.78rem;
+            opacity: 0.8;
+            flex: 0 0 auto;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker {
+            margin-top: 8px;
+            border: 1px solid var(--color-border-subtle);
+            background: var(--color-white);
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: var(--app-shadow-sm);
+            display: grid;
+            gap: 8px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__heading {
+            margin: 0 0 2px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--color-text-muted);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-selector__trigger[aria-expanded="true"] .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+
+        body.guard-portal.guard-mobile-shell #hds-main.guard-app-frame__main {
+            padding: 16px !important;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        body.guard-portal.guard-mobile-shell #hds-main.guard-app-frame__main > .guard-location-selector,
+        body.guard-portal.guard-mobile-shell #hds-main.guard-app-frame__main > .guard-dynamic-content {
+            width: min(100%, 760px);
+            margin-inline: auto;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__action {
+            width: 100%;
+            border: 1px solid var(--color-border-subtle);
+            background: color-mix(in srgb, var(--color-primary) 4%, var(--color-white));
+            color: var(--color-primary);
+            border-radius: 8px;
+            min-height: 40px;
+            padding: 8px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__manual {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__manual input {
+            min-height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border-subtle);
+            padding: 8px 10px;
+            color: var(--color-primary);
+            background: var(--color-white);
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__manual button {
+            min-height: 40px;
+            border: 0;
+            border-radius: 8px;
+            padding: 0 12px;
+            background: var(--gradient-primary-btn);
+            color: var(--color-white);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__results {
+            display: grid;
+            gap: 6px;
+            max-height: 180px;
+            overflow: auto;
+            padding-top: 2px;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__results[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__result-item {
+            width: 100%;
+            text-align: left;
+            border: 1px solid var(--color-border-subtle);
+            background: var(--color-white);
+            color: var(--color-primary);
+            border-radius: 8px;
+            min-height: 36px;
+            padding: 7px 9px;
+            font: inherit;
+            font-size: 0.82rem;
+            line-height: 1.25;
+            cursor: pointer;
+        }
+
+        body.guard-portal.guard-mobile-shell .guard-location-picker__result-item:hover,
+        body.guard-portal.guard-mobile-shell .guard-location-picker__result-item:focus-visible {
+            background: color-mix(in srgb, var(--color-primary) 6%, var(--color-white));
+            outline: none;
         }

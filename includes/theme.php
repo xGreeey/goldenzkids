@@ -1001,6 +1001,33 @@ function theme_render_css(): void
             cursor: pointer; padding: 0; line-height: 1;
             min-width: 44px; min-height: 44px;
             display: inline-flex; align-items: center; justify-content: center;
+            transition: color 0.2s ease, background 0.2s ease;
+            border-radius: 6px;
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon {
+            width: 19px;
+            height: 19px;
+            display: block;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            opacity: 1;
+            transform: scale(1);
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon.is-hidden {
+            opacity: 0;
+            transform: scale(0.9);
+            position: absolute;
+            pointer-events: none;
+        }
+        body.auth-shell .btn-toggle-pin.is-animating .toggle-pin-icon:not(.is-hidden) {
+            opacity: 0.86;
+            transform: scale(0.96);
+        }
+        body.auth-shell .btn-toggle-pin:hover {
+            color: var(--color-text);
+        }
+        body.auth-shell .btn-toggle-pin:focus-visible {
+            outline: 2px solid var(--color-focus-ring);
+            outline-offset: 2px;
         }
         body.auth-shell .form-input.input-error { border-color: var(--error-border, var(--color-border)); }
         body.auth-shell .alert-error {

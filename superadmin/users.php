@@ -53,6 +53,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active
             if (isset($_GET['role']) && (string) $_GET['role'] !== '') {
                 $qs['role'] = (string) $_GET['role'];
             }
+            if (isset($_GET['status']) && (string) $_GET['status'] !== '' && (string) $_GET['status'] !== 'all') {
+                $qs['status'] = (string) $_GET['status'];
+            }
             $tail = $qs === [] ? '' : '?' . http_build_query($qs);
             header('Location: users.php' . $tail);
             exit;
@@ -62,6 +65,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['toggle_active
 
 $search = trim((string) ($_GET['q'] ?? ''));
 $filterRole = $_GET['role'] ?? '';
+$filterStatus = trim((string) ($_GET['status'] ?? ''));
+if ($filterStatus === '') {
+    $filterStatus = 'all';
+}
+if (!in_array($filterStatus, ['all', 'active', 'inactive'], true)) {
+    $filterStatus = 'all';
+}
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 10;
 $params = [];
@@ -83,6 +93,12 @@ if ($filterRole !== '' && $filterRole !== 'all') {
         $params[] = $roleFilter;
         $types .= 'i';
     }
+}
+
+if ($filterStatus === 'active') {
+    $where[] = 'is_active = 1';
+} elseif ($filterStatus === 'inactive') {
+    $where[] = 'is_active = 0';
 }
 
 $fromSql = " FROM users";
@@ -133,7 +149,7 @@ function superadmin_role_badge(int $role): string
     };
 }
 
-function superadmin_page_url(int $targetPage, string $search, string $filterRole): string
+function superadmin_page_url(int $targetPage, string $search, string $filterRole, string $filterStatus = 'all'): string
 {
     $q = ['page' => max(1, $targetPage)];
     if ($search !== '') {
@@ -141,6 +157,9 @@ function superadmin_page_url(int $targetPage, string $search, string $filterRole
     }
     if ($filterRole !== '' && $filterRole !== 'all') {
         $q['role'] = $filterRole;
+    }
+    if ($filterStatus !== '' && $filterStatus !== 'all') {
+        $q['status'] = $filterStatus;
     }
     return 'users.php?' . http_build_query($q);
 }
@@ -185,6 +204,14 @@ $superadminMobileTitle = 'User Accounts';
                         <option value="0"<?= $filterRole === '0' ? ' selected' : '' ?>>Head guard</option>
                         <option value="1"<?= $filterRole === '1' ? ' selected' : '' ?>>Admin</option>
                         <option value="2"<?= $filterRole === '2' ? ' selected' : '' ?>>Superadmin</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="status" class="label-with-icon"><i class="fa-solid fa-signal" aria-hidden="true"></i> Status</label>
+                    <select id="status" name="status">
+                        <option value="all"<?= $filterStatus === 'all' ? ' selected' : '' ?>>All statuses</option>
+                        <option value="active"<?= $filterStatus === 'active' ? ' selected' : '' ?>>Active</option>
+                        <option value="inactive"<?= $filterStatus === 'inactive' ? ' selected' : '' ?>>Inactive</option>
                     </select>
                 </div>
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter</button>
@@ -254,17 +281,17 @@ $superadminMobileTitle = 'User Accounts';
                 <?php if ($totalPages > 1): ?>
                     <nav class="pagination" aria-label="Accounts pagination">
                         <?php if ($page > 1): ?>
-                            <a href="<?= e(superadmin_page_url($page - 1, $search, (string) $filterRole)) ?>" aria-label="Previous page">Prev</a>
+                            <a href="<?= e(superadmin_page_url($page - 1, $search, (string) $filterRole, $filterStatus)) ?>" aria-label="Previous page">Prev</a>
                         <?php endif; ?>
                         <?php for ($p = 1; $p <= $totalPages; $p++): ?>
                             <?php if ($p === $page): ?>
                                 <span class="current" aria-current="page"><?= e((string) $p) ?></span>
                             <?php else: ?>
-                                <a href="<?= e(superadmin_page_url($p, $search, (string) $filterRole)) ?>"><?= e((string) $p) ?></a>
+                                <a href="<?= e(superadmin_page_url($p, $search, (string) $filterRole, $filterStatus)) ?>"><?= e((string) $p) ?></a>
                             <?php endif; ?>
                         <?php endfor; ?>
                         <?php if ($page < $totalPages): ?>
-                            <a href="<?= e(superadmin_page_url($page + 1, $search, (string) $filterRole)) ?>" aria-label="Next page">Next</a>
+                            <a href="<?= e(superadmin_page_url($page + 1, $search, (string) $filterRole, $filterStatus)) ?>" aria-label="Next page">Next</a>
                         <?php endif; ?>
                     </nav>
                 <?php endif; ?>

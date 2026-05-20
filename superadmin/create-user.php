@@ -42,8 +42,13 @@ if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
-    $editId = trim((string) ($_POST['company_id'] ?? $editId));
-    $isEdit = auth_username_valid($editId);
+    $originalId = trim((string) ($_POST['original_company_id'] ?? ''));
+    if ($originalId === '' || !auth_username_valid($originalId)) {
+        header('Location: users.php');
+        exit;
+    }
+    $editId = $originalId;
+    $isEdit = true;
 
     $result = superadmin_handle_account_post($conn, $isEdit, $editId);
     $form = $result['form'];
@@ -57,6 +62,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!$isEdit) {
         header('Location: users.php?create=1');
         exit;
+    }
+
+    if ($success !== null && $error === null) {
+        $origPost = trim((string) ($_POST['original_company_id'] ?? ''));
+        if ($origPost !== '' && $editId !== '' && $origPost !== $editId && auth_username_valid($editId)) {
+            header('Location: create-user.php?edit=' . rawurlencode($editId));
+            exit;
+        }
     }
 }
 
@@ -94,28 +107,40 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
         <?php endif; ?>
 
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Account details</h2>
-            <form method="POST" class="form-grid" autocomplete="off">
+            <h2 class="panel-title">Account details</h2>
+            <form method="POST" class="form-grid" autocomplete="off"
+                  data-sa-edit-account-form
+                  data-orig-company="<?= e($form['company_id']) ?>"
+                  data-orig-email="<?= e($form['email']) ?>"
+                  data-orig-role="<?= e($form['role']) ?>"
+                  data-orig-active="<?= $form['is_active'] === '1' ? '1' : '0' ?>"
+                  data-editing-self="<?= $editingSelf ? '1' : '0' ?>">
                 <?= csrf_field() ?>
+                <input type="hidden" name="original_company_id" value="<?= e($editId) ?>">
 
                 <div class="form-field">
                     <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Username</label>
                     <input type="text" id="company_id" name="company_id" required
+                           data-sa-edit-field="company"
                            pattern="[A-Za-z0-9]{1,20}"
                            maxlength="20"
                            value="<?= e($form['company_id']) ?>"
                            readonly
-                           placeholder="Username">
+                           placeholder="Username"<?= $editingSelf ? ' title="Your username cannot be changed"' : '' ?>>
                 </div>
 
                 <div class="form-field">
                     <label for="email" class="label-with-icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email</label>
-                    <input type="email" id="email" name="email" required value="<?= e($form['email']) ?>">
+                    <input type="email" id="email" name="email" required data-sa-edit-field="email"
+                           value="<?= e($form['email']) ?>" readonly>
                 </div>
 
                 <div class="form-field">
                     <label for="role" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
-                    <select id="role" name="role" required<?= $editingSelf ? ' disabled' : '' ?>>
+                    <?php if (!$editingSelf): ?>
+                        <input type="hidden" name="role" value="<?= e($form['role']) ?>" data-sa-role-fallback>
+                    <?php endif; ?>
+                    <select id="role" required data-sa-edit-field="role" disabled<?= $editingSelf ? ' data-sa-role-locked="1"' : '' ?>>
                         <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
                         <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                         <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
@@ -125,31 +150,44 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                     <?php endif; ?>
                 </div>
 
-                <div class="form-field">
-                    <label for="password" class="label-with-icon"><i class="fa-solid fa-key" aria-hidden="true"></i> Password</label>
-                    <input type="password" id="password" name="password" pattern="(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,64}"
-                           minlength="8" maxlength="64" autocomplete="new-password"
-                           placeholder="Leave blank to keep current">
-                </div>
-
                 <div class="form-field form-field--checkbox">
                     <label class="checkbox-row" for="is_active">
                         <span class="checkbox-row__label">
                             <i class="fa-solid fa-toggle-on" aria-hidden="true"></i>
                             Account is active
                         </span>
-                        <input type="checkbox" id="is_active" name="is_active" value="1"<?= $form['is_active'] === '1' ? ' checked' : '' ?><?= $editingSelf ? ' disabled checked' : '' ?>>
+                        <?php if (!$editingSelf): ?>
+                            <input type="hidden" name="is_active" value="<?= $form['is_active'] === '1' ? '1' : '0' ?>" data-sa-active-fallback>
+                        <?php endif; ?>
+                        <input type="checkbox" id="is_active" value="1" data-sa-edit-field="active"
+                            <?= $form['is_active'] === '1' ? ' checked' : '' ?>
+                            disabled>
                     </label>
                     <?php if ($editingSelf): ?>
                         <input type="hidden" name="is_active" value="1">
                     <?php endif; ?>
                 </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">
+                <div class="form-toolbar-sa" data-sa-toolbar-view>
+                    <button type="button" class="btn-ghost" data-sa-edit-acc-start>
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        Edit
+                    </button>
+                </div>
+                <div class="form-toolbar-sa is-hidden" data-sa-toolbar-editing>
+                    <button type="button" class="btn-ghost" data-sa-edit-acc-cancel>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        Cancel
+                    </button>
+                </div>
+
+                <div class="form-actions is-hidden" data-sa-save-wrap>
+                    <button type="submit" class="btn-primary" data-sa-edit-acc-submit>
                         <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                         Save changes
                     </button>
+                </div>
+                <div class="form-actions">
                     <a href="users.php" class="btn-ghost"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to users</a>
                 </div>
             </form>
@@ -157,7 +195,7 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
 
         <?php if ($isEdit && $accountTrail !== []): ?>
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Record for <?= e($editId) ?></h2>
+            <h2 class="panel-title">Record for <?= e($editId) ?></h2>
             <div class="data-table-wrap">
                 <table class="data-table">
                     <thead>

@@ -643,6 +643,8 @@ function admin_shell_styles(): void
             }
         }
     <?php
+    /* Ensure create-account modal CSS exists even after SPA panel swaps. */
+    superadmin_modal_styles();
     panel_navigation_styles();
     echo mobile_base_css();
 }

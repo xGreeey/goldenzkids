@@ -366,12 +366,12 @@ function superadmin_page_styles(): void
             font-size: 0.95rem;
         }
 
-        .stat-icon--blue { background: transparent; color: var(--accent-blue); }
-        .stat-icon--gold { background: transparent; color: var(--brand-accent); }
-        .stat-icon--green { background: transparent; color: var(--success); }
-        .stat-icon--warn { background: transparent; color: var(--warning); }
-        .stat-icon--danger { background: transparent; color: var(--danger); }
-        .stat-icon--info { background: transparent; color: var(--accent-blue); }
+        .stat-icon--blue { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--gold { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--green { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--warn { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--danger { background: transparent; color: var(--sa-card-ink); }
+        .stat-icon--info { background: transparent; color: var(--sa-card-ink); }
 
         .stat-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
 
@@ -654,6 +654,43 @@ function superadmin_page_styles(): void
             text-transform: uppercase;
             letter-spacing: 0.04em;
             line-height: 1.2;
+        }
+
+        .badge.role-badge {
+            background: transparent;
+            color: var(--sa-card-ink);
+            border: 1px solid var(--sa-card-border);
+            box-shadow: none;
+        }
+
+        .badge.status-badge {
+            background: transparent;
+            border: 1px solid transparent;
+            box-shadow: none;
+        }
+
+        .badge.status-badge--active {
+            color: #15803d;
+            border-color: #22c55e;
+            background: #dcfce7;
+        }
+
+        .badge.status-badge--inactive {
+            color: #b91c1c;
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        body:not(.light-mode) .badge.status-badge--active {
+            color: #86efac;
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.18);
+        }
+
+        body:not(.light-mode) .badge.status-badge--inactive {
+            color: #fca5a5;
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.18);
         }
 
         .badge--guard { background: var(--accent-blue-soft); color: var(--accent-blue); }

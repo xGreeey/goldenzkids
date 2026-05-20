@@ -201,6 +201,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof window.__saCreateAccountModalClose !== 'undefined') {
                 window.__saCreateAccountModalClose = null;
             }
+            if (typeof window.__saCreateAccountModalOpen !== 'undefined') {
+                window.__saCreateAccountModalOpen = null;
+            }
         }
 
         if (doc.title) {

@@ -3,13 +3,15 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 
+auth_require_role(AUTH_ROLE_SUPERADMIN);
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
 }
 
 $time_of_event = date('Y-m-d H:i:s');
 $company_id = (string) ($_SESSION['company_id'] ?? '');
-$role = (string) ($_SESSION['designation'] ?? 'ADMIN');
+$role = (string) ($_SESSION['designation'] ?? 'SUPERADMIN');
 $event = 'LOGOUT';
 
 $logging_out = false;

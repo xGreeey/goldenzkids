@@ -22,7 +22,7 @@ Roles are stored as a **number on `users`** (no `roles` table after migration 00
 |------:|------|--------|
 | **0** | Head guard | `guard/*` |
 | **1** | Admin | `admin/*` |
-| **2** | Super admin | `admin/*` (all admin permissions) |
+| **2** | Super admin | `superadmin/*` (accounts, audit) + `admin/*` |
 
 Permissions are defined in PHP (`includes/auth.php`), not in the database.
 
@@ -83,6 +83,18 @@ c:\xampp\php\php.exe database\migrate.php
 | ~~`Pin`~~ | removed | Dropped after hashing |
 
 If `Pin` was dropped before hashes were copied, run migrations again; `006_repair_users_password_hashes.php` syncs from `portal_users`.
+
+## Consolidated schema (`abc_security.sql`)
+
+The project root `abc_security.sql` is the **clean reference** for new databases. See `database/SCHEMA_AUDIT.md` for known issues and the pre-migration checklist.
+
+After import, always run:
+
+```bash
+c:\xampp\php\php.exe database\migrate.php
+```
+
+Migration **008** aligns an old messy dump with the app (memo table names, `dgd.AI_Extracted_Text`, etc.).
 
 ## Rollback
 

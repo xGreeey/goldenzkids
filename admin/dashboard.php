@@ -12,13 +12,13 @@ $company_id = (string) $_SESSION['company_id'];
 $guard_count_query = $conn->query('SELECT COUNT(*) AS total FROM guards');
 $total_guards = $guard_count_query ? (int) $guard_count_query->fetch_assoc()['total'] : 0;
 
-$reports_today_query = $conn->query('SELECT COUNT(*) AS total FROM DGD WHERE DATE(Time_of_Report) = CURDATE()');
+$reports_today_query = $conn->query('SELECT COUNT(*) AS total FROM dgd WHERE DATE(Time_of_Report) = CURDATE()');
 $total_today = $reports_today_query ? (int) $reports_today_query->fetch_assoc()['total'] : 0;
 
-$pending_query = $conn->query("SELECT COUNT(*) AS total FROM DGD WHERE Status = 'Pending'");
+$pending_query = $conn->query("SELECT COUNT(*) AS total FROM dgd WHERE Status = 'Pending'");
 $total_pending = $pending_query ? (int) $pending_query->fetch_assoc()['total'] : 0;
 
-$reports_week_query = $conn->query('SELECT COUNT(*) AS total FROM DGD WHERE YEARWEEK(Time_of_Report, 1) = YEARWEEK(CURDATE(), 1)');
+$reports_week_query = $conn->query('SELECT COUNT(*) AS total FROM dgd WHERE YEARWEEK(Time_of_Report, 1) = YEARWEEK(CURDATE(), 1)');
 $total_weekly = $reports_week_query ? (int) $reports_week_query->fetch_assoc()['total'] : 0;
 
 $roster_query = $conn->query('SELECT Company_ID, First_Name, Last_Name, Post_Assigned FROM guards ORDER BY Last_Name ASC LIMIT 10');

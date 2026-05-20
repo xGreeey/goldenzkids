@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Staff messaging between head guard (role 0) and admin (role 1).
+ * Staff messaging between administrators and super administrators.
  */
 return static function (mysqli $conn): void {
     $exists = $conn->query("SHOW TABLES LIKE 'internal_messages'");

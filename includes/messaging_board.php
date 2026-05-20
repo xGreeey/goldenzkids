@@ -36,7 +36,7 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
             Staff messaging board
         </h2>
-        <p class="messaging-board__subtitle">Chat with head guard accounts (role 0). Select a contact to open the thread.</p>
+        <p class="messaging-board__subtitle">Chat between administrators and super administrators. Select a contact to open the thread.</p>
     </div>
     <?php if (!$messagingAvailable): ?>
         <p class="messaging-board__notice" role="status">
@@ -46,7 +46,7 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
     <div class="messaging-board__layout">
         <div class="messaging-board__contacts" role="navigation" aria-label="Message contacts">
             <?php if ($messagingContacts === []): ?>
-                <p class="messaging-board__empty">No <?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN ? 'head guard' : 'administrator' ?> accounts are active yet.</p>
+                <p class="messaging-board__empty">No <?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN ? 'super administrator' : 'administrator' ?> accounts are active yet.</p>
             <?php else: ?>
                 <ul class="messaging-contact-list">
                     <?php foreach ($messagingContacts as $contact): ?>

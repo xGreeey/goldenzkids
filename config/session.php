@@ -39,6 +39,7 @@ $public_pages = [
     'index.php',
     'forgot-access-code.php',
     'enter-otp.php',
+    'reset-password.php',
 ];
 
 if (!in_array($current, $public_pages, true) && !isset($_SESSION['company_id'])) {

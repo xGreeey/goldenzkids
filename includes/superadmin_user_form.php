@@ -85,7 +85,7 @@ function superadmin_default_form(string $companyId = ''): array
     return [
         'company_id' => $companyId,
         'email' => '',
-        'role' => (string) AUTH_ROLE_HEADGUARD,
+        'role' => (string) AUTH_ROLE_ADMIN,
         'is_active' => '1',
         'password' => '',
     ];
@@ -194,7 +194,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
     if ($isEdit) {
         $existing = db_query(
             $conn,
-            "SELECT Company_ID, Email, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
+            "SELECT Company_ID, Email, {$roleCol} AS role, is_active, password_hash FROM users WHERE Company_ID = ? LIMIT 1",
             's',
             [$editId]
         );
@@ -213,7 +213,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $beforeState = [
             'company_id' => (string) ($row['Company_ID'] ?? ''),
             'email' => (string) ($row['Email'] ?? ''),
-            'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_HEADGUARD),
+            'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN),
             'is_active' => (int) ($row['is_active'] ?? 1),
         ];
         $accountTrail = superadmin_account_audit_trail($conn, $editId);
@@ -221,7 +221,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
 
     $form['company_id'] = trim((string) ($_POST['company_id'] ?? $form['company_id']));
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
-    $form['role'] = (string) ($_POST['role'] ?? '0');
+    $form['role'] = (string) ($_POST['role'] ?? (string) AUTH_ROLE_ADMIN);
     $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
     /* Password is never set from POST: new accounts get an emailed temp password; edits do not change it here. */
     $form['password'] = '';
@@ -235,6 +235,17 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $error = 'Username must be alphanumeric and up to 20 characters.';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
+<<<<<<< HEAD
+=======
+    } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
+        $error = 'Password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
+    } elseif (
+        $isEdit
+        && $form['password'] !== ''
+        && auth_password_matches_existing_hash($form['password'], trim((string) ($row['password_hash'] ?? '')))
+    ) {
+        $error = 'New password cannot be the same as the current password.';
+>>>>>>> 1c79699d0c185e451e821df46b1ab711d2949f43
     } else {
         $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
         $alreadyExists = $exists && $exists->num_rows > 0;
@@ -411,7 +422,6 @@ function superadmin_render_create_account_form(
         <div class="form-field">
             <label for="<?= e($pid('role')) ?>" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
             <select id="<?= e($pid('role')) ?>" name="role" required>
-                <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
                 <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                 <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
             </select>

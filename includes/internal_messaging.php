@@ -19,10 +19,8 @@ function internal_messaging_roles_may_chat(int $roleA, int $roleB): bool
     $roleA = auth_normalize_role($roleA);
     $roleB = auth_normalize_role($roleB);
 
-    $staffAdmin = static fn (int $r): bool => $r === AUTH_ROLE_ADMIN || $r === AUTH_ROLE_SUPERADMIN;
-
-    return ($roleA === AUTH_ROLE_HEADGUARD && $staffAdmin($roleB))
-        || ($staffAdmin($roleA) && $roleB === AUTH_ROLE_HEADGUARD);
+    return ($roleA === AUTH_ROLE_ADMIN && $roleB === AUTH_ROLE_SUPERADMIN)
+        || ($roleA === AUTH_ROLE_SUPERADMIN && $roleB === AUTH_ROLE_ADMIN);
 }
 
 /**
@@ -36,6 +34,9 @@ function internal_messaging_list_contacts(mysqli $conn, int $viewerRole): array
 
     $viewerRole = auth_normalize_role($viewerRole);
     $peerRole = internal_messaging_peer_role($viewerRole);
+    if ($peerRole < 0) {
+        return [];
+    }
     $roleCol = auth_users_role_column($conn);
     $viewerId = (string) ($_SESSION['company_id'] ?? '');
 
@@ -159,16 +160,24 @@ function internal_messaging_mark_thread_read(mysqli $conn, string $viewerId, str
     $stmt->close();
 }
 
+/** @return int Peer role constant, or -1 when the viewer cannot use staff messaging. */
 function internal_messaging_peer_role(int $viewerRole): int
 {
     $viewerRole = auth_normalize_role($viewerRole);
 
-    return $viewerRole === AUTH_ROLE_HEADGUARD ? AUTH_ROLE_ADMIN : AUTH_ROLE_HEADGUARD;
+    if ($viewerRole === AUTH_ROLE_SUPERADMIN) {
+        return AUTH_ROLE_ADMIN;
+    }
+    if ($viewerRole === AUTH_ROLE_ADMIN) {
+        return AUTH_ROLE_SUPERADMIN;
+    }
+
+    return -1;
 }
 
 function internal_messaging_validate_peer(mysqli $conn, string $peerId, int $expectedRole): bool
 {
-    if ($peerId === '') {
+    if ($peerId === '' || $expectedRole < 0) {
         return false;
     }
 
@@ -204,6 +213,9 @@ function internal_messaging_send(mysqli $conn, string $senderId, int $senderRole
     }
 
     $recipientRole = internal_messaging_peer_role($senderRole);
+    if ($recipientRole < 0) {
+        return false;
+    }
     if (!internal_messaging_validate_peer($conn, $recipientId, $recipientRole)) {
         return false;
     }

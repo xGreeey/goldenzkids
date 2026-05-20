@@ -35,7 +35,7 @@ if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     }
     $row = $existing->fetch_assoc();
     $form['email'] = (string) ($row['Email'] ?? '');
-    $form['role'] = (string) auth_normalize_role($row['role'] ?? AUTH_ROLE_HEADGUARD);
+    $form['role'] = (string) auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN);
     $form['is_active'] = (string) ((int) ($row['is_active'] ?? 1));
     $accountTrail = superadmin_account_audit_trail($conn, $editId);
 }
@@ -137,11 +137,15 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
 
                 <div class="form-field">
                     <label for="role" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
+<<<<<<< HEAD
                     <?php if (!$editingSelf): ?>
                         <input type="hidden" name="role" value="<?= e($form['role']) ?>" data-sa-role-fallback>
                     <?php endif; ?>
                     <select id="role" required data-sa-edit-field="role" disabled<?= $editingSelf ? ' data-sa-role-locked="1"' : '' ?>>
                         <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
+=======
+                    <select id="role" name="role" required<?= $editingSelf ? ' disabled' : '' ?>>
+>>>>>>> 1c79699d0c185e451e821df46b1ab711d2949f43
                         <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                         <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
                     </select>

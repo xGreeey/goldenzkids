@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-/** 0 = headguard (field / guard portal) */
-const AUTH_ROLE_HEADGUARD = 0;
 /** 1 = admin (operations dashboard) */
 const AUTH_ROLE_ADMIN = 1;
 /** 2 = superadmin (full admin access) */
@@ -25,29 +23,63 @@ function auth_verify_password(string $password, string $passwordHash): bool
     return password_verify($password, $passwordHash);
 }
 
+/** True when plaintext matches stored hash (reuse of current password). */
+function auth_password_matches_existing_hash(string $password, string $passwordHash): bool
+{
+    if (trim($passwordHash) === '') {
+        return false;
+    }
+
+    return auth_verify_password($password, $passwordHash);
+}
+
+function auth_password_policy_valid(string $password): bool
+{
+    return (bool) preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,64}$/', $password);
+}
+
+function auth_username_valid(string $username): bool
+{
+    return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
+}
+
+function auth_password_change_required_for_user(array $user): bool
+{
+    $changedAt = trim((string) ($user['password_changed_at'] ?? ''));
+    if ($changedAt === '' || $changedAt === '0000-00-00 00:00:00') {
+        return true;
+    }
+
+    return false;
+}
+
 function auth_role_name(int $role): string
 {
     return match (auth_normalize_role($role)) {
-        AUTH_ROLE_ADMIN => 'Administrator',
         AUTH_ROLE_SUPERADMIN => 'Super Administrator',
-        default => 'Head Guard',
+        default => 'Administrator',
     };
 }
 
 function auth_role_label_for_recording(int $role): string
 {
     return match (auth_normalize_role($role)) {
-        AUTH_ROLE_ADMIN => 'ADMIN',
         AUTH_ROLE_SUPERADMIN => 'SUPERADMIN',
-        default => 'HEADGUARD',
+        default => 'ADMIN',
     };
 }
 
+/**
+ * Normalize stored role values. Legacy role 0 (removed field portal) maps to administrator.
+ */
 function auth_normalize_role(mixed $role): int
 {
     $role = (int) $role;
-    if ($role < AUTH_ROLE_HEADGUARD || $role > AUTH_ROLE_SUPERADMIN) {
-        return AUTH_ROLE_HEADGUARD;
+    if ($role === 0) {
+        return AUTH_ROLE_ADMIN;
+    }
+    if ($role < AUTH_ROLE_ADMIN || $role > AUTH_ROLE_SUPERADMIN) {
+        return AUTH_ROLE_ADMIN;
     }
 
     return $role;
@@ -58,13 +90,14 @@ function auth_role_from_input(string $input): ?int
     $input = strtolower(trim($input));
     if ($input === '' || is_numeric($input)) {
         $n = (int) $input;
-        if ($n >= AUTH_ROLE_HEADGUARD && $n <= AUTH_ROLE_SUPERADMIN) {
+        if ($n === AUTH_ROLE_ADMIN || $n === AUTH_ROLE_SUPERADMIN) {
             return $n;
         }
+
+        return null;
     }
 
     return match ($input) {
-        'headguard', 'guard', '0' => AUTH_ROLE_HEADGUARD,
         'admin', '1' => AUTH_ROLE_ADMIN,
         'superadmin', 'super', '2' => AUTH_ROLE_SUPERADMIN,
         default => null,
@@ -110,14 +143,6 @@ function auth_permissions_for_role(int $role): array
 {
     $role = auth_normalize_role($role);
 
-    $guard = [
-        'guard.portal.access',
-        'guard.inbox.view',
-        'guard.messaging.send',
-        'guard.corner.view',
-        'guard.reports.submit',
-    ];
-
     $admin = [
         'admin.dashboard.view',
         'admin.inbox.manage',
@@ -133,23 +158,19 @@ function auth_permissions_for_role(int $role): array
     ];
 
     if ($role === AUTH_ROLE_SUPERADMIN) {
-        return array_values(array_unique(array_merge($guard, $admin, $superadmin)));
+        return array_values(array_unique(array_merge($admin, $superadmin)));
     }
 
-    if ($role === AUTH_ROLE_ADMIN) {
-        return $admin;
-    }
-
-    return $guard;
+    return $admin;
 }
 
 /**
  * @param array<string,mixed> $row
- * @return array{company_id:string,email:?string,password_hash:string,role:int,role_name:string,is_active:int}
+ * @return array{company_id:string,email:?string,password_hash:string,role:int,role_name:string,is_active:int,password_changed_at:?string}
  */
 function auth_map_user_row(array $row): array
 {
-    $role = auth_normalize_role($row['role'] ?? $row['role_id'] ?? AUTH_ROLE_HEADGUARD);
+    $role = auth_normalize_role($row['role'] ?? $row['role_id'] ?? AUTH_ROLE_ADMIN);
 
     return [
         'company_id' => (string) $row['company_id'],
@@ -160,6 +181,9 @@ function auth_map_user_row(array $row): array
         'role' => $role,
         'role_name' => auth_role_name($role),
         'is_active' => (int) ($row['is_active'] ?? 1),
+        'password_changed_at' => isset($row['password_changed_at']) && $row['password_changed_at'] !== null
+            ? (string) $row['password_changed_at']
+            : null,
     ];
 }
 
@@ -171,7 +195,7 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
 
     $roleCol = auth_users_role_column($conn);
     $sql = "SELECT u.Company_ID AS company_id, u.Email AS email, u.password_hash,
-                   u.{$roleCol} AS role, u.is_active, u.locked_until
+                   u.{$roleCol} AS role, u.is_active, u.locked_until, u.password_changed_at
             FROM users u
             WHERE u.Company_ID = ? AND u.password_hash IS NOT NULL AND u.password_hash != ''
             LIMIT 1";
@@ -195,6 +219,27 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
     }
 
     return auth_map_user_row($row);
+}
+
+function auth_is_deactivated_account(mysqli $conn, string $companyId): bool
+{
+    if ($companyId === '') {
+        return false;
+    }
+
+    $row = db_query(
+        $conn,
+        'SELECT is_active FROM users WHERE Company_ID = ? LIMIT 1',
+        's',
+        [$companyId]
+    );
+    if (!$row || $row->num_rows === 0) {
+        return false;
+    }
+
+    $record = $row->fetch_assoc();
+
+    return ((int) ($record['is_active'] ?? 1)) === 0;
 }
 
 /**
@@ -240,25 +285,33 @@ function auth_login_session(array $user, array $permissions): void
     $_SESSION['role'] = $role;
     $_SESSION['role_name'] = $user['role_name'] ?? auth_role_name($role);
     $_SESSION['permissions'] = $permissions;
+    $_SESSION['must_change_password'] = auth_password_change_required_for_user($user) ? 1 : 0;
 
     unset($_SESSION['user_id'], $_SESSION['role_id'], $_SESSION['role_slug']);
 
     $_SESSION['designation'] = match ($role) {
-        AUTH_ROLE_ADMIN => 'ADMIN',
         AUTH_ROLE_SUPERADMIN => 'SUPERADMIN',
-        default => 'GUARD',
+        default => 'ADMIN',
     };
 }
 
 function auth_login_redirect_url(int $role): string
 {
+    if ((int) ($_SESSION['must_change_password'] ?? 0) === 1) {
+        return app_url('auth/change-temporary-password.php');
+    }
+
     $role = auth_normalize_role($role);
 
     return match ($role) {
         AUTH_ROLE_SUPERADMIN => app_url('superadmin/dashboard.php'),
-        AUTH_ROLE_ADMIN => app_url('admin/dashboard.php'),
-        default => app_url('guard/portal.php'),
+        default => app_url('admin/dashboard.php'),
     };
+}
+
+function auth_must_change_password(): bool
+{
+    return auth_is_logged_in() && (int) ($_SESSION['must_change_password'] ?? 0) === 1;
 }
 
 function auth_record_login(mysqli $conn, string $companyId): void
@@ -293,7 +346,7 @@ function auth_record_failed_login(mysqli $conn, string $companyId): void
 
 function auth_user_role(): int
 {
-    return auth_normalize_role($_SESSION['role'] ?? AUTH_ROLE_HEADGUARD);
+    return auth_normalize_role($_SESSION['role'] ?? AUTH_ROLE_ADMIN);
 }
 
 function auth_user_can(string $permissionSlug): bool
@@ -324,7 +377,6 @@ function auth_user_has_role(string $roleSlug): bool
 {
     return match (strtolower($roleSlug)) {
         'admin' => auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN),
-        'guard', 'headguard' => auth_role_is(AUTH_ROLE_HEADGUARD),
         'superadmin' => auth_role_is(AUTH_ROLE_SUPERADMIN),
         default => false,
     };
@@ -364,81 +416,22 @@ function auth_enforce_area_access(): void
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 
+    if (auth_must_change_password()) {
+        $isChangePasswordPage = str_contains($script, '/auth/change-temporary-password.php');
+        $isLogoutPage = str_contains($script, '/auth/logout');
+        if (!$isChangePasswordPage && !$isLogoutPage) {
+            header('Location: ' . app_url('auth/change-temporary-password.php'));
+            exit();
+        }
+    }
+
     if (str_contains($script, '/superadmin/') && !auth_role_is(AUTH_ROLE_SUPERADMIN)) {
         header('Location: ' . auth_login_redirect_url(auth_user_role()));
         exit();
     }
 
     if (str_contains($script, '/admin/') && !auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN)) {
-        header('Location: ' . app_url('guard/portal.php'));
+        header('Location: ' . app_url('index.php'));
         exit();
     }
-
-    if (str_contains($script, '/guard/') && !auth_role_is(AUTH_ROLE_HEADGUARD)) {
-        header('Location: ' . auth_login_redirect_url(auth_user_role()));
-        exit();
-    }
-}
-
-/**
- * Fallback: plain Pin column — only before password migration.
- * @return array{user:array,permissions:list<string>}|null
- */
-function auth_attempt_legacy_login(mysqli $conn, string $companyId, string $pin): ?array
-{
-    $pinCol = $conn->query("SHOW COLUMNS FROM users LIKE 'Pin'");
-    if (!$pinCol || $pinCol->num_rows === 0) {
-        return null;
-    }
-
-    if (auth_users_table_supports_hashes($conn)) {
-        $hasHash = db_query(
-            $conn,
-            'SELECT password_hash FROM users WHERE Company_ID = ? AND password_hash IS NOT NULL AND password_hash != "" LIMIT 1',
-            's',
-            [$companyId]
-        );
-        if ($hasHash && $hasHash->num_rows > 0) {
-            return null;
-        }
-    }
-
-    $stmt = $conn->prepare('SELECT Pin, Designation, Email FROM users WHERE Company_ID = ? LIMIT 1');
-    if (!$stmt) {
-        return null;
-    }
-
-    $stmt->bind_param('s', $companyId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$row) {
-        return null;
-    }
-
-    $storedPin = str_pad((string) ($row['Pin'] ?? ''), 6, '0', STR_PAD_LEFT);
-    if (!hash_equals($storedPin, $pin)) {
-        return null;
-    }
-
-    $designation = strtoupper(trim((string) ($row['Designation'] ?? 'GUARD')));
-    $role = match ($designation) {
-        'ADMIN' => AUTH_ROLE_ADMIN,
-        'SUPERADMIN', 'SUPER' => AUTH_ROLE_SUPERADMIN,
-        default => AUTH_ROLE_HEADGUARD,
-    };
-
-    $user = auth_map_user_row([
-        'company_id' => $companyId,
-        'email' => $row['Email'] ?? null,
-        'password_hash' => '',
-        'role' => $role,
-        'is_active' => 1,
-    ]);
-
-    return [
-        'user' => $user,
-        'permissions' => auth_permissions_for_role($role),
-    ];
 }

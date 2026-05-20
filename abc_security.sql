@@ -1,7 +1,7 @@
 -- =============================================================================
 -- ABC Security Agency — consolidated schema (abc_security)
 -- Import: phpMyAdmin → Import this file, then run: php database/migrate.php
--- Roles: users.role → 0=headguard, 1=admin, 2=superadmin (no roles table)
+-- Roles: users.role → 1=admin, 2=superadmin (0 legacy; app maps 0→1 until migration 011)
 -- =============================================================================
 
 SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `Company_ID` varchar(13) NOT NULL,
   `Email` varchar(255) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `role` tinyint unsigned NOT NULL DEFAULT 0 COMMENT '0=headguard,1=admin,2=superadmin',
+  `role` tinyint unsigned NOT NULL DEFAULT 1 COMMENT '1=admin,2=superadmin (0 legacy)',
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `failed_login_attempts` tinyint unsigned NOT NULL DEFAULT 0,
   `locked_until` datetime DEFAULT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `memo_recipients` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- Head guard ↔ admin messaging board
+-- Admin ↔ superadmin staff messaging
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `internal_messages` (
   `message_id` bigint unsigned NOT NULL AUTO_INCREMENT,
@@ -165,9 +165,9 @@ CREATE TABLE IF NOT EXISTS `recording` (
 -- Seed data: run after import (do not commit real password hashes to git)
 --
 --   c:\xampp\php\php.exe database\scripts\create_user.php ABC-2024-0001 123456 1 abc.admin0001@gmail.com
---   c:\xampp\php\php.exe database\scripts\create_user.php ABC-2024-0021 123456 0 abc.guard0021@gmail.com
+--   c:\xampp\php\php.exe database\scripts\create_user.php ABC-2024-0021 123456 1 abc.guard0021@gmail.com
 --
--- Then add guard roster row (after head guard user exists):
+-- Then add guard roster row (after portal user exists):
 --   INSERT INTO guards (Company_ID, Head_ID, Rank, Last_Name, First_Name, Post_Assigned)
 --   VALUES ('ABC-2024-0021', 'ABC-2024-0001', 'SO', 'Tamad', 'Juan', 'Post 1');
 -- -----------------------------------------------------------------------------

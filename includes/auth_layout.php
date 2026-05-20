@@ -89,20 +89,26 @@ function auth_card_intro(string $title, string $subtitle): void
     <?php
 }
 
-function auth_alert_error(string $message): void
+function auth_alert_error(string $message, ?int $autoDismissMs = null): void
 {
+    $dismissAttr = ($autoDismissMs !== null && $autoDismissMs >= 500)
+        ? ' data-auth-dismiss-ms="' . (int) $autoDismissMs . '"'
+        : '';
     ?>
-            <div class="alert-error" role="alert" style="display: flex;">
+            <div class="alert-error" role="alert" style="display: flex;"<?= $dismissAttr ?>>
                 <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                 <span><?= e($message) ?></span>
             </div>
     <?php
 }
 
-function auth_alert_success(string $message): void
+function auth_alert_success(string $message, ?int $autoDismissMs = null): void
 {
+    $dismissAttr = ($autoDismissMs !== null && $autoDismissMs >= 500)
+        ? ' data-auth-dismiss-ms="' . (int) $autoDismissMs . '"'
+        : '';
     ?>
-            <div class="alert-success" role="status">
+            <div class="alert-success" role="status"<?= $dismissAttr ?>>
                 <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                 <span><?= e($message) ?></span>
             </div>
@@ -134,6 +140,46 @@ function auth_main_close(): void
 
 function auth_page_end(): void
 {
+    static $authAutoDismissEmitted = false;
+    if (!$authAutoDismissEmitted) {
+        $authAutoDismissEmitted = true;
+        ?>
+<style id="auth-alert-auto-dismiss-css">
+[data-auth-dismiss-ms].auth-alert--hiding {
+    opacity: 0 !important;
+    max-height: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+    border-width: 0 !important;
+    pointer-events: none;
+    transition: opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease, padding 0.35s ease;
+}
+</style>
+<script>
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-auth-dismiss-ms]').forEach(function (el) {
+            var ms = parseInt(el.getAttribute('data-auth-dismiss-ms'), 10);
+            if (!ms || ms < 500) {
+                return;
+            }
+            window.setTimeout(function () {
+                el.classList.add('auth-alert--hiding');
+                window.setTimeout(function () {
+                    el.setAttribute('hidden', '');
+                    el.style.display = 'none';
+                    el.setAttribute('aria-hidden', 'true');
+                }, 400);
+            }, ms);
+        });
+    });
+})();
+</script>
+        <?php
+    }
     theme_toggle_script();
     echo "</body>\n</html>\n";
 }

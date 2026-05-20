@@ -17,11 +17,11 @@ declare(strict_types=1);
     <div class="panel-body">
         <form action="<?= e(app_url('admin/send-memo.php')) ?>" method="POST" id="memoForm" novalidate>
             <?= csrf_field() ?>
-            <input type="hidden" name="distribution_type" id="distTypeValue" value="">
+            <input type="hidden" name="distribution_type" id="distTypeValue" value="broadcast">
 
             <span class="form-section-label">Delivery scope<span class="required-mark">*</span></span>
             <div class="delivery-options" role="group" aria-label="Delivery scope">
-                <button type="button" class="delivery-btn" id="btnBroadcast" data-protocol="broadcast"<?= ui_tooltip('Send to all personnel on roster') ?>>
+                <button type="button" class="delivery-btn active" id="btnBroadcast" data-protocol="broadcast"<?= ui_tooltip('Send to all personnel on roster') ?>>
                     <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
                     <span class="delivery-btn-title">Company-wide</span>
                     <span class="delivery-btn-desc">Send to all personnel on roster</span>
@@ -33,7 +33,7 @@ declare(strict_types=1);
                 </button>
             </div>
 
-            <div id="memoDetailsContainer" class="form-details">
+            <div id="memoDetailsContainer" class="form-details is-visible">
                 <div id="targetGuardContainer" class="recipient-block">
                     <div class="field">
                         <label for="targetGuardInput" class="field-label field-label--alert">Select recipient<span class="required-mark">*</span></label>

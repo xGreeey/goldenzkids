@@ -3,28 +3,26 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/superadmin_accountability.php';
+require_once __DIR__ . '/../includes/superadmin_user_form.php';
 
 auth_require_permission('superadmin.users.manage');
 
-$roleCol = auth_users_role_column($conn);
+$editId = trim((string) ($_GET['edit'] ?? ''));
+$isEdit = $editId !== '' && auth_username_valid($editId);
+
+if (!$isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    header('Location: users.php?create=1');
+    exit;
+}
+
 $success = null;
 $error = null;
-
-$editId = strtoupper(trim((string) ($_GET['edit'] ?? '')));
-$isEdit = $editId !== '' && preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $editId);
-
-$form = [
-    'company_id' => $editId,
-    'email' => '',
-    'role' => (string) AUTH_ROLE_HEADGUARD,
-    'is_active' => '1',
-    'password' => '',
-];
-$beforeState = null;
+$form = superadmin_default_form($editId);
 $accountTrail = [];
 $editingSelf = $isEdit && $editId === (string) ($_SESSION['company_id'] ?? '');
 
-if ($isEdit) {
+if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    $roleCol = auth_users_role_column($conn);
     $existing = db_query(
         $conn,
         "SELECT Company_ID, Email, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
@@ -32,137 +30,50 @@ if ($isEdit) {
         [$editId]
     );
     if (!$existing || $existing->num_rows === 0) {
-        $error = 'Account not found.';
-        $isEdit = false;
-    } else {
-        $row = $existing->fetch_assoc();
-        $form['email'] = (string) ($row['Email'] ?? '');
-        $form['role'] = (string) auth_normalize_role($row['role'] ?? AUTH_ROLE_HEADGUARD);
-        $form['is_active'] = (string) ((int) ($row['is_active'] ?? 1));
-        $beforeState = [
-            'email' => $form['email'],
-            'role' => (int) $form['role'],
-            'is_active' => (int) $form['is_active'],
-        ];
-        $accountTrail = superadmin_account_audit_trail($conn, $editId);
+        header('Location: users.php');
+        exit;
     }
+    $row = $existing->fetch_assoc();
+    $form['email'] = (string) ($row['Email'] ?? '');
+    $form['role'] = (string) auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN);
+    $form['is_active'] = (string) ((int) ($row['is_active'] ?? 1));
+    $accountTrail = superadmin_account_audit_trail($conn, $editId);
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
+    $originalId = trim((string) ($_POST['original_company_id'] ?? ''));
+    if ($originalId === '' || !auth_username_valid($originalId)) {
+        header('Location: users.php');
+        exit;
+    }
+    $editId = $originalId;
+    $isEdit = true;
 
-    $form['company_id'] = strtoupper(trim((string) ($_POST['company_id'] ?? '')));
-    $form['email'] = trim((string) ($_POST['email'] ?? ''));
-    $form['role'] = (string) ($_POST['role'] ?? '0');
-    $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
-    $form['password'] = trim((string) ($_POST['password'] ?? ''));
+    $result = superadmin_handle_account_post($conn, $isEdit, $editId);
+    $form = $result['form'];
+    $error = $result['error'];
+    $success = $result['success'];
+    $accountTrail = $result['account_trail'];
+    $editingSelf = $result['editing_self'] ?? false;
+    $isEdit = $result['is_edit'];
+    $editId = $result['edit_id'];
 
-    $role = auth_role_from_input($form['role']);
-    if ($role === null) {
-        $role = auth_normalize_role((int) $form['role']);
+    if (!$isEdit) {
+        header('Location: users.php?create=1');
+        exit;
     }
 
-    if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $form['company_id'])) {
-        $error = 'Employee ID must match ABC-2###-#### (example: ABC-2024-0001).';
-    } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
-        $error = 'A valid email address is required.';
-    } elseif ($form['password'] !== '' && !preg_match('/^[0-9]{6}$/', $form['password'])) {
-        $error = 'Access code must be exactly 6 digits.';
-    } elseif (!$isEdit && $form['password'] === '') {
-        $error = 'Access code is required for new accounts.';
-    } else {
-        $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
-        $alreadyExists = $exists && $exists->num_rows > 0;
-
-        if (!$isEdit && $alreadyExists) {
-            $error = 'This employee ID is already registered.';
-        } elseif ($isEdit && $form['company_id'] !== $editId) {
-            $error = 'Employee ID cannot be changed when editing.';
-        } else {
-            $active = (int) $form['is_active'];
-            $targetId = $isEdit ? $editId : $form['company_id'];
-
-            if ($isEdit && $editId === (string) ($_SESSION['company_id'] ?? '')) {
-                if ($active !== 1) {
-                    $error = 'You cannot deactivate your own account.';
-                } elseif ($role !== AUTH_ROLE_SUPERADMIN) {
-                    $error = 'You cannot change your own role.';
-                } else {
-                    $role = AUTH_ROLE_SUPERADMIN;
-                    $active = 1;
-                }
-            }
-
-            if ($error === null && $form['password'] !== '') {
-                $hash = auth_hash_password($form['password']);
-                if ($alreadyExists) {
-                    $ok = db_execute(
-                        $conn,
-                        "UPDATE users SET Email = ?, password_hash = ?, {$roleCol} = ?, is_active = ?,
-                         password_changed_at = NOW() WHERE Company_ID = ?",
-                        'siiss',
-                        [$form['email'], $hash, $role, $active, $targetId]
-                    );
-                } else {
-                    $ok = db_execute(
-                        $conn,
-                        "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
-                         VALUES (?, ?, ?, ?, ?, NOW())",
-                        'sssii',
-                        [$targetId, $form['email'], $hash, $role, $active]
-                    );
-                }
-            } elseif ($error === null && $alreadyExists) {
-                $ok = db_execute(
-                    $conn,
-                    "UPDATE users SET Email = ?, {$roleCol} = ?, is_active = ? WHERE Company_ID = ?",
-                    'siis',
-                    [$form['email'], $role, $active, $targetId]
-                );
-            } elseif ($error === null) {
-                $error = 'Access code is required for new accounts.';
-                $ok = false;
-            }
-
-            if ($error === null && !isset($ok)) {
-                $ok = false;
-            }
-
-            if ($error === null && !empty($ok)) {
-                $afterState = [
-                    'email' => $form['email'],
-                    'role' => $role,
-                    'is_active' => $active,
-                    'password_changed' => $form['password'] !== '',
-                ];
-                superadmin_log_account_diff(
-                    $conn,
-                    $targetId,
-                    $beforeState ?? [],
-                    $afterState,
-                    !$alreadyExists
-                );
-                $roleName = auth_role_name($role);
-                $success = $isEdit
-                    ? "Updated {$targetId} ({$roleName})."
-                    : "Created account {$targetId} ({$roleName}).";
-                if (!$isEdit) {
-                    $form = [
-                        'company_id' => '',
-                        'email' => '',
-                        'role' => (string) AUTH_ROLE_HEADGUARD,
-                        'is_active' => '1',
-                        'password' => '',
-                    ];
-                }
-            } elseif ($error === null) {
-                $error = 'Could not save account. ' . $conn->error;
-            }
+    if ($success !== null && $error === null) {
+        $origPost = trim((string) ($_POST['original_company_id'] ?? ''));
+        if ($origPost !== '' && $editId !== '' && $origPost !== $editId && auth_username_valid($editId)) {
+            header('Location: create-user.php?edit=' . rawurlencode($editId));
+            exit;
         }
     }
 }
 
-$superadminNavActive = 'create-user';
+$superadminNavActive = 'users';
 $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
 ?>
 <!DOCTYPE html>
@@ -178,14 +89,14 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
 <?php superadmin_page_styles(); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode superadmin-portal">
 
 <?php require __DIR__ . '/../includes/superadmin_sidebar.php'; ?>
 
     <main class="app-main">
         <header class="page-header">
-            <h1 class="page-title"><?= $isEdit ? 'Edit account' : 'Create account' ?></h1>
-            <p class="page-subtitle"><?= $isEdit ? 'Update role, access, and account status for this employee.' : 'Register a new portal user with role and six-digit access code.' ?></p>
+            <h1 class="page-title">Edit account</h1>
+            <p class="page-subtitle">Update role, access, and account status for this employee.</p>
         </header>
 
         <?php if ($success !== null): ?>
@@ -196,27 +107,40 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
         <?php endif; ?>
 
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Account details</h2>
-            <form method="POST" class="form-grid" autocomplete="off">
+            <h2 class="panel-title">Account details</h2>
+            <form method="POST" class="form-grid" autocomplete="off"
+                  data-sa-edit-account-form
+                  data-orig-company="<?= e($form['company_id']) ?>"
+                  data-orig-email="<?= e($form['email']) ?>"
+                  data-orig-role="<?= e($form['role']) ?>"
+                  data-orig-active="<?= $form['is_active'] === '1' ? '1' : '0' ?>"
+                  data-editing-self="<?= $editingSelf ? '1' : '0' ?>">
                 <?= csrf_field() ?>
+                <input type="hidden" name="original_company_id" value="<?= e($editId) ?>">
 
                 <div class="form-field">
-                    <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Employee ID</label>
+                    <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-badge" aria-hidden="true"></i> Username</label>
                     <input type="text" id="company_id" name="company_id" required
-                           pattern="ABC-2[0-9]{3}-[0-9]{4}"
+                           data-sa-edit-field="company"
+                           pattern="[A-Za-z0-9]{1,20}"
+                           maxlength="20"
                            value="<?= e($form['company_id']) ?>"
-                           <?= $isEdit ? 'readonly' : '' ?>
-                           placeholder="ABC-2024-0001">
+                           readonly
+                           placeholder="Username"<?= $editingSelf ? ' title="Your username cannot be changed"' : '' ?>>
                 </div>
 
                 <div class="form-field">
                     <label for="email" class="label-with-icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email</label>
-                    <input type="email" id="email" name="email" required value="<?= e($form['email']) ?>">
+                    <input type="email" id="email" name="email" required data-sa-edit-field="email"
+                           value="<?= e($form['email']) ?>" readonly>
                 </div>
 
                 <div class="form-field">
                     <label for="role" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
-                    <select id="role" name="role" required<?= $editingSelf ? ' disabled' : '' ?>>
+                    <?php if (!$editingSelf): ?>
+                        <input type="hidden" name="role" value="<?= e($form['role']) ?>" data-sa-role-fallback>
+                    <?php endif; ?>
+                    <select id="role" required data-sa-edit-field="role" disabled<?= $editingSelf ? ' data-sa-role-locked="1"' : '' ?>>
                         <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
                         <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                         <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
@@ -226,37 +150,52 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                     <?php endif; ?>
                 </div>
 
-                <div class="form-field">
-                    <label for="password" class="label-with-icon"><i class="fa-solid fa-key" aria-hidden="true"></i> Access code (6 digits)</label>
-                    <input type="password" id="password" name="password" inputmode="numeric" pattern="[0-9]{6}"
-                           maxlength="6" autocomplete="new-password"
-                           <?= $isEdit ? '' : 'required' ?>
-                           placeholder="<?= $isEdit ? 'Leave blank to keep current' : '123456' ?>">
-                </div>
-
-                <div class="form-field">
-                    <label class="label-with-icon">
-                        <input type="checkbox" name="is_active" value="1"<?= $form['is_active'] === '1' ? ' checked' : '' ?><?= $editingSelf ? ' disabled checked' : '' ?>>
-                        <i class="fa-solid fa-toggle-on" aria-hidden="true"></i> Account is active
+                <div class="form-field form-field--checkbox">
+                    <label class="checkbox-row" for="is_active">
+                        <span class="checkbox-row__label">
+                            <i class="fa-solid fa-toggle-on" aria-hidden="true"></i>
+                            Account is active
+                        </span>
+                        <?php if (!$editingSelf): ?>
+                            <input type="hidden" name="is_active" value="<?= $form['is_active'] === '1' ? '1' : '0' ?>" data-sa-active-fallback>
+                        <?php endif; ?>
+                        <input type="checkbox" id="is_active" value="1" data-sa-edit-field="active"
+                            <?= $form['is_active'] === '1' ? ' checked' : '' ?>
+                            disabled>
                     </label>
                     <?php if ($editingSelf): ?>
                         <input type="hidden" name="is_active" value="1">
                     <?php endif; ?>
                 </div>
 
-                <div>
-                    <button type="submit" class="btn-primary">
-                        <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
-                        <?= $isEdit ? 'Save changes' : 'Create account' ?>
+                <div class="form-toolbar-sa" data-sa-toolbar-view>
+                    <button type="button" class="btn-ghost" data-sa-edit-acc-start>
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        Edit
                     </button>
-                    <a href="users.php" class="btn-ghost" style="margin-left:8px;"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to users</a>
+                </div>
+                <div class="form-toolbar-sa is-hidden" data-sa-toolbar-editing>
+                    <button type="button" class="btn-ghost" data-sa-edit-acc-cancel>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        Cancel
+                    </button>
+                </div>
+
+                <div class="form-actions is-hidden" data-sa-save-wrap>
+                    <button type="submit" class="btn-primary" data-sa-edit-acc-submit>
+                        <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                        Save changes
+                    </button>
+                </div>
+                <div class="form-actions">
+                    <a href="users.php" class="btn-ghost"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to users</a>
                 </div>
             </form>
         </section>
 
         <?php if ($isEdit && $accountTrail !== []): ?>
         <section class="card-panel">
-            <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Record for <?= e($editId) ?></h2>
+            <h2 class="panel-title">Record for <?= e($editId) ?></h2>
             <div class="data-table-wrap">
                 <table class="data-table">
                     <thead>

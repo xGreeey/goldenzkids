@@ -36,7 +36,7 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
             Staff messaging board
         </h2>
-        <p class="messaging-board__subtitle">Chat with head guard accounts (role 0). Select a contact to open the thread.</p>
+        <p class="messaging-board__subtitle">Chat between administrators and super administrators. Select a contact to open the thread.</p>
     </div>
     <?php if (!$messagingAvailable): ?>
         <p class="messaging-board__notice" role="status">
@@ -46,7 +46,7 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
     <div class="messaging-board__layout">
         <div class="messaging-board__contacts" role="navigation" aria-label="Message contacts">
             <?php if ($messagingContacts === []): ?>
-                <p class="messaging-board__empty">No <?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN ? 'head guard' : 'administrator' ?> accounts are active yet.</p>
+                <p class="messaging-board__empty">No <?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN ? 'super administrator' : 'administrator' ?> accounts are active yet.</p>
             <?php else: ?>
                 <ul class="messaging-contact-list">
                     <?php foreach ($messagingContacts as $contact): ?>
@@ -98,11 +98,14 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
                     <input type="hidden" name="recipient_id" value="<?= e($messagingActivePeer) ?>">
                     <input type="hidden" name="return_peer" value="<?= e($messagingActivePeer) ?>">
                     <label class="visually-hidden" for="messagingBody">Message</label>
-                    <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="3" maxlength="4000" required placeholder="Type your message…"></textarea>
-                    <button type="submit" class="messaging-compose__submit"<?= ui_tooltip('Send message') ?>>
-                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                        Send
-                    </button>
+                    <div class="messaging-compose__field">
+                        <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Type your message…"></textarea>
+                        <button type="submit" class="messaging-compose__submit" aria-label="Send message"<?= ui_tooltip('Send message') ?>>
+                            <svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </form>
             <?php endif; ?>
         </div>

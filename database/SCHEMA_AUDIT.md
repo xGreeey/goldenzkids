@@ -19,7 +19,7 @@ Review before importing `abc_security.sql` or running `database/migrate.php`.
 
 | Value | Role |
 |------:|------|
-| 0 | Head guard |
+| 0 | *(legacy; promoted to admin by migration 011)* |
 | 1 | Admin |
 | 2 | Super admin |
 
@@ -46,7 +46,7 @@ Review before importing `abc_security.sql` or running `database/migrate.php`.
 1. **Backup** the database in phpMyAdmin (Export → SQL).
 2. Run: `c:\xampp\php\php.exe database\migrate.php`
 3. Confirm migration **008** applied in `schema_migrations`.
-4. Test: login (head guard + admin), submit DGD, admin inbox, send memo (targeted + broadcast), guard inbox alerts.
+4. Test: login (admin + superadmin), admin inbox, send memo (targeted + broadcast), staff messaging.
 
 ## Fresh install
 

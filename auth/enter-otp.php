@@ -3,8 +3,6 @@ require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/auth_layout.php';
 
 $otp_Err = null;
-$otp_success = null;
-$username = '';
 
 if (empty($_SESSION['password_reset_email'])) {
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -16,15 +14,9 @@ if (empty($_SESSION['password_reset_email'])) {
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['otp'])) {
     csrf_verify();
 
-    $username = trim((string) ($_POST['company_id'] ?? ''));
-    $company_id = strtoupper($username);
     $otp = trim((string) ($_POST['otp'] ?? ''));
 
-    if ($username === '') {
-        $otp_Err = 'Please enter your username.';
-    } elseif (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $company_id)) {
-        $otp_Err = 'Please check your username.';
-    } elseif ($otp === '') {
+    if ($otp === '') {
         $otp_Err = 'Please enter your verification code.';
     } elseif (!preg_match('/^[0-9]{6}$/', $otp)) {
         $otp_Err = 'Please check your verification code.';
@@ -32,23 +24,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['otp'])) {
         $otp_Err = 'Your session expired. Please start again from forgot password.';
     } elseif (time() > (int) ($_SESSION['password_reset_otp_expires'] ?? 0)) {
         $otp_Err = 'Your session expired. Please request a new reset link.';
+    } elseif (!hash_equals((string) $_SESSION['password_reset_otp'], $otp)) {
+        $otp_Err = 'Invalid verification code. Please try again.';
     } else {
-        $stmt = $conn->prepare(
-            'SELECT Company_ID FROM users WHERE Company_ID = ? AND Email = ? LIMIT 1'
-        );
         $email = (string) $_SESSION['password_reset_email'];
-        $stmt->bind_param('ss', $company_id, $email);
-        $stmt->execute();
-        $match = $stmt->get_result();
-        $stmt->close();
+        $stmt = $conn->prepare('SELECT Company_ID FROM users WHERE Email = ? LIMIT 1');
+        if (!$stmt) {
+            $otp_Err = 'Unable to process verification right now. Please try again.';
+            $match = false;
+        } else {
+            $stmt->bind_param('s', $email);
+            $stmt->execute();
+            $match = $stmt->get_result();
+            $stmt->close();
+        }
 
         if (!$match || $match->num_rows !== 1) {
-            $otp_Err = 'We could not verify those details. Please try again or contact HR.';
-        } elseif (!hash_equals((string) $_SESSION['password_reset_otp'], $otp)) {
-            $otp_Err = 'We could not verify those details. Please try again or contact HR.';
+            $otp_Err = 'We could not verify this reset request. Please start again.';
         } else {
+            $row = $match->fetch_assoc();
+            $_SESSION['password_reset_company_id'] = (string) ($row['Company_ID'] ?? '');
+            $_SESSION['password_reset_verified'] = 1;
             unset($_SESSION['password_reset_otp'], $_SESSION['password_reset_otp_expires']);
-            $otp_success = 'Verification complete. Contact HR to finish resetting your password.';
+            header('Location: ' . app_url('auth/reset-password.php'));
+            exit();
         }
     }
 }
@@ -70,39 +69,15 @@ auth_module_open();
 auth_card_back_link(app_url('auth/forgot-access-code.php'), 'Back');
 auth_card_intro(
     'Verify identity',
-    'Enter your username and the verification code provided to you.'
+    'Enter the verification code sent to your email.'
 );
 
-if (!empty($otp_success)) {
-    auth_alert_success($otp_success);
-}
 if (!empty($otp_Err)) {
     auth_alert_error($otp_Err);
 }
-if ($isLocal && !empty($_SESSION['password_reset_otp']) && empty($otp_success)) {
-    ?>
-            <p class="auth-dev-notice">Local development only ? verification code: <?= e((string) $_SESSION['password_reset_otp']) ?></p>
-    <?php
-}
-
-if (empty($otp_success)) {
-    ?>
-            <form class="login-form" action="" method="POST" novalidate>
-                <?= csrf_field() ?>
-                <div class="input-group">
-                    <label class="input-label" for="username">Username</label>
-                    <input
-                        type="text"
-                        name="company_id"
-                        id="username"
-                        class="form-input no-toggle"
-                        placeholder="Username"
-                        value="<?= e($username) ?>"
-                        autocomplete="username"
-                        autocapitalize="off"
-                        required
-                    >
-                </div>
+?>
+<form class="login-form" action="" method="POST" novalidate>
+    <?= csrf_field() ?>
                 <div class="input-group">
                     <label class="input-label" for="verification_code">Verification code</label>
                     <input
@@ -117,9 +92,8 @@ if (empty($otp_success)) {
                 </div>
 
                 <button type="submit" class="btn-signin">Verify</button>
-            </form>
-    <?php
-}
+</form>
+<?php
 
 auth_module_close();
 auth_main_close();

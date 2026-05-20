@@ -22,7 +22,7 @@ if ($email === '') {
 
 if ($companyId === '' || $password === '' || $roleInput === '') {
     fwrite(STDERR, "Usage: php database/scripts/create_user.php COMPANY_ID PASSWORD ROLE [EMAIL]\n");
-    fwrite(STDERR, "  ROLE: 0|headguard  1|admin  2|superadmin\n");
+    fwrite(STDERR, "  ROLE: 1|admin  2|superadmin\n");
     fwrite(STDERR, "  Example: php database/scripts/create_user.php COMPANY_ID 123456 admin\n");
     exit(1);
 }
@@ -34,7 +34,7 @@ if (!preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $companyId)) {
 
 $role = auth_role_from_input($roleInput);
 if ($role === null) {
-    fwrite(STDERR, "Invalid role. Use 0 (headguard), 1 (admin), or 2 (superadmin).\n");
+    fwrite(STDERR, "Invalid role. Use 1 (admin) or 2 (superadmin).\n");
     exit(1);
 }
 

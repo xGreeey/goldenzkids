@@ -6,7 +6,7 @@ if (!function_exists('e')) {
 }
 
 /**
- * Shared theme CSS (palette, typography, toggle, auth shell, guard layout).
+ * Shared theme CSS (palette, typography, toggle, auth shell, admin layout).
  * Call once inside <style>: <?php theme_styles(); ?>
  */
 function theme_styles(): void
@@ -29,8 +29,7 @@ function app_fonts_link(): string
 HTML;
 }
 
-/** Hover tooltip attributes (native title + styled data-tip). */
-/** Styled hover hint via [data-tip] CSS (no native title — avoids double tooltips). */
+/** Hover hint attributes [data-tip] (popover styling disabled globally — see theme_styles). */
 function ui_tooltip(string $label, string $position = ''): string
 {
     $pos = $position !== '' ? sprintf(' data-tip-pos="%s"', e($position)) : '';
@@ -289,7 +288,7 @@ function theme_render_css(): void
             --app-sidebar-bg-light: var(--app-sidebar-light);
         }
 
-        /* Active theme surfaces (admin · guard · auth) */
+        /* Active theme surfaces (admin · auth) */
         body.light-mode {
             --app-canvas-bg: var(--app-canvas-light-gradient);
             --app-sidebar-surface: var(--app-sidebar-light);
@@ -322,52 +321,10 @@ function theme_render_css(): void
             --app-page-bg-light: var(--app-canvas-light-gradient);
         }
 
-        /* --- Hover tooltips ([data-tip]) --- */
-        [data-tip] {
-            position: relative;
-        }
-
+        /* --- Hover tooltips ([data-tip]) — disabled: no cursor/focus popovers site-wide --- */
         [data-tip]::after {
-            content: attr(data-tip);
-            position: absolute;
-            z-index: 12000;
-            left: 50%;
-            bottom: calc(100% + 8px);
-            transform: translateX(-50%) translateY(4px);
-            padding: 6px 10px;
-            max-width: min(240px, 70vw);
-            font-family: var(--font-body-family);
-            font-size: 0.75rem;
-            font-weight: 500;
-            line-height: 1.35;
-            text-align: center;
-            white-space: normal;
-            color: var(--color-white);
-            background: var(--app-ink-deep);
-            border-radius: 6px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-            pointer-events: none;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
-        }
-
-        [data-tip]:hover::after,
-        [data-tip]:focus-visible::after {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        [data-tip][data-tip-pos="bottom"]::after {
-            bottom: auto;
-            top: calc(100% + 8px);
-            transform: translateX(-50%) translateY(-4px);
-        }
-
-        [data-tip][data-tip-pos="bottom"]:hover::after,
-        [data-tip][data-tip-pos="bottom"]:focus-visible::after {
-            transform: translateX(-50%) translateY(0);
+            content: none !important;
+            display: none !important;
         }
 
         /* --- Typography (Bebas Neue · Inter) --- */
@@ -1044,6 +1001,33 @@ function theme_render_css(): void
             cursor: pointer; padding: 0; line-height: 1;
             min-width: 44px; min-height: 44px;
             display: inline-flex; align-items: center; justify-content: center;
+            transition: color 0.2s ease, background 0.2s ease;
+            border-radius: 6px;
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon {
+            width: 19px;
+            height: 19px;
+            display: block;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            opacity: 1;
+            transform: scale(1);
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon.is-hidden {
+            opacity: 0;
+            transform: scale(0.9);
+            position: absolute;
+            pointer-events: none;
+        }
+        body.auth-shell .btn-toggle-pin.is-animating .toggle-pin-icon:not(.is-hidden) {
+            opacity: 0.86;
+            transform: scale(0.96);
+        }
+        body.auth-shell .btn-toggle-pin:hover {
+            color: var(--color-text);
+        }
+        body.auth-shell .btn-toggle-pin:focus-visible {
+            outline: 2px solid var(--color-focus-ring);
+            outline-offset: 2px;
         }
         body.auth-shell .form-input.input-error { border-color: var(--error-border, var(--color-border)); }
         body.auth-shell .alert-error {

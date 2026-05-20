@@ -1,0 +1,442 @@
+/* --- Guard portal surfaces --- */
+        :root {
+            --primary-blue: var(--color-primary);
+            --panel-bg: var(--color-white);
+            --panel-text: var(--color-primary);
+            --input-bg: var(--color-white);
+            --text-white: var(--color-white);
+            --text-gray: rgba(255, 255, 255, 0.82);
+            --accent-gold: var(--color-secondary);
+            --accent-gold-text: var(--color-secondary);
+            --btn-bg: var(--gradient-secondary-btn);
+            --btn-text: var(--color-primary);
+            --btn-bg-hover: var(--gradient-secondary-btn);
+            --alert-red: #e63946;
+            --success-green: #2a9d8f;
+            --info-blue: var(--color-secondary);
+        }
+
+        body.guard-portal.light-mode {
+            background: var(--app-canvas-bg);
+        }
+
+        body.guard-portal.light-mode,
+        body.light-mode {
+            --accent-gold-text: var(--color-secondary-text);
+            --info-blue: var(--color-secondary-text);
+        }
+
+        body.light-mode {
+            --primary-blue: var(--color-white);
+            --panel-bg: var(--app-panel-light);
+            --panel-text: var(--color-primary);
+            --input-bg: var(--color-white);
+            --text-white: var(--color-primary);
+            --text-gray: var(--trivium-ink-muted);
+            --btn-bg: var(--gradient-primary-btn);
+            --btn-text: var(--color-white);
+            --btn-bg-hover: var(--gradient-primary-btn);
+        }
+
+        body.guard-portal:not(.light-mode) {
+            --panel-text: rgba(255, 255, 255, 0.92);
+            --input-bg: rgba(0, 0, 0, 0.22);
+            --text-gray: var(--app-ink-muted-on-dark);
+        }
+
+        body.light-mode .top-bar {
+            background: var(--app-sidebar-surface);
+            border-bottom: 1px solid var(--app-border);
+            color: var(--color-primary);
+        }
+
+        body.light-mode header {
+            background: var(--app-sidebar-surface);
+            box-shadow: inset 0 -2px 0 0 rgba(var(--color-secondary-rgb), 0.55);
+        }
+
+        body.light-mode header::after {
+            background: var(--gradient-accent-bar);
+        }
+
+        body.light-mode .portal-section,
+        body.light-mode .notif-card {
+            border-color: rgba(var(--color-primary-rgb), 0.12);
+            color: var(--color-primary);
+        }
+
+        body.guard-portal.light-mode .btn-back {
+            color: var(--accent-gold-text);
+        }
+
+        body.guard-portal.light-mode .section-tag,
+        body.guard-portal.light-mode .notif-desc,
+        body.guard-portal.light-mode .empty-state-icon,
+        body.guard-portal.light-mode .modal-header h2,
+        body.guard-portal.light-mode .page-title,
+        body.guard-portal.light-mode .card-header,
+        body.guard-portal.light-mode .footer-tagline {
+            color: var(--accent-gold-text);
+        }
+
+        /* --- Guard typography overrides (body.guard-portal on guard pages) --- */
+        body.guard-portal,
+        body.guard-portal button,
+        body.guard-portal input,
+        body.guard-portal select,
+        body.guard-portal textarea {
+            font-family: var(--font-body-family) !important;
+        }
+
+        body.guard-portal h1, body.guard-portal h2, body.guard-portal h3, body.guard-portal h4,
+        body.guard-portal .agency-name, body.guard-portal .page-title,
+        body.guard-portal .section-header-text,
+        body.guard-portal .notif-title, body.guard-portal .modal-header h2, body.guard-portal .card-header {
+            font-family: var(--font-heading-family) !important;
+            font-weight: 400 !important;
+            letter-spacing: var(--font-heading-letter) !important;
+        }
+
+        body.guard-portal .section-tag, body.guard-portal .timestamp, body.guard-portal .modal-subtitle,
+        body.guard-portal .modal-info, body.guard-portal .form-label-sub, body.guard-portal .top-bar,
+        body.guard-portal .form-control, body.guard-portal select.form-control {
+            font-family: var(--font-body-family) !important;
+        }
+
+        body.guard-portal h1, body.guard-portal h2, body.guard-portal h3, body.guard-portal h4,
+        body.guard-portal .page-title, body.guard-portal .section-header-text {
+            text-transform: none !important;
+        }
+
+        body.guard-portal .page-title, body.guard-portal .section-header-text {
+            font-size: var(--font-h2-size);
+        }
+
+        
+
+        /* --- Guard layout (portal, inbox, corner)  use <body class="guard-portal"> --- */
+        body.guard-portal {
+            background: var(--app-canvas-bg);
+            color: var(--text-white);
+            overflow-x: hidden;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        body.guard-portal header {
+            background: var(--app-sidebar-surface);
+            transition: background 0.25s ease;
+            padding: 0 5%; height: 80px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: none;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        body.guard-portal header::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 4px;
+            background: var(--gradient-accent-bar);
+        }
+        body.guard-portal .logo-img {
+            width: 50px; height: 50px; border-radius: 50%; object-fit: cover;
+            border: 2px solid transparent;
+            background:
+                linear-gradient(var(--color-white), var(--color-white)) padding-box,
+                var(--gradient-ring) border-box;
+        }
+        body.guard-portal .agency-name { font-size: 1.2rem; line-height: 1.1; }
+        body.guard-portal .nav-link {
+            color: var(--text-white); text-decoration: none; font-size: 0.9rem;
+            opacity: 0.7; transition: 0.3s; font-weight: 500;
+        }
+        body.guard-portal .nav-link:hover { opacity: 1; color: var(--accent-gold-text); }
+        body.guard-portal .btn-portal, body.guard-portal .btn-back, body.guard-portal .submit-btn {
+            font-weight: 600; transition: 0.3s;
+        }
+        body.guard-portal .btn-portal {
+            background-color: var(--btn-bg); color: var(--btn-text);
+            padding: 10px 25px; text-decoration: none; font-size: 0.9rem; border: none; cursor: pointer;
+        }
+        body.guard-portal .btn-portal:hover { filter: brightness(1.05); }
+        body.guard-portal .btn-back {
+            color: var(--accent-gold); text-decoration: none; font-size: 0.9rem;
+            border: 1px solid var(--accent-gold); padding: 8px 20px;
+            display: inline-flex; align-items: center; gap: 10px;
+        }
+        body.guard-portal .btn-back:hover { background-color: var(--accent-gold); color: var(--color-primary); }
+        body.guard-portal .portal-section, body.guard-portal .notif-card {
+            position: relative;
+            border: 1px solid var(--app-border-on-dark);
+            background: var(--app-card-bg);
+            color: var(--panel-text);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--app-shadow-sm);
+            overflow: hidden;
+            transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+        }
+
+        body.guard-portal.light-mode .portal-section,
+        body.guard-portal.light-mode .notif-card {
+            border-color: var(--app-border);
+            color: var(--color-primary);
+        }
+        body.guard-portal .form-label { font-size: 1.1rem; margin-bottom: 8px; color: var(--panel-text); }
+        body.guard-portal .form-control {
+            width: 100%; padding: 15px; background-color: var(--input-bg);
+            border: 1px solid rgba(var(--color-primary-rgb), 0.18);
+            color: var(--panel-text); font-size: 1rem;
+        }
+        body.guard-portal .submit-btn {
+            width: 100%; background-color: var(--btn-bg); color: var(--btn-text);
+            border: none; padding: 20px; font-size: 1.1rem; cursor: pointer; margin-top: 20px;
+        }
+        body.guard-portal .submit-btn:hover { filter: brightness(1.05); }
+        body.guard-portal .footer-bottom {
+            background: var(--app-sidebar-surface);
+            padding: 40px 5%;
+            text-align: center;
+            border-top: 1px solid var(--app-border-on-dark);
+            margin-top: 50px;
+            position: relative;
+            transition: background 0.25s ease;
+        }
+
+        body.guard-portal.light-mode .footer-bottom {
+            border-top-color: var(--app-border);
+        }
+        body.guard-portal .upload-file-error {
+            color: var(--alert-red, #ff3333); text-align: center; margin: 10px 0; padding: 10px;
+            border: 1px dashed var(--alert-red, #ff3333); background: rgba(255, 51, 51, 0.1);
+        }
+        body.guard-portal .footer-tagline {
+            font-size: 0.8rem; letter-spacing: 2px; color: var(--accent-gold);
+        }
+        body.guard-portal .footer-contact {
+            font-size: 1.2rem; letter-spacing: 1px; margin: 0;
+        }
+        body.guard-portal .footer-branding { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        body.guard-portal .footer-logo {
+            width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-gold);
+            margin-bottom: 5px; filter: grayscale(30%);
+        }
+
+        /* --- Page: portal --- */
+        body.guard-portal .top-bar {
+            background: var(--gradient-brand-deep); color: var(--text-white);
+            padding: 8px 0; font-size: 0.8rem; white-space: nowrap; overflow: hidden;
+            border-bottom: 1px solid var(--accent-gold); font-family: var(--font-body-family);
+        }
+        body.guard-portal .marquee-content {
+            display: inline-block; animation: scroll-left 25s linear infinite; padding-left: 100%;
+        }
+        @keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        body.guard-portal .nav-links { display: flex; gap: 30px; align-items: center; }
+        body.guard-portal .nav-link { letter-spacing: 1px; }
+        body.guard-portal .main-container { padding: 40px 5%; max-width: 1000px; margin: 0 auto; }
+        body.guard-portal .portal-section { position: relative; }
+        body.guard-portal .section-tag {
+            color: var(--accent-gold); font-family: var(--font-body-family); font-size: 0.8rem;
+            margin-bottom: 15px; display: block; text-transform: uppercase;
+        }
+        body.guard-portal .section-header-text {
+            font-size: 2rem; line-height: 1.2; margin-bottom: 25px; color: var(--panel-text);
+        }
+        body.guard-portal .form-group { margin-bottom: 25px; }
+        body.guard-portal .form-label-sub {
+            display: block; font-family: var(--font-body-family); font-size: 0.75rem;
+            color: var(--text-gray); margin-bottom: 10px; opacity: 0.8;
+        }
+        body.guard-portal .form-control {
+            font-family: var(--font-body-family); outline: none; appearance: none;
+        }
+        body.guard-portal .form-control:focus { border-color: #fff; box-shadow: 0 0 10px rgba(254, 189, 89, 0.5); }
+        body.guard-portal select.form-control {
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23febd59%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat; background-position: right 15px top 50%; background-size: 12px auto;
+        }
+        body.guard-portal .upload-btn-wrapper { position: relative; overflow: hidden; display: block; margin-bottom: 15px; }
+        body.guard-portal .upload-btn {
+            border: 1px dashed var(--accent-gold); color: var(--panel-text); background-color: transparent;
+            padding: 20px; width: 100%; font-size: 1rem; letter-spacing: 1px;
+            cursor: pointer; transition: 0.3s; text-align: center;
+        }
+        body.guard-portal .upload-btn:hover { background-color: rgba(254, 189, 89, 0.1); }
+        body.guard-portal .upload-btn-wrapper input[type=file] {
+            font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%;
+        }
+        @media (max-width: 768px) {
+            header { flex-direction: column; height: auto; padding: 20px; gap: 15px; text-align: center; } 
+            .nav-left { flex-direction: column; gap: 10px; }
+            .nav-links { 
+                display: flex; 
+                flex-direction: column; 
+                width: 100%; 
+                gap: 15px; 
+            } 
+            .btn-portal, .nav-link { width: 100%; text-align: center; display: block; padding: 12px; }
+            .section-header-text { font-size: 1.8rem; } 
+        }
+
+        /* --- Page: inbox --- */
+        body.guard-portal.guard-inbox {
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+        body.guard-portal.guard-inbox header { background: var(--gradient-brand-deep); }
+        body.guard-portal .logo-area { display: flex; align-items: center; gap: 15px; }
+
+        /* --- LAYOUT --- */
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; width: 100%; flex: 1; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid var(--accent-gold); padding-bottom: 10px; }
+        .page-title { font-size: var(--font-h2-size); transition: color 0.3s ease; }
+
+        /* --- NOTIFICATION CARDS --- */
+        .notif-list { display: flex; flex-direction: column; gap: 15px; }
+        .notif-card {
+            background: var(--panel-bg); border: 1px solid rgba(255,255,255,0.1); padding: 20px;
+            display: flex; gap: 20px; transition: 0.3s; position: relative; cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .notif-card:hover { transform: translateX(5px); border-color: var(--accent-gold); }
+
+        .icon-box { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border-radius: 4px; flex-shrink: 0; }
+        .content-box { flex: 1; }
+        body.guard-portal .notif-title { font-size: 1.2rem; margin-bottom: 5px; color: var(--text-white); }
+        
+        .status-badge {
+            font-family: var(--font-body-family); font-size: 0.65rem; padding: 3px 8px;
+            border-radius: 3px; margin-left: 10px; font-weight: bold; letter-spacing: 0.5px;
+            vertical-align: middle; text-shadow: none;
+        }
+        .notif-desc { font-size: 0.9rem; opacity: 0.8; line-height: 1.4; margin-bottom: 10px; color: var(--accent-gold); }
+        .timestamp { font-family: var(--font-body-family); font-size: 0.75rem; opacity: 0.5; display: flex; gap: 10px; }
+        
+        .btn-dismiss {
+            position: absolute; top: 15px; right: 15px; background: none; border: none;
+            color: rgba(255,255,255,0.3); cursor: pointer; font-size: 1.5rem; z-index: 2; transition: color 0.3s ease;
+        }
+        .btn-dismiss:hover { color: var(--alert-red); }
+
+        .empty-state { text-align: center; padding: 50px; opacity: 0.5; display: none; font-family: var(--font-mono, monospace); transition: color 0.3s ease;}
+        .empty-state-icon { font-size: 3rem; margin-bottom: 10px; color: var(--accent-gold); }
+
+        /* --- MODAL POPUP --- */
+        .modal-overlay {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: var(--panel-bg); border: 1px solid var(--accent-gold); border-radius: 4px;
+            width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; padding: 25px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .close-modal {
+            color: rgba(255,255,255,0.5); position: absolute; top: 15px; right: 20px;
+            font-size: 28px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .close-modal:hover { color: var(--alert-red); }
+        
+        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; transition: border-color 0.3s ease;}
+        body.guard-portal .modal-header h2 { color: var(--accent-gold); margin-bottom: 5px; font-size: 1.8rem; }
+        .modal-subtitle { font-family: var(--font-body-family); font-size: 0.8rem; opacity: 0.6; }
+
+        .modal-info { font-size: 0.95rem; color: var(--text-white); background: rgba(255,255,255,0.05); padding: 15px; border-left: 3px solid var(--info-blue); font-family: var(--font-body-family); line-height: 1.6; transition: background-color 0.3s ease, color 0.3s ease;}
+
+        /* --- FULLSCREEN IMAGE VIEWER --- */
+        .image-viewer-overlay {
+            display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.95); align-items: center; justify-content: center;
+            cursor: zoom-out; backdrop-filter: blur(5px);
+        }
+        .image-viewer-overlay img {
+            max-width: 95vw; max-height: 95vh; object-fit: contain; 
+            border: 2px solid var(--accent-gold); border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        .close-viewer {
+            position: absolute; top: 20px; right: 30px; color: rgba(255,255,255,0.5); 
+            font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .close-viewer:hover { color: var(--alert-red); }
+        
+        /* --- MOBILE RESPONSIVE FIXES --- */
+        @media (max-width: 768px) {
+            header { flex-direction: column; height: auto; padding: 20px 5%; gap: 15px; text-align: center; }
+            .logo-area { flex-direction: column; gap: 10px; }
+            .container { margin: 20px auto; padding: 0 15px; }
+            .page-header { justify-content: center; margin-bottom: 20px; }
+            .page-title { font-size: 2rem; text-align: center; }
+            .notif-card { padding: 15px; gap: 15px; }
+            .timestamp { flex-direction: column; gap: 5px; }
+        }
+
+        /* --- Page: corner --- */
+        body.light-mode .gun-safety-card { background-color: #fef2f2; border-color: #f87171; }
+        body.light-mode .gun-safety-card .safety-title { color: #dc2626; }
+        body.light-mode .gun-safety-card .safety-rule { color: #0f172a; border-bottom-color: #fca5a5; }
+        body.light-mode .gun-safety-card .tag-sub { color: #ef4444; }
+
+        body.guard-portal.guard-corner header { background: var(--gradient-brand-deep); }
+        body.guard-portal .logo-area { display: flex; align-items: center; gap: 15px; }
+        body.guard-portal.guard-corner .logo-img {
+            width: 55px; height: 55px; background-color: var(--panel-bg);
+        }
+
+        /* --- LAYOUT STYLES --- */
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+
+        .page-title { font-size: 3rem; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px solid #ffffff20; padding-bottom: 20px; transition: color 0.3s ease;}
+        .page-subtitle { font-family: var(--font-body-family); opacity: 0.7; margin-bottom: 40px; }
+
+        .tag-sub { display: block; font-size: 0.8em; opacity: 0.6; font-style: italic; font-weight: normal; margin-top: 2px; font-family: var(--font-body-family); transition: color 0.3s ease;}
+
+        .top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .info-card { background-color: var(--panel-bg); border: 1px solid #ffffff20; padding: 30px; position: relative; margin-bottom: 30px; transition: background-color 0.3s ease, border-color 0.3s ease;}
+        .card-header { color: var(--accent-gold); font-size: 1.5rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; transition: color 0.3s ease;}
+
+        .memo-item { margin-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 15px; transition: border-color 0.3s ease;}
+        .memo-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .knowledge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 50px; }
+
+        .scroll-card { background-color: var(--panel-bg); border-top: 3px solid var(--accent-gold); padding: 30px; height: 600px; overflow-y: auto; margin-bottom: 0; transition: background-color 0.3s ease, border-color 0.3s ease;}
+        .scroll-card::-webkit-scrollbar { width: 8px; }
+        .scroll-card::-webkit-scrollbar-thumb { background-color: var(--accent-gold); }
+        .scroll-card::-webkit-scrollbar-track { background-color: #000; }
+
+        .order-list { list-style: none; counter-reset: order-counter; }
+        .order-list li { margin-bottom: 25px; padding-left: 40px; position: relative; line-height: 1.4; opacity: 0.95; font-weight: bold; }
+        .order-list li::before {
+            counter-increment: order-counter; content: counter(order-counter); position: absolute; left: 0; top: 0;
+            font-size: 1.2rem; color: var(--accent-gold); font-weight: bold;
+        }
+
+        .gun-safety-card { background-color: #1a0505; border: 1px solid var(--alert-red); padding: 30px; margin-bottom: 30px; transition: background-color 0.3s ease, border-color 0.3s ease;}
+        .safety-title { color: var(--alert-red); font-size: 2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; transition: color 0.3s ease;}
+        .safety-rule { margin-bottom: 15px; font-size: 1.1rem; font-weight: bold; border-bottom: 1px dashed #ff333350; padding-bottom: 10px; transition: color 0.3s ease, border-color 0.3s ease;}
+        
+        /* --- THE MOBILE FIX --- */
+        @media (max-width: 768px) {
+            header { padding: 15px 5%; height: auto; gap: 15px; flex-direction: column; text-align: center;}
+            .logo-area { flex-direction: column; gap: 10px; }
+            .container { padding: 20px 15px; } 
+            .page-title { font-size: 2.2rem; }
+            .page-subtitle { margin-bottom: 25px; }
+            .btn-back { padding: 8px 12px; font-size: 0.8rem; }
+            .btn-back span { display: none; } 
+            .top-grid { grid-template-columns: 1fr; }
+            .knowledge-grid { grid-template-columns: 1fr; }
+            .scroll-card { height: auto; max-height: 400px; }
+        }
+
+        /* --- Layout partials (guard/php/guard.php) --- */
+        .guard-logout-form { display: inline; margin: 0; }
+        .guard-logout-form .btn-portal { border: none; cursor: pointer; font: inherit; }
+        .guard-header-nav { display: flex; align-items: center; gap: 20px; }
+        .guard-footer-agency { opacity: 0.7; font-size: 0.8rem; margin: 0; }
+        .guard-form-error {
+            color: var(--alert-red); text-align: center; margin: 15px auto; max-width: 1000px;
+            font-family: var(--font-body-family); padding: 15px;
+            background: rgba(255, 51, 51, 0.1); border: 1px dashed var(--alert-red); font-size: 1.1rem;
+        }

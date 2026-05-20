@@ -127,6 +127,23 @@ CREATE TABLE IF NOT EXISTS `memo_recipients` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
+-- Head guard ↔ admin messaging board
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `internal_messages` (
+  `message_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `sender_company_id` varchar(13) NOT NULL,
+  `recipient_company_id` varchar(13) NOT NULL,
+  `body_text` text NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`message_id`),
+  KEY `idx_internal_messages_recipient` (`recipient_company_id`, `is_read`, `created_at`),
+  KEY `idx_internal_messages_pair` (`sender_company_id`, `recipient_company_id`, `created_at`),
+  CONSTRAINT `fk_internal_messages_sender` FOREIGN KEY (`sender_company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE,
+  CONSTRAINT `fk_internal_messages_recipient` FOREIGN KEY (`recipient_company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- Audit log (login / logout)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `recording` (
@@ -160,8 +177,9 @@ INSERT INTO `schema_migrations` (`migration`, `batch`) VALUES
 ('001_create_rbac_tables.sql', 1),
 ('002_seed_roles_permissions.sql', 1),
 ('php/003_migrate_legacy_users.php', 1),
-('005_alter_users_hashed_auth.sql', 1),
+('php/005_alter_users_hashed_auth.php', 1),
 ('php/005_hash_users_pins.php', 1),
 ('php/006_repair_users_password_hashes.php', 1),
 ('php/007_numeric_user_roles.php', 1),
-('php/008_consolidate_schema.php', 1);
+('php/008_consolidate_schema.php', 1),
+('php/010_internal_messages.php', 1);

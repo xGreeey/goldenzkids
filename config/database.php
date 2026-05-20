@@ -8,7 +8,7 @@ date_default_timezone_set('Asia/Manila');
 require_once APP_ROOT . '/vendor/autoload.php';
 
 $dotenv = Dotenv\Dotenv::createImmutable(APP_ROOT);
-$dotenv->load();
+$dotenv->safeLoad();
 
 $servername = $_ENV['DB_HOST'];
 $username   = $_ENV['DB_USER'];

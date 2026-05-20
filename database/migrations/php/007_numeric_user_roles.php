@@ -54,11 +54,11 @@ return static function (mysqli $conn): void {
             $conn->query(
                 'UPDATE users SET role = CASE
                      WHEN role_id = 1 THEN 1
-                     WHEN role_id = 2 THEN 0
+                     WHEN role_id = 2 THEN 2
                      ELSE 0
                  END'
             );
-            echo "  Mapped users.role from role_id (1=admin, 2→0 headguard).\n";
+            echo "  Mapped users.role from role_id (1=admin, 2=superadmin, else headguard).\n";
         }
 
         if (!$conn->query('ALTER TABLE users DROP COLUMN role_id')) {

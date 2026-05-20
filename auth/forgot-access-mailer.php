@@ -8,11 +8,6 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-// Load the exact files you just uploaded
-require APP_ROOT . '/PHPMailer/Exception.php';
-require APP_ROOT . '/PHPMailer/PHPMailer.php';
-require APP_ROOT . '/PHPMailer/SMTP.php';
-
 // Create a new PHPMailer instance
 $mail = new PHPMailer(true);
 $mail->Mailer = "SMTP";
@@ -31,7 +26,7 @@ $email_Err = null;
       $mail->SMTPDebug = SMTP::DEBUG_SERVER;
 $mail->SMTPDebug = 3; //Alternative to above constant
       $mail -> isSMTP();
-      $mail -> HOST = "'smtp.gmail.com";
+      $mail->Host = 'smtp.gmail.com';
       $mail -> SMTPAuth = TRUE;
       $mail -> Username = "abc.guard0021@gmail.com";
       $mail -> Password = "xrkn qpzy oqwp qoxg";

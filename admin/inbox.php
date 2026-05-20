@@ -2,10 +2,37 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/internal_messaging.php';
 
 auth_require_permission('admin.inbox.manage');
 
 $company_id = (string) $_SESSION['company_id'];
+
+$messagingAvailable = false;
+$messagingViewerId = $company_id;
+$messagingContacts = [];
+$messagingActivePeer = null;
+$messagingThread = [];
+$messagingPostUrl = 'send-internal-message.php';
+$messagingReturnUrl = 'inbox.php';
+
+try {
+    $messagingAvailable = internal_messages_table_exists($conn);
+    $messagingContacts = internal_messaging_list_contacts($conn, auth_user_role());
+    $messagingActivePeer = isset($_GET['peer']) ? trim((string) $_GET['peer']) : null;
+    if ($messagingActivePeer !== null && $messagingActivePeer !== ''
+        && !internal_messaging_validate_peer($conn, $messagingActivePeer, internal_messaging_peer_role(auth_user_role()))) {
+        $messagingActivePeer = null;
+    }
+    if (($messagingActivePeer === null || $messagingActivePeer === '') && count($messagingContacts) === 1) {
+        $messagingActivePeer = $messagingContacts[0]['company_id'];
+    }
+    if ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '') {
+        $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer);
+    }
+} catch (Throwable $e) {
+    error_log('admin/inbox messaging: ' . $e->getMessage());
+}
 
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
@@ -35,25 +62,56 @@ if ($guards_result && $guards_result->num_rows > 0) {
 
 $reports_result = $conn->query('SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv FROM dgd ORDER BY Time_of_Report DESC');
 
+$memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
+
 $adminNavActive = 'inbox';
-$adminMobileTitle = 'Report Inbox';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security Agency | Report Inbox</title>
+    <?= mobile_meta_tags() ?>
+    <title><?= e(app_agency_name()) ?> | Inbox</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <?= app_fonts_link() ?>
     <style>
-<?php require __DIR__ . '/../includes/admin_shell.css.php'; ?>
+<?php admin_shell_styles(); ?>
+<?php readfile(__DIR__ . '/assets/css/dashboard.css'); ?>
+<?php readfile(__DIR__ . '/assets/css/messaging-board.css'); ?>
+
+        .inbox-top-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: clamp(20px, 2.5vw, 28px);
+            margin-bottom: clamp(24px, 3vw, 36px);
+            align-items: start;
+        }
+
+        @media (min-width: 1100px) {
+            .inbox-top-grid {
+                grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+            }
+        }
+
+        .panel--inbox {
+            animation: none;
+        }
+
+        body.light-mode .panel--inbox,
+        body.light-mode .messaging-board {
+            background: var(--app-card-bg);
+            border-color: var(--app-border);
+            color: var(--app-ink);
+        }
+
+        body.light-mode .messaging-board__title,
+        body.light-mode .panel--inbox .panel-title {
+            color: var(--app-ink-deep);
+        }
 
         .notif-list { display: flex; flex-direction: column; gap: 12px; }
         .notif-card {
-            background: var(--bg-surface);
+            background: var(--bg-panel);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
             padding: 18px 20px;
@@ -86,25 +144,32 @@ $adminMobileTitle = 'Report Inbox';
 
         .content-box { flex: 1; min-width: 0; }
         .notif-title {
-            font-size: 1rem; font-weight: 700;
-            margin-bottom: 6px; color: var(--text-primary);
+            font-size: 1.0625rem; font-weight: 700;
+            margin-bottom: 6px; color: var(--app-ink-deep);
             display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+            line-height: 1.35;
         }
 
         .status-badge {
-            font-family: var(--font-mono);
-            font-size: 0.625rem;
-            padding: 3px 8px;
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-xs);
+            padding: 4px 10px;
             border-radius: 999px;
-            font-weight: 600;
-            letter-spacing: 0.04em;
+            font-weight: 700;
+            letter-spacing: 0.03em;
         }
 
-        .notif-desc { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.45; margin-bottom: 8px; }
+        .notif-desc {
+            font-size: var(--font-body-size-sm);
+            color: var(--app-ink);
+            line-height: var(--font-body-line-relaxed);
+            margin-bottom: 8px;
+        }
         .timestamp {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--text-tertiary);
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-xs);
+            font-weight: 500;
+            color: var(--app-ink-muted);
             display: flex; flex-wrap: wrap; gap: 8px;
         }
 
@@ -126,9 +191,11 @@ $adminMobileTitle = 'Report Inbox';
         .empty-state {
             text-align: center;
             padding: 48px 24px;
-            color: var(--text-tertiary);
+            color: var(--app-ink-muted);
+            font-size: var(--font-body-size-sm);
+            line-height: var(--font-body-line-relaxed);
             display: none;
-            background: var(--bg-surface);
+            background: var(--bg-panel);
             border: 1px dashed var(--border);
             border-radius: var(--radius-md);
         }
@@ -139,8 +206,9 @@ $adminMobileTitle = 'Report Inbox';
             color: var(--danger);
             padding: 14px 16px;
             border-radius: var(--radius-sm);
-            font-size: 0.875rem;
+            font-size: var(--font-body-size-sm);
             margin-bottom: 20px;
+            line-height: var(--font-body-line-relaxed);
         }
 
         .modal-overlay {
@@ -155,7 +223,7 @@ $adminMobileTitle = 'Report Inbox';
         }
 
         .modal-content {
-            background: var(--bg-surface);
+            background: var(--bg-panel);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             width: 100%;
@@ -185,25 +253,37 @@ $adminMobileTitle = 'Report Inbox';
             padding-right: 28px;
         }
 
-        .modal-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-        .modal-subtitle { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary); }
+        .modal-header h2 {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--app-ink-deep);
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+        .modal-subtitle {
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-xs);
+            font-weight: 600;
+            color: var(--app-ink-muted);
+        }
 
         .modal-info {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
+            font-size: var(--font-body-size-sm);
+            color: var(--app-ink);
             background: var(--bg-elevated);
             padding: 14px;
             border-left: 3px solid var(--accent-blue);
             border-radius: var(--radius-sm);
-            font-family: var(--font-mono);
-            line-height: 1.6;
+            font-family: var(--font-body-family);
+            line-height: var(--font-body-line-relaxed);
             margin-top: 14px;
         }
 
         .modal-scan-label {
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--text-tertiary);
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-xs);
+            font-weight: 600;
+            color: var(--app-ink-muted);
             margin-bottom: 8px;
             text-align: center;
         }
@@ -226,7 +306,7 @@ $adminMobileTitle = 'Report Inbox';
         }
 
         .ai-text-header {
-            font-size: 0.875rem;
+            font-size: var(--font-body-size-sm);
             font-weight: 700;
             color: var(--brand-accent);
             margin-bottom: 8px;
@@ -236,10 +316,10 @@ $adminMobileTitle = 'Report Inbox';
         }
 
         .ai-text-content {
-            font-family: var(--font-mono);
-            font-size: 0.8125rem;
-            line-height: 1.6;
-            color: var(--text-secondary);
+            font-family: var(--font-body-family);
+            font-size: var(--font-body-size-sm);
+            line-height: var(--font-body-line-relaxed);
+            color: var(--app-ink);
             max-height: 200px;
             overflow-y: auto;
             white-space: pre-wrap;
@@ -248,10 +328,10 @@ $adminMobileTitle = 'Report Inbox';
         .form-group { margin-bottom: 14px; }
         .form-label {
             display: block;
-            font-size: 0.8125rem;
-            font-weight: 600;
+            font-size: var(--font-body-size-sm);
+            font-weight: 700;
             margin-bottom: 8px;
-            color: var(--text-secondary);
+            color: var(--app-ink);
         }
 
         .form-control {
@@ -259,9 +339,9 @@ $adminMobileTitle = 'Report Inbox';
             padding: 12px 14px;
             background: var(--bg-elevated);
             border: 1px solid var(--border-strong);
-            color: var(--text-primary);
+            color: var(--app-ink);
             font-family: inherit;
-            font-size: 0.875rem;
+            font-size: var(--font-body-size-sm);
             border-radius: var(--radius-sm);
             outline: none;
         }
@@ -273,19 +353,19 @@ $adminMobileTitle = 'Report Inbox';
 
         .submit-btn {
             width: 100%;
-            background: #7d8fa3;
-            color: #f9fafb;
+            background: var(--gradient-primary-btn);
+            color: var(--color-white);
             border: none;
             padding: 14px;
             font-family: inherit;
             font-weight: 700;
-            font-size: 0.875rem;
+            font-size: var(--font-body-size-sm);
             border-radius: var(--radius-sm);
             cursor: pointer;
             transition: background var(--transition);
         }
 
-        .submit-btn:hover { background: #6b7d92; }
+        .submit-btn:hover { filter: brightness(1.04); }
 
         .modal-form-divider {
             margin-top: 20px;
@@ -325,6 +405,36 @@ $adminMobileTitle = 'Report Inbox';
         }
 
         .close-viewer:hover { color: var(--danger); }
+
+        body:not(.light-mode) .notif-card,
+        body:not(.light-mode) .modal-content,
+        body:not(.light-mode) .empty-state {
+            background: var(--app-card-bg);
+            border-color: var(--app-border-on-dark);
+            color: var(--app-ink-on-dark);
+        }
+
+        body:not(.light-mode) .notif-title,
+        body:not(.light-mode) .modal-header h2 {
+            color: var(--app-ink-on-dark);
+        }
+
+        body:not(.light-mode) .notif-desc,
+        body:not(.light-mode) .modal-info,
+        body:not(.light-mode) .ai-text-content {
+            color: var(--app-ink-muted-on-dark);
+        }
+
+        body:not(.light-mode) .timestamp,
+        body:not(.light-mode) .modal-subtitle {
+            color: var(--app-ink-soft-on-dark);
+        }
+
+        body:not(.light-mode) .form-control {
+            color: var(--app-ink-on-dark);
+            background: rgba(0, 0, 0, 0.2);
+            border-color: var(--app-border-on-dark);
+        }
     </style>
 </head>
 <body class="light-mode">
@@ -333,14 +443,20 @@ $adminMobileTitle = 'Report Inbox';
 
     <main class="app-main">
         <header class="page-header">
-            <p class="page-eyebrow">Incoming reports</p>
-            <h1 class="page-title">Report Inbox</h1>
-            <p class="page-subtitle">Review daily guard reports, update status, and view scanned forms. Select a report to open details.</p>
+            <h1 class="page-title">Inbox</h1>
+            <p class="page-subtitle">Internal communications, staff messaging, and daily guard report review.</p>
         </header>
 
         <?php if ($error !== null): ?>
             <div class="alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
+
+        <div class="inbox-top-grid">
+            <?php require __DIR__ . '/../includes/admin_internal_communications.php'; ?>
+            <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
+        </div>
+
+        <h2 class="inbox-section-title">Daily guard reports</h2>
 
         <div class="notif-list" id="alert-feed">
             <?php
@@ -379,7 +495,7 @@ $adminMobileTitle = 'Report Inbox';
                         $badge_color = 'var(--danger)';
                     }
                     ?>
-            <article class="notif-card" role="button" tabindex="0"
+            <article class="notif-card" role="button" tabindex="0"<?= ui_tooltip('Open report details') ?>
                      data-guard="<?= htmlspecialchars($guard_name, ENT_QUOTES, 'UTF-8') ?>"
                      data-id="<?= htmlspecialchars($guard_id, ENT_QUOTES, 'UTF-8') ?>"
                      data-est="<?= htmlspecialchars($decrypted_est, ENT_QUOTES, 'UTF-8') ?>"
@@ -399,7 +515,7 @@ $adminMobileTitle = 'Report Inbox';
                         <span><?= htmlspecialchars($time_sent) ?></span>
                     </div>
                 </div>
-                <button type="button" class="btn-dismiss" aria-label="Dismiss from list" onclick="dismiss(event, this)">×</button>
+                <button type="button" class="btn-dismiss" aria-label="Dismiss from list"<?= ui_tooltip('Dismiss from list') ?> onclick="dismiss(event, this)">×</button>
             </article>
                     <?php
                 }
@@ -419,7 +535,7 @@ $adminMobileTitle = 'Report Inbox';
 
 <div id="reportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-content" onclick="event.stopPropagation()">
-        <button type="button" class="close-modal" onclick="closeModal()" aria-label="Close">&times;</button>
+        <button type="button" class="close-modal" onclick="closeModal()" aria-label="Close"<?= ui_tooltip('Close') ?>>&times;</button>
         <div class="modal-header">
             <h2 id="modalTitle">Report details</h2>
             <div id="modalTimestamp" class="modal-subtitle"></div>
@@ -445,14 +561,14 @@ $adminMobileTitle = 'Report Inbox';
                         <option value="Approved">Approved</option>
                     </select>
                 </div>
-                <button type="submit" class="submit-btn">Save status</button>
+                <button type="submit" class="submit-btn"<?= ui_tooltip('Save report status') ?>>Save status</button>
             </form>
         </div>
     </div>
 </div>
 
 <div id="imageViewer" class="image-viewer-overlay" role="dialog" aria-label="Enlarged scan">
-    <button type="button" class="close-viewer" onclick="closeImageViewer(event)" aria-label="Close">&times;</button>
+    <button type="button" class="close-viewer" onclick="closeImageViewer(event)" aria-label="Close"<?= ui_tooltip('Close image viewer') ?>>&times;</button>
     <img id="fullScreenImg" src="" alt="Enlarged report scan">
 </div>
 
@@ -570,11 +686,64 @@ $adminMobileTitle = 'Report Inbox';
         msg.style.display = list.children.length === 0 ? 'block' : 'none';
     }
 
-    document.addEventListener('DOMContentLoaded', checkEmpty);
+    function setMemoProtocol(type) {
+        const distTypeInput = document.getElementById('distTypeValue');
+        const detailsContainer = document.getElementById('memoDetailsContainer');
+        const targetContainer = document.getElementById('targetGuardContainer');
+        const targetInput = document.getElementById('targetGuardInput');
+        const btnBroadcast = document.getElementById('btnBroadcast');
+        const btnTargeted = document.getElementById('btnTargeted');
+        if (!distTypeInput || !detailsContainer) return;
+
+        distTypeInput.value = type;
+        detailsContainer.classList.add('is-visible');
+
+        if (type === 'broadcast') {
+            btnBroadcast?.classList.add('active');
+            btnTargeted?.classList.remove('active');
+            targetContainer?.classList.remove('is-visible');
+            if (targetInput) targetInput.value = '';
+        } else if (type === 'targeted') {
+            btnTargeted?.classList.add('active');
+            btnBroadcast?.classList.remove('active');
+            targetContainer?.classList.add('is-visible');
+        }
+    }
+
+    const memoForm = document.getElementById('memoForm');
+    if (memoForm) {
+        document.getElementById('btnBroadcast')?.addEventListener('click', () => setMemoProtocol('broadcast'));
+        document.getElementById('btnTargeted')?.addEventListener('click', () => setMemoProtocol('targeted'));
+        memoForm.addEventListener('submit', function (event) {
+            const errors = [];
+            const distType = document.getElementById('distTypeValue')?.value || '';
+            const memoType = document.getElementById('memoTypeInput')?.value || '';
+            const content = (document.getElementById('memoContentInput')?.value || '').trim();
+
+            if (!distType) {
+                errors.push('Delivery scope (company-wide or individual)');
+            } else if (distType === 'targeted' && !document.getElementById('targetGuardInput')?.value) {
+                errors.push('Recipient employee');
+            }
+            if (!memoType) errors.push('Message category');
+            if (content === '') errors.push('Memo body');
+
+            if (errors.length > 0) {
+                event.preventDefault();
+                alert('Please complete the required fields before publishing:\n\n• ' + errors.join('\n• '));
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        checkEmpty();
+        const thread = document.getElementById('messagingThreadScroll');
+        if (thread) {
+            thread.scrollTop = thread.scrollHeight;
+        }
+    });
 </script>
-<script>
-<?php require __DIR__ . '/../includes/admin_shell.js.php'; ?>
-</script>
+<?php admin_shell_scripts(); ?>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

@@ -169,15 +169,13 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security | <?= $isEdit ? 'Edit' : 'Create' ?> Account</title>
+    <?= mobile_meta_tags() ?>
+    <title><?= e(app_agency_name()) ?> | <?= $isEdit ? 'Edit' : 'Create' ?> Account</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <?= app_fonts_link() ?>
     <style>
-<?php require __DIR__ . '/../includes/admin_shell.css.php'; ?>
-<?php require __DIR__ . '/../includes/superadmin_page.css.php'; ?>
+<?php admin_shell_styles(); ?>
+<?php superadmin_page_styles(); ?>
     </style>
 </head>
 <body class="light-mode">
@@ -187,6 +185,7 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title"><?= $isEdit ? 'Edit account' : 'Create account' ?></h1>
+            <p class="page-subtitle"><?= $isEdit ? 'Update role, access, and account status for this employee.' : 'Register a new portal user with role and six-digit access code.' ?></p>
         </header>
 
         <?php if ($success !== null): ?>
@@ -291,8 +290,6 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
     </main>
 </div>
 
-<script>
-<?php require __DIR__ . '/../includes/admin_shell.js.php'; ?>
-</script>
+<?php admin_shell_scripts(); ?>
 </body>
 </html>

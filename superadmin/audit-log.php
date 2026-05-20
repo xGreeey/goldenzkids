@@ -85,15 +85,13 @@ $superadminMobileTitle = 'Audit Log';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security | Audit Log</title>
+    <?= mobile_meta_tags() ?>
+    <title><?= e(app_agency_name()) ?> | Audit Log</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <?= app_fonts_link() ?>
     <style>
-<?php require __DIR__ . '/../includes/admin_shell.css.php'; ?>
-<?php require __DIR__ . '/../includes/superadmin_page.css.php'; ?>
+<?php admin_shell_styles(); ?>
+<?php superadmin_page_styles(); ?>
     </style>
 </head>
 <body class="light-mode">
@@ -103,6 +101,7 @@ $superadminMobileTitle = 'Audit Log';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Audit log</h1>
+            <p class="page-subtitle">Review sign-ins, sign-outs, and account changes recorded for accountability.</p>
         </header>
 
         <div class="toolbar">
@@ -190,8 +189,6 @@ $superadminMobileTitle = 'Audit Log';
     </main>
 </div>
 
-<script>
-<?php require __DIR__ . '/../includes/admin_shell.js.php'; ?>
-</script>
+<?php admin_shell_scripts(); ?>
 </body>
 </html>

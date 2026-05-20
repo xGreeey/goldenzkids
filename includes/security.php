@@ -73,7 +73,7 @@ function send_security_headers(): void
 
     $csp = implode('; ', [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://kit.fontawesome.com",
+        "script-src 'self' 'unsafe-inline' https://kit.fontawesome.com https://cdn.jsdelivr.net",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com https://ka-f.fontawesome.com data:",
         "img-src 'self' data: https: blob:",
@@ -104,6 +104,8 @@ function mobile_meta_tags(): string
     return <<<'HTML'
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="format-detection" content="telephone=no">
 HTML;
 }
@@ -114,16 +116,30 @@ HTML;
 function mobile_base_css(): string
 {
     return <<<'CSS'
-        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-        body { overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            height: 100%;
+        }
+        body {
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-x: none;
+        }
+        button, .btn, .btn-signin, .btn-primary, .submit-btn, .btn-portal,
+        .nav-link, .delivery-btn, .btn-back, .forgot-link, .theme-switch,
+        input[type="submit"], input[type="button"] {
+            touch-action: manipulation;
+        }
         button, .btn, .btn-signin, .btn-primary, .submit-btn, .btn-portal,
         .nav-link, .delivery-btn, input[type="submit"], input[type="button"] {
             min-height: 44px;
-            touch-action: manipulation;
         }
-        input, select, textarea { font-size: 16px; }
+        input, select, textarea, .form-input {
+            font-size: 16px;
+        }
         @media (max-width: 600px) {
-            .login-card, .portal-section { padding-left: 16px; padding-right: 16px; }
+            .portal-section { padding-left: 16px; padding-right: 16px; }
         }
 CSS;
 }

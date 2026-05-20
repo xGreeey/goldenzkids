@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/superadmin_page.css.php';
+
 function recording_supports_audit_detail(mysqli $conn): bool
 {
     static $cached = null;

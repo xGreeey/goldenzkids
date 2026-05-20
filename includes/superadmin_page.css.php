@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
-?>
+
+function superadmin_page_styles(): void
+{
+    static $loaded = false;
+    if ($loaded) {
+        return;
+    }
+    $loaded = true;
+    ?>
         .app-main { max-width: 1100px; }
 
         .panel-title {
@@ -24,8 +32,6 @@ declare(strict_types=1);
             color: var(--brand-accent);
             font-size: 0.9rem;
         }
-
-        .card-panel h2 { display: none; }
 
         .stat-grid {
             display: grid;
@@ -455,3 +461,5 @@ declare(strict_types=1);
 
         .pagination a:hover { background: var(--bg-elevated); }
         .pagination .current { background: var(--bg-muted); color: var(--brand-accent); border-color: var(--border-strong); }
+    <?php
+}

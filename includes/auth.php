@@ -199,6 +199,35 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
  * @param array{company_id:string,role:int,role_name?:string} $user
  * @param list<string> $permissions
  */
+function auth_is_logged_in(): bool
+{
+    return isset($_SESSION['company_id'])
+        && (string) $_SESSION['company_id'] !== '';
+}
+
+/**
+ * Send already-authenticated visitors to their home dashboard (public pages only).
+ */
+function auth_redirect_if_authenticated(): void
+{
+    if (!auth_is_logged_in() || ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+        return;
+    }
+
+    header('Location: ' . auth_login_redirect_url(auth_user_role()));
+    exit();
+}
+
+/**
+ * Release the session file lock so other tabs/requests can load the same session.
+ */
+function auth_session_release_lock(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+}
+
 function auth_login_session(array $user, array $permissions): void
 {
     regenerate_session();

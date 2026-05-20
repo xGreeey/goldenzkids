@@ -10,12 +10,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $time_of_event = date('Y-m-d H:i:s');
 $company_id = (string) ($_SESSION['company_id'] ?? '');
 $role = (string) ($_SESSION['designation'] ?? 'ADMIN');
-<<<<<<< HEAD
 if (!in_array($role, ['ADMIN', 'SUPERADMIN', 'HEADGUARD', 'GUARD'], true)) {
     $role = auth_role_label_for_recording(auth_role());
 }
-=======
->>>>>>> 1be56378591c202ca32441afbefe47947315ae19
 $event = 'LOGOUT';
 
 $logging_out = false;

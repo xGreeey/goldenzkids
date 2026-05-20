@@ -5,13 +5,22 @@ require_once __DIR__ . '/bootstrap.php';
 
 date_default_timezone_set('Asia/Taipei');
 
+/** Keep users signed in across tabs until idle timeout (seconds). */
+const SESSION_LIFETIME_SECONDS = 28800; // 8 hours
+
 if (session_status() === PHP_SESSION_NONE) {
     $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
 
+    $cookiePath = APP_BASE === '' ? '/' : APP_BASE;
+
+    ini_set('session.gc_maxlifetime', (string) SESSION_LIFETIME_SECONDS);
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+
     session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
+        'lifetime' => SESSION_LIFETIME_SECONDS,
+        'path' => $cookiePath,
         'secure' => $isSecure,
         'httponly' => true,
         'samesite' => 'Lax',

@@ -124,8 +124,14 @@ function auth_permissions_for_role(int $role): array
         'admin.legacy_portal',
     ];
 
+    $superadmin = [
+        'superadmin.dashboard.view',
+        'superadmin.users.manage',
+        'superadmin.audit.view',
+    ];
+
     if ($role === AUTH_ROLE_SUPERADMIN) {
-        return array_values(array_unique(array_merge($guard, $admin)));
+        return array_values(array_unique(array_merge($guard, $admin, $superadmin)));
     }
 
     if ($role === AUTH_ROLE_ADMIN) {
@@ -217,9 +223,11 @@ function auth_login_redirect_url(int $role): string
 {
     $role = auth_normalize_role($role);
 
-    return in_array($role, [AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN], true)
-        ? app_url('admin/dashboard.php')
-        : app_url('guard/portal.php');
+    return match ($role) {
+        AUTH_ROLE_SUPERADMIN => app_url('superadmin/dashboard.php'),
+        AUTH_ROLE_ADMIN => app_url('admin/dashboard.php'),
+        default => app_url('guard/portal.php'),
+    };
 }
 
 function auth_record_login(mysqli $conn, string $companyId): void
@@ -325,13 +333,18 @@ function auth_enforce_area_access(): void
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 
+    if (str_contains($script, '/superadmin/') && !auth_role_is(AUTH_ROLE_SUPERADMIN)) {
+        header('Location: ' . auth_login_redirect_url(auth_user_role()));
+        exit();
+    }
+
     if (str_contains($script, '/admin/') && !auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN)) {
         header('Location: ' . app_url('guard/portal.php'));
         exit();
     }
 
     if (str_contains($script, '/guard/') && !auth_role_is(AUTH_ROLE_HEADGUARD)) {
-        header('Location: ' . app_url('admin/dashboard.php'));
+        header('Location: ' . auth_login_redirect_url(auth_user_role()));
         exit();
     }
 }

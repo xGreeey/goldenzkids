@@ -3,19 +3,15 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 
+auth_require_role(AUTH_ROLE_SUPERADMIN);
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
 }
 
 $time_of_event = date('Y-m-d H:i:s');
 $company_id = (string) ($_SESSION['company_id'] ?? '');
-$role = (string) ($_SESSION['designation'] ?? 'ADMIN');
-<<<<<<< HEAD
-if (!in_array($role, ['ADMIN', 'SUPERADMIN', 'HEADGUARD', 'GUARD'], true)) {
-    $role = auth_role_label_for_recording(auth_role());
-}
-=======
->>>>>>> 1be56378591c202ca32441afbefe47947315ae19
+$role = (string) ($_SESSION['designation'] ?? 'SUPERADMIN');
 $event = 'LOGOUT';
 
 $logging_out = false;
@@ -35,7 +31,7 @@ if ($company_id !== '') {
     );
 }
 
-if ($logging_out || $company_id !== '') {
+if ($logging_out) {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();

@@ -58,21 +58,21 @@ if (!empty($error)) {
                     <div class="input-wrap">
                         <input
                             type="password"
-                            name="pin"
+                            name="password"
                             id="password"
-                            class="form-input<?= !empty($pin_Err) ? ' input-error' : '' ?>"
+                            class="form-input<?= !empty($passwordErr) ? ' input-error' : '' ?>"
                             placeholder="Password"
                             autocomplete="current-password"
                             required
-                            aria-describedby="<?= !empty($pin_Err) ? 'pin_error' : '' ?>"
-                            <?= !empty($pin_Err) ? 'aria-invalid="true"' : '' ?>
+                            aria-describedby="<?= !empty($passwordErr) ? 'password_error' : '' ?>"
+                            <?= !empty($passwordErr) ? 'aria-invalid="true"' : '' ?>
                         >
                         <button type="button" class="btn-toggle-pin" id="togglePin" aria-label="Show password"<?= ui_tooltip('Show password') ?>>
                             <i class="fa-regular fa-eye" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <?php if (!empty($pin_Err)): ?>
-                    <p class="field-error visible" id="pin_error" role="alert"><?= e($pin_Err) ?></p>
+                    <?php if (!empty($passwordErr)): ?>
+                    <p class="field-error visible" id="password_error" role="alert"><?= e($passwordErr) ?></p>
                     <?php endif; ?>
                 </div>
 

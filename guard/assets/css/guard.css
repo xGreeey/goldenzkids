@@ -155,7 +155,7 @@
             font-weight: 600; transition: 0.3s;
         }
         body.guard-portal .btn-portal {
-            background-color: var(--btn-bg); color: var(--btn-text);
+            background: var(--btn-bg); color: var(--btn-text);
             padding: 10px 25px; text-decoration: none; font-size: 0.9rem; border: none; cursor: pointer;
         }
         body.guard-portal .btn-portal:hover { filter: brightness(1.05); }
@@ -189,7 +189,7 @@
             color: var(--panel-text); font-size: 1rem;
         }
         body.guard-portal .submit-btn {
-            width: 100%; background-color: var(--btn-bg); color: var(--btn-text);
+            width: 100%; background: var(--btn-bg); color: var(--btn-text);
             border: none; padding: 20px; font-size: 1.1rem; cursor: pointer; margin-top: 20px;
         }
         body.guard-portal .submit-btn:hover { filter: brightness(1.05); }

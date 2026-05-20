@@ -5,6 +5,78 @@ declare(strict_types=1);
  * Shared create/edit account form and save handler for superadmin.
  */
 
+/**
+ * Generate a temporary alphanumeric password.
+ */
+function superadmin_generate_temporary_password(int $length = 12): string
+{
+    $length = max(8, min(64, $length));
+    $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $lower = 'abcdefghijkmnopqrstuvwxyz';
+    $digits = '23456789';
+    $symbols = '!@#$%^&*()-_=+?';
+    $all = $upper . $lower . $digits . $symbols;
+
+    $password = $upper[random_int(0, strlen($upper) - 1)]
+        . $lower[random_int(0, strlen($lower) - 1)]
+        . $digits[random_int(0, strlen($digits) - 1)]
+        . $symbols[random_int(0, strlen($symbols) - 1)];
+
+    for ($i = 4; $i < $length; $i++) {
+        $password .= $all[random_int(0, strlen($all) - 1)];
+    }
+
+    return str_shuffle($password);
+}
+
+/**
+ * Send account temporary password to the user's email.
+ */
+function superadmin_send_temporary_password_email(string $recipientEmail, string $companyId, string $temporaryPassword): bool
+{
+    $smtpUser = trim((string) ($_ENV['EMAIL'] ?? getenv('EMAIL') ?? ''));
+    $smtpPass = trim((string) ($_ENV['APP_PASSWORD'] ?? getenv('APP_PASSWORD') ?? ''));
+    if ($smtpUser === '' || $smtpPass === '') {
+        error_log('Temporary password email failed: EMAIL/APP_PASSWORD missing');
+        return false;
+    }
+
+    $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+
+        $mail->setFrom($smtpUser, app_agency_name());
+        $mail->addAddress($recipientEmail);
+        $mail->isHTML(true);
+        $mail->Subject = 'Your Temporary Portal Password';
+
+        $safeCompanyId = htmlspecialchars($companyId, ENT_QUOTES, 'UTF-8');
+        $safeTempPassword = htmlspecialchars($temporaryPassword, ENT_QUOTES, 'UTF-8');
+        $mail->Body = '<p>Hello,</p>'
+            . '<p>Your account has been created.</p>'
+            . '<p><strong>Employee ID:</strong> ' . $safeCompanyId . '</p>'
+            . '<p><strong>Temporary password:</strong> <span style="font-size:16px; letter-spacing:1px;">'
+            . $safeTempPassword
+            . '</span></p>'
+            . '<p>Please sign in and change your password immediately.</p>';
+        $mail->AltBody = "Your account has been created.\n"
+            . "Employee ID: {$companyId}\n"
+            . "Temporary password: {$temporaryPassword}\n"
+            . "Please sign in and change your password immediately.";
+
+        return $mail->send();
+    } catch (\PHPMailer\PHPMailer\Exception $exception) {
+        error_log('Temporary password email failed: ' . $exception->getMessage());
+        return false;
+    }
+}
+
 /** @return array{company_id: string, email: string, role: string, is_active: string, password: string} */
 function superadmin_default_form(string $companyId = ''): array
 {
@@ -81,10 +153,8 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $error = 'Employee ID must match ABC-2###-#### (example: ABC-2024-0001).';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
-    } elseif ($form['password'] !== '' && !preg_match('/^[0-9]{6}$/', $form['password'])) {
-        $error = 'Access code must be exactly 6 digits.';
-    } elseif (!$isEdit && $form['password'] === '') {
-        $error = 'Access code is required for new accounts.';
+    } elseif ($isEdit && $form['password'] !== '' && !auth_password_policy_valid($form['password'])) {
+        $error = 'Password must be 8-64 chars with uppercase, lowercase, number, and symbol.';
     } else {
         $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
         $alreadyExists = $exists && $exists->num_rows > 0;
@@ -109,7 +179,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
             }
 
             $ok = false;
-            if ($error === null && $form['password'] !== '') {
+            if ($error === null && $isEdit && $form['password'] !== '') {
                 $hash = auth_hash_password($form['password']);
                 if ($alreadyExists) {
                     $ok = db_execute(
@@ -128,6 +198,32 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                         [$targetId, $form['email'], $hash, $role, $active]
                     );
                 }
+            } elseif ($error === null && !$alreadyExists) {
+                $temporaryPassword = superadmin_generate_temporary_password();
+                $hash = auth_hash_password($temporaryPassword);
+
+                $conn->begin_transaction();
+                $ok = db_execute(
+                    $conn,
+                    "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
+                     VALUES (?, ?, ?, ?, ?, NULL)",
+                    'sssii',
+                    [$targetId, $form['email'], $hash, $role, $active]
+                );
+
+                if (!empty($ok) && superadmin_send_temporary_password_email($form['email'], $targetId, $temporaryPassword)) {
+                    db_execute(
+                        $conn,
+                        'UPDATE users SET password_changed_at = NULL WHERE Company_ID = ?',
+                        's',
+                        [$targetId]
+                    );
+                    $conn->commit();
+                } else {
+                    $conn->rollback();
+                    $ok = false;
+                    $error = 'Could not send temporary password email. Account was not created.';
+                }
             } elseif ($error === null && $alreadyExists) {
                 $ok = db_execute(
                     $conn,
@@ -135,10 +231,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     'siis',
                     [$form['email'], $role, $active, $targetId]
                 );
-            } elseif ($error === null) {
-                $error = 'Access code is required for new accounts.';
             }
-
             if ($error === null && !empty($ok)) {
                 $afterState = [
                     'email' => $form['email'],
@@ -156,7 +249,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                 $roleName = auth_role_name($role);
                 $success = $isEdit
                     ? "Updated {$targetId} ({$roleName})."
-                    : "Created account {$targetId} ({$roleName}).";
+                    : "Created account {$targetId} ({$roleName}) and sent temporary password to email.";
                 if (!$isEdit) {
                     $form = superadmin_default_form();
                 }
@@ -215,12 +308,6 @@ function superadmin_render_create_account_form(
                 <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                 <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
             </select>
-        </div>
-
-        <div class="form-field">
-            <label for="<?= e($pid('password')) ?>" class="label-with-icon"><i class="fa-solid fa-key" aria-hidden="true"></i> Access code (6 digits)</label>
-            <input type="password" id="<?= e($pid('password')) ?>" name="password" inputmode="numeric" pattern="[0-9]{6}"
-                   maxlength="6" autocomplete="new-password" required placeholder="123456">
         </div>
 
         <div class="form-field form-field--checkbox">

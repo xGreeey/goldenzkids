@@ -2,17 +2,17 @@
 declare(strict_types=1);
 
 $company_id = '';
-$pin = '';
+$password = '';
 
 $company_idErr = null;
-$pin_Err = null;
+$passwordErr = null;
 $error = null;
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
 
     $company_id = trim($_POST['company_id'] ?? '');
-    $pin = trim($_POST['pin'] ?? '');
+    $password = trim($_POST['password'] ?? '');
 
     $time_of_event = date('Y-m-d H:i:s');
 
@@ -22,34 +22,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $company_idErr = 'Please check your username.';
     }
 
-    if ($pin === '') {
-        $pin_Err = 'Please enter your password.';
-    } elseif (!preg_match('/^[0-9]{6}$/', $pin)) {
-        $pin_Err = 'Please check your password.';
+    if ($password === '') {
+        $passwordErr = 'Please enter your password.';
     }
 
-    if ($company_idErr === null && $pin_Err === null) {
+    if ($company_idErr === null && $passwordErr === null) {
         $company_id = strtoupper($company_id);
 
         $user = auth_find_user_by_company_id($conn, $company_id);
         $authenticated = false;
         $permissions = [];
 
-        if ($user !== null && auth_verify_password($pin, $user['password_hash'])) {
+        if ($user !== null && auth_verify_password($password, $user['password_hash'])) {
             $authenticated = true;
             $permissions = auth_permissions_for_role($user['role']);
 
             if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
-                $newHash = auth_hash_password($pin);
+                $newHash = auth_hash_password($password);
                 db_execute(
                     $conn,
-                    'UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE Company_ID = ?',
+                    'UPDATE users SET password_hash = ? WHERE Company_ID = ?',
                     'ss',
                     [$newHash, $company_id]
                 );
             }
         } else {
-            $legacy = auth_attempt_legacy_login($conn, $company_id, $pin);
+            $legacy = auth_attempt_legacy_login($conn, $company_id, $password);
             if ($legacy !== null) {
                 $authenticated = true;
                 $user = $legacy['user'];

@@ -125,9 +125,9 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                 </div>
 
                 <div class="form-field">
-                    <label for="password" class="label-with-icon"><i class="fa-solid fa-key" aria-hidden="true"></i> Access code (6 digits)</label>
-                    <input type="password" id="password" name="password" inputmode="numeric" pattern="[0-9]{6}"
-                           maxlength="6" autocomplete="new-password"
+                    <label for="password" class="label-with-icon"><i class="fa-solid fa-key" aria-hidden="true"></i> Password</label>
+                    <input type="password" id="password" name="password" pattern="(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,64}"
+                           minlength="8" maxlength="64" autocomplete="new-password"
                            placeholder="Leave blank to keep current">
                 </div>
 

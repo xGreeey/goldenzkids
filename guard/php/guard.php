@@ -128,6 +128,10 @@ function guard_layout_header_back(): void
         </div>
         <nav class="guard-header-nav">
             <?= theme_toggle_markup(['mode' => 'light-class']) ?>
+            <form method="POST" action="<?= e(app_url('auth/logout-guard.php')) ?>" class="guard-logout-form">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn-back"<?= ui_tooltip('Sign out of guard portal') ?>>LOGOUT</button>
+            </form>
             <a href="<?= e(guard_url('portal.php')) ?>" class="btn-back"<?= ui_tooltip('Return to main guard portal') ?>>
                 RETURN TO PORTAL <span>(BALIK SA PORTAL)</span>
             </a>

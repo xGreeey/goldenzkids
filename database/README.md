@@ -22,7 +22,7 @@ Roles are stored as a **number on `users`** (no `roles` table after migration 00
 |------:|------|--------|
 | **0** | Head guard | `guard/*` |
 | **1** | Admin | `admin/*` |
-| **2** | Super admin | `admin/*` (all admin permissions) |
+| **2** | Super admin | `superadmin/*` (accounts, audit) + `admin/*` |
 
 Permissions are defined in PHP (`includes/auth.php`), not in the database.
 

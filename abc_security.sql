@@ -132,11 +132,14 @@ CREATE TABLE IF NOT EXISTS `memo_recipients` (
 CREATE TABLE IF NOT EXISTS `recording` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `Company_ID` varchar(13) DEFAULT NULL,
-  `Designation` varchar(20) DEFAULT NULL COMMENT 'HEADGUARD|ADMIN|SUPERADMIN',
-  `Event` varchar(20) NOT NULL COMMENT 'LOGIN|LOGOUT',
+  `actor_company_id` varchar(13) DEFAULT NULL COMMENT 'Who performed the action (account changes)',
+  `Designation` varchar(64) DEFAULT NULL COMMENT 'Role label or SUPERADMIN:actor on account events',
+  `Event` varchar(20) NOT NULL COMMENT 'LOGIN|LOGOUT|ACCOUNT_*',
+  `event_detail` varchar(255) DEFAULT NULL,
   `Time_Of_Event` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_recording_company` (`Company_ID`),
+  KEY `idx_recording_actor` (`actor_company_id`),
   KEY `idx_recording_time` (`Time_Of_Event`),
   CONSTRAINT `fk_recording_user` FOREIGN KEY (`Company_ID`) REFERENCES `users` (`Company_ID`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

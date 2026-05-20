@@ -68,15 +68,14 @@ $superadminMobileTitle = 'System Dashboard';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Security | Superadmin Dashboard</title>
+    <?= mobile_meta_tags() ?>
+    <title><?= e(app_agency_name()) ?> | System Dashboard</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <?= app_fonts_link() ?>
     <style>
-<?php require __DIR__ . '/../includes/admin_shell.css.php'; ?>
-<?php require __DIR__ . '/../includes/superadmin_page.css.php'; ?>
+<?php admin_shell_styles(); ?>
+<?php superadmin_page_styles(); ?>
+<?php readfile(__DIR__ . '/../admin/assets/css/dashboard.css'); ?>
     </style>
 </head>
 <body class="light-mode">
@@ -85,7 +84,8 @@ $superadminMobileTitle = 'System Dashboard';
 
     <main class="app-main">
         <header class="page-header">
-            <h1 class="page-title">Superadmin Dashboard</h1>
+            <h1 class="page-title">System Dashboard</h1>
+            <p class="page-subtitle">Overview of portal accounts, sign-in activity, and recent audit events across the agency.</p>
         </header>
 
         <div class="stat-grid">
@@ -222,8 +222,6 @@ $superadminMobileTitle = 'System Dashboard';
     </main>
 </div>
 
-<script>
-<?php require __DIR__ . '/../includes/admin_shell.js.php'; ?>
-</script>
+<?php admin_shell_scripts(); ?>
 </body>
 </html>

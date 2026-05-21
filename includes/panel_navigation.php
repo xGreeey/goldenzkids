@@ -375,6 +375,8 @@ document.addEventListener('DOMContentLoaded', function () {
             var editBar = form.querySelector('[data-sa-toolbar-editing]');
             var saveWrap = form.querySelector('[data-sa-save-wrap]');
             var company = form.querySelector('[data-sa-edit-field="company"]');
+            var firstName = form.querySelector('[data-sa-edit-field="first_name"]');
+            var lastName = form.querySelector('[data-sa-edit-field="last_name"]');
             var email = form.querySelector('[data-sa-edit-field="email"]');
             var role = form.querySelector('[data-sa-edit-field="role"]');
             var active = form.querySelector('[data-sa-edit-field="active"]');
@@ -411,6 +413,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (start) {
                 form.setAttribute('data-sa-editing', '1');
+                if (firstName) {
+                    firstName.readOnly = false;
+                }
+                if (lastName) {
+                    lastName.readOnly = false;
+                }
                 if (email) {
                     email.readOnly = false;
                 }
@@ -450,12 +458,22 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cancel) {
                 form.removeAttribute('data-sa-editing');
                 var oc = form.getAttribute('data-orig-company') || '';
+                var ofn = form.getAttribute('data-orig-first') || '';
+                var oln = form.getAttribute('data-orig-last') || '';
                 var oe = form.getAttribute('data-orig-email') || '';
                 var orv = form.getAttribute('data-orig-role') || '0';
                 var oa = form.getAttribute('data-orig-active') === '1';
                 if (company) {
                     company.value = oc;
                     company.readOnly = true;
+                }
+                if (firstName) {
+                    firstName.value = ofn;
+                    firstName.readOnly = true;
+                }
+                if (lastName) {
+                    lastName.value = oln;
+                    lastName.readOnly = true;
                 }
                 if (email) {
                     email.value = oe;

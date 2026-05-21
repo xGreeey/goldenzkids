@@ -20,13 +20,18 @@ function admin_sidebar_profile(): array
 
     if ($companyId !== '' && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) {
         $conn = $GLOBALS['conn'];
-        $stmt = $conn->prepare(
-            'SELECT u.Email, u.role, g.First_Name, g.Last_Name
-             FROM users u
-             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
-             WHERE u.Company_ID = ?
-             LIMIT 1'
-        );
+        $roleCol = auth_users_role_column($conn);
+        $hasUserNames = auth_users_has_profile_names($conn);
+        $nameSelect = $hasUserNames
+            ? "COALESCE(NULLIF(TRIM(u.First_Name), ''), g.First_Name) AS First_Name,
+               COALESCE(NULLIF(TRIM(u.Last_Name), ''), g.Last_Name) AS Last_Name"
+            : 'g.First_Name, g.Last_Name';
+        $sql = "SELECT u.Email, u.{$roleCol} AS role, {$nameSelect}
+                FROM users u
+                LEFT JOIN guards g ON g.Company_ID = u.Company_ID
+                WHERE u.Company_ID = ?
+                LIMIT 1";
+        $stmt = $conn->prepare($sql);
         if ($stmt) {
             $stmt->bind_param('s', $companyId);
             $stmt->execute();

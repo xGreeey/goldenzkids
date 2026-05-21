@@ -79,11 +79,13 @@ function superadmin_send_temporary_password_email(string $recipientEmail, string
     }
 }
 
-/** @return array{company_id: string, email: string, role: string, is_active: string, password: string} */
+/** @return array{company_id: string, first_name: string, last_name: string, email: string, role: string, is_active: string, password: string} */
 function superadmin_default_form(string $companyId = ''): array
 {
     return [
         'company_id' => $companyId,
+        'first_name' => '',
+        'last_name' => '',
         'email' => '',
         'role' => (string) AUTH_ROLE_ADMIN,
         'is_active' => '1',
@@ -191,10 +193,13 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
     $beforeState = null;
     $editingSelf = $isEdit && $editId === (string) ($_SESSION['company_id'] ?? '');
 
+    $hasProfileNames = auth_users_has_profile_names($conn);
+
     if ($isEdit) {
+        $nameCols = $hasProfileNames ? ', First_Name, Last_Name' : '';
         $existing = db_query(
             $conn,
-            "SELECT Company_ID, Email, {$roleCol} AS role, is_active, password_hash FROM users WHERE Company_ID = ? LIMIT 1",
+            "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role, is_active, password_hash FROM users WHERE Company_ID = ? LIMIT 1",
             's',
             [$editId]
         );
@@ -212,14 +217,20 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
         $row = $existing->fetch_assoc();
         $beforeState = [
             'company_id' => (string) ($row['Company_ID'] ?? ''),
+            'first_name' => (string) ($row['First_Name'] ?? ''),
+            'last_name' => (string) ($row['Last_Name'] ?? ''),
             'email' => (string) ($row['Email'] ?? ''),
             'role' => auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN),
             'is_active' => (int) ($row['is_active'] ?? 1),
         ];
+        $form['first_name'] = $beforeState['first_name'];
+        $form['last_name'] = $beforeState['last_name'];
         $accountTrail = superadmin_account_audit_trail($conn, $editId);
     }
 
     $form['company_id'] = trim((string) ($_POST['company_id'] ?? $form['company_id']));
+    $form['first_name'] = trim((string) ($_POST['first_name'] ?? $form['first_name'] ?? ''));
+    $form['last_name'] = trim((string) ($_POST['last_name'] ?? $form['last_name'] ?? ''));
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
     $form['role'] = (string) ($_POST['role'] ?? (string) AUTH_ROLE_ADMIN);
     $form['is_active'] = isset($_POST['is_active']) ? '1' : '0';
@@ -233,6 +244,10 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
 
     if (!auth_username_valid($form['company_id'])) {
         $error = 'Username must be alphanumeric and up to 20 characters.';
+    } elseif ($hasProfileNames && !auth_profile_name_valid($form['first_name'])) {
+        $error = 'First name is required (letters, up to 64 characters).';
+    } elseif ($hasProfileNames && !auth_profile_name_valid($form['last_name'])) {
+        $error = 'Last name is required (letters, up to 64 characters).';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
     } else {
@@ -279,12 +294,19 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                                 throw new RuntimeException('rename');
                             }
                         }
-                        if (!db_execute(
-                            $conn,
-                            "UPDATE users SET Email = ?, {$roleCol} = ?, is_active = ? WHERE Company_ID = ?",
-                            'siis',
-                            [$form['email'], $role, $active, $finalId]
-                        )) {
+                        $updateSql = "UPDATE users SET Email = ?, {$roleCol} = ?, is_active = ?";
+                        $updateTypes = 'sii';
+                        $updateParams = [$form['email'], $role, $active];
+                        if ($hasProfileNames) {
+                            $updateSql .= ', First_Name = ?, Last_Name = ?';
+                            $updateTypes .= 'ss';
+                            $updateParams[] = $form['first_name'];
+                            $updateParams[] = $form['last_name'];
+                        }
+                        $updateSql .= ' WHERE Company_ID = ?';
+                        $updateTypes .= 's';
+                        $updateParams[] = $finalId;
+                        if (!db_execute($conn, $updateSql, $updateTypes, $updateParams)) {
                             throw new RuntimeException('update');
                         }
                         $conn->commit();
@@ -301,13 +323,23 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                 $hash = auth_hash_password($temporaryPassword);
 
                 $conn->begin_transaction();
-                $ok = db_execute(
-                    $conn,
-                    "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
-                     VALUES (?, ?, ?, ?, ?, NULL)",
-                    'sssii',
-                    [$newUsername, $form['email'], $hash, $role, $active]
-                );
+                if ($hasProfileNames) {
+                    $ok = db_execute(
+                        $conn,
+                        "INSERT INTO users (Company_ID, Email, First_Name, Last_Name, password_hash, {$roleCol}, is_active, password_changed_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
+                        'sssssii',
+                        [$newUsername, $form['email'], $form['first_name'], $form['last_name'], $hash, $role, $active]
+                    );
+                } else {
+                    $ok = db_execute(
+                        $conn,
+                        "INSERT INTO users (Company_ID, Email, password_hash, {$roleCol}, is_active, password_changed_at)
+                         VALUES (?, ?, ?, ?, ?, NULL)",
+                        'sssii',
+                        [$newUsername, $form['email'], $hash, $role, $active]
+                    );
+                }
 
                 if (!empty($ok) && superadmin_send_temporary_password_email($form['email'], $newUsername, $temporaryPassword)) {
                     db_execute(
@@ -385,6 +417,8 @@ function superadmin_render_create_account_form(
     string $formAction = 'users.php',
     string $idPrefix = 'create'
 ): void {
+    global $conn;
+    $showProfileNames = ($conn instanceof mysqli) && auth_users_has_profile_names($conn);
     $pid = static fn (string $field): string => $idPrefix . '_' . $field;
     ?>
     <?php if ($error !== null): ?>
@@ -402,6 +436,24 @@ function superadmin_render_create_account_form(
                    value="<?= e($form['company_id']) ?>"
                    placeholder="Username">
         </div>
+
+        <?php if ($showProfileNames): ?>
+        <div class="form-field">
+            <label for="<?= e($pid('first_name')) ?>" class="label-with-icon"><i class="fa-solid fa-user" aria-hidden="true"></i> First name</label>
+            <input type="text" id="<?= e($pid('first_name')) ?>" name="first_name" required
+                   maxlength="64"
+                   value="<?= e($form['first_name'] ?? '') ?>"
+                   placeholder="First name">
+        </div>
+
+        <div class="form-field">
+            <label for="<?= e($pid('last_name')) ?>" class="label-with-icon"><i class="fa-solid fa-user" aria-hidden="true"></i> Last name</label>
+            <input type="text" id="<?= e($pid('last_name')) ?>" name="last_name" required
+                   maxlength="64"
+                   value="<?= e($form['last_name'] ?? '') ?>"
+                   placeholder="Last name">
+        </div>
+        <?php endif; ?>
 
         <div class="form-field">
             <label for="<?= e($pid('email')) ?>" class="label-with-icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email</label>

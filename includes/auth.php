@@ -45,6 +45,29 @@ function auth_username_valid(string $username): bool
     return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
 }
 
+function auth_profile_name_valid(string $name): bool
+{
+    $name = trim($name);
+
+    return $name !== ''
+        && strlen($name) <= 64
+        && (bool) preg_match("/^[\p{L}\p{M}'\-. ]+$/u", $name);
+}
+
+function auth_users_has_profile_names(mysqli $conn): bool
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $first = $conn->query("SHOW COLUMNS FROM users LIKE 'First_Name'");
+    $last = $conn->query("SHOW COLUMNS FROM users LIKE 'Last_Name'");
+    $cached = $first && $first->num_rows > 0 && $last && $last->num_rows > 0;
+
+    return $cached;
+}
+
 /** Guard roster / field ID format (e.g. ABC-2024-0021). */
 function auth_guard_company_id_valid(string $companyId): bool
 {

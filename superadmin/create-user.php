@@ -23,9 +23,10 @@ $editingSelf = $isEdit && $editId === (string) ($_SESSION['company_id'] ?? '');
 
 if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     $roleCol = auth_users_role_column($conn);
+    $nameCols = auth_users_has_profile_names($conn) ? ', First_Name, Last_Name' : '';
     $existing = db_query(
         $conn,
-        "SELECT Company_ID, Email, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
+        "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
         's',
         [$editId]
     );
@@ -34,6 +35,8 @@ if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
         exit;
     }
     $row = $existing->fetch_assoc();
+    $form['first_name'] = (string) ($row['First_Name'] ?? '');
+    $form['last_name'] = (string) ($row['Last_Name'] ?? '');
     $form['email'] = (string) ($row['Email'] ?? '');
     $form['role'] = (string) auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN);
     $form['is_active'] = (string) ((int) ($row['is_active'] ?? 1));
@@ -111,6 +114,8 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
             <form method="POST" class="form-grid" autocomplete="off"
                   data-sa-edit-account-form
                   data-orig-company="<?= e($form['company_id']) ?>"
+                  data-orig-first="<?= e($form['first_name'] ?? '') ?>"
+                  data-orig-last="<?= e($form['last_name'] ?? '') ?>"
                   data-orig-email="<?= e($form['email']) ?>"
                   data-orig-role="<?= e($form['role']) ?>"
                   data-orig-active="<?= $form['is_active'] === '1' ? '1' : '0' ?>"
@@ -128,6 +133,22 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                            readonly
                            placeholder="Username"<?= $editingSelf ? ' title="Your username cannot be changed"' : '' ?>>
                 </div>
+
+                <?php if (auth_users_has_profile_names($conn)): ?>
+                <div class="form-field">
+                    <label for="first_name" class="label-with-icon"><i class="fa-solid fa-user" aria-hidden="true"></i> First name</label>
+                    <input type="text" id="first_name" name="first_name" required maxlength="64"
+                           data-sa-edit-field="first_name"
+                           value="<?= e($form['first_name'] ?? '') ?>" readonly>
+                </div>
+
+                <div class="form-field">
+                    <label for="last_name" class="label-with-icon"><i class="fa-solid fa-user" aria-hidden="true"></i> Last name</label>
+                    <input type="text" id="last_name" name="last_name" required maxlength="64"
+                           data-sa-edit-field="last_name"
+                           value="<?= e($form['last_name'] ?? '') ?>" readonly>
+                </div>
+                <?php endif; ?>
 
                 <div class="form-field">
                     <label for="email" class="label-with-icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email</label>

@@ -26,10 +26,9 @@ $adminProfile = admin_sidebar_profile();
 
     <div class="sidebar-footer">
         <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name"><?= e($adminProfile['name']) ?></span>
+            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
             <div class="sidebar-footer-meta">
                 <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-                <span class="sidebar-footer-email" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['email']) ?></span>
             </div>
         </div>
 

@@ -142,7 +142,11 @@ function mobile_base_css(): string
         body.superadmin-portal .app-main .btn-primary,
         body.superadmin-portal .app-main .btn-ghost,
         body.superadmin-portal .app-main button.btn-primary,
-        body.superadmin-portal .app-main button.btn-ghost {
+        body.superadmin-portal .app-main button.btn-ghost,
+        body.guard-portal .app-main .btn-primary,
+        body.guard-portal .app-main .btn-ghost,
+        body.guard-portal .app-main button.btn-primary,
+        body.guard-portal .app-main button.btn-ghost {
             min-height: 34px;
         }
         input, select, textarea, .form-input {

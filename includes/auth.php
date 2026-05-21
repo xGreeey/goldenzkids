@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+/** 0 = security guard (field portal) */
+const AUTH_ROLE_GUARD = 0;
 /** 1 = admin (operations dashboard) */
 const AUTH_ROLE_ADMIN = 1;
 /** 2 = superadmin (full admin access) */
@@ -43,6 +45,55 @@ function auth_username_valid(string $username): bool
     return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
 }
 
+/** Guard roster / field ID format (e.g. ABC-2024-0021). */
+function auth_guard_company_id_valid(string $companyId): bool
+{
+    return (bool) preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/i', $companyId);
+}
+
+/** Values accepted on the shared login form (admin username or guard company ID). */
+function auth_login_identifier_valid(string $identifier): bool
+{
+    $identifier = trim($identifier);
+
+    return auth_username_valid($identifier) || auth_guard_company_id_valid($identifier);
+}
+
+function auth_guard_roster_has(mysqli $conn, string $companyId): bool
+{
+    if ($companyId === '') {
+        return false;
+    }
+
+    $row = db_query(
+        $conn,
+        'SELECT Company_ID FROM guards WHERE Company_ID = ? LIMIT 1',
+        's',
+        [$companyId]
+    );
+
+    return (bool) ($row && $row->num_rows > 0);
+}
+
+/**
+ * Decide portal destination after login (guard roster / role 0 ΓåÆ guard module).
+ */
+function auth_resolve_role_at_login(mysqli $conn, array $user): int
+{
+    $companyId = (string) ($user['company_id'] ?? '');
+    $stored = auth_normalize_role((int) ($user['role'] ?? AUTH_ROLE_ADMIN));
+
+    if ($stored === AUTH_ROLE_SUPERADMIN) {
+        return AUTH_ROLE_SUPERADMIN;
+    }
+
+    if ($stored === AUTH_ROLE_GUARD || auth_guard_roster_has($conn, $companyId)) {
+        return AUTH_ROLE_GUARD;
+    }
+
+    return AUTH_ROLE_ADMIN;
+}
+
 function auth_password_change_required_for_user(array $user): bool
 {
     $changedAt = trim((string) ($user['password_changed_at'] ?? ''));
@@ -57,6 +108,7 @@ function auth_role_name(int $role): string
 {
     return match (auth_normalize_role($role)) {
         AUTH_ROLE_SUPERADMIN => 'Super Administrator',
+        AUTH_ROLE_GUARD => 'Security Guard',
         default => 'Administrator',
     };
 }
@@ -65,24 +117,22 @@ function auth_role_label_for_recording(int $role): string
 {
     return match (auth_normalize_role($role)) {
         AUTH_ROLE_SUPERADMIN => 'SUPERADMIN',
+        AUTH_ROLE_GUARD => 'GUARD',
         default => 'ADMIN',
     };
 }
 
 /**
- * Normalize stored role values. Legacy role 0 (removed field portal) maps to administrator.
+ * Normalize stored role values (0 = guard, 1 = admin, 2 = superadmin).
  */
 function auth_normalize_role(mixed $role): int
 {
     $role = (int) $role;
-    if ($role === 0) {
-        return AUTH_ROLE_ADMIN;
-    }
-    if ($role < AUTH_ROLE_ADMIN || $role > AUTH_ROLE_SUPERADMIN) {
-        return AUTH_ROLE_ADMIN;
+    if ($role === AUTH_ROLE_GUARD || $role === AUTH_ROLE_ADMIN || $role === AUTH_ROLE_SUPERADMIN) {
+        return $role;
     }
 
-    return $role;
+    return AUTH_ROLE_ADMIN;
 }
 
 function auth_role_from_input(string $input): ?int
@@ -90,7 +140,7 @@ function auth_role_from_input(string $input): ?int
     $input = strtolower(trim($input));
     if ($input === '' || is_numeric($input)) {
         $n = (int) $input;
-        if ($n === AUTH_ROLE_ADMIN || $n === AUTH_ROLE_SUPERADMIN) {
+        if ($n === AUTH_ROLE_GUARD || $n === AUTH_ROLE_ADMIN || $n === AUTH_ROLE_SUPERADMIN) {
             return $n;
         }
 
@@ -98,6 +148,7 @@ function auth_role_from_input(string $input): ?int
     }
 
     return match ($input) {
+        'guard', 'headguard', '0' => AUTH_ROLE_GUARD,
         'admin', '1' => AUTH_ROLE_ADMIN,
         'superadmin', 'super', '2' => AUTH_ROLE_SUPERADMIN,
         default => null,
@@ -146,6 +197,8 @@ function auth_permissions_for_role(int $role): array
     $admin = [
         'admin.dashboard.view',
         'admin.inbox.manage',
+        'admin.reports.view',
+        'admin.duty.view',
         'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
@@ -157,8 +210,20 @@ function auth_permissions_for_role(int $role): array
         'superadmin.audit.view',
     ];
 
+    $guard = [
+        'guard.portal.access',
+        'guard.dashboard.view',
+        'guard.inbox.view',
+        'guard.corner.view',
+        'guard.reports.submit',
+    ];
+
     if ($role === AUTH_ROLE_SUPERADMIN) {
         return array_values(array_unique(array_merge($admin, $superadmin)));
+    }
+
+    if ($role === AUTH_ROLE_GUARD) {
+        return $guard;
     }
 
     return $admin;
@@ -291,6 +356,7 @@ function auth_login_session(array $user, array $permissions): void
 
     $_SESSION['designation'] = match ($role) {
         AUTH_ROLE_SUPERADMIN => 'SUPERADMIN',
+        AUTH_ROLE_GUARD => 'GUARD',
         default => 'ADMIN',
     };
 }
@@ -305,6 +371,7 @@ function auth_login_redirect_url(int $role): string
 
     return match ($role) {
         AUTH_ROLE_SUPERADMIN => app_url('superadmin/dashboard.php'),
+        AUTH_ROLE_GUARD => app_url('guard/dashboard.php'),
         default => app_url('admin/dashboard.php'),
     };
 }
@@ -376,6 +443,7 @@ function auth_role_is(int ...$roles): bool
 function auth_user_has_role(string $roleSlug): bool
 {
     return match (strtolower($roleSlug)) {
+        'guard', 'headguard' => auth_role_is(AUTH_ROLE_GUARD),
         'admin' => auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN),
         'superadmin' => auth_role_is(AUTH_ROLE_SUPERADMIN),
         default => false,
@@ -431,7 +499,12 @@ function auth_enforce_area_access(): void
     }
 
     if (str_contains($script, '/admin/') && !auth_role_is(AUTH_ROLE_ADMIN, AUTH_ROLE_SUPERADMIN)) {
-        header('Location: ' . app_url('index.php'));
+        header('Location: ' . auth_login_redirect_url(auth_user_role()));
+        exit();
+    }
+
+    if (str_contains($script, '/guard/') && !auth_role_is(AUTH_ROLE_GUARD)) {
+        header('Location: ' . auth_login_redirect_url(auth_user_role()));
         exit();
     }
 }

@@ -647,6 +647,25 @@ function admin_shell_styles(): void
     superadmin_modal_styles();
     panel_navigation_styles();
     echo mobile_base_css();
+    admin_panel_asset_styles();
+}
+
+/** Inbox/messaging CSS — loaded on all admin shell pages so sidebar panel navigation keeps layout. */
+function admin_panel_asset_styles(): void
+{
+    static $loaded = false;
+    if ($loaded) {
+        return;
+    }
+    $loaded = true;
+
+    $cssDir = dirname(__DIR__) . '/admin/assets/css';
+    foreach (['messaging-board.css', 'inbox.css'] as $file) {
+        $path = $cssDir . '/' . $file;
+        if (is_readable($path)) {
+            readfile($path);
+        }
+    }
 }
 
 function admin_shell_scripts(): void
@@ -692,4 +711,7 @@ document.addEventListener('DOMContentLoaded', function () {
     panel_navigation_script();
     superadmin_modal_script();
     theme_toggle_script();
+    if (function_exists('app_url')) {
+        echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
+    }
 }

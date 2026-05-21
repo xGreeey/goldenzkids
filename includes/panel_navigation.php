@@ -168,6 +168,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.text();
     }
 
+    var panelBodyOverlayIds = ['reportModal', 'imageViewer'];
+
+    function syncPanelBodyOverlays(doc) {
+        panelBodyOverlayIds.forEach(function (id) {
+            var newEl = doc.getElementById(id);
+            var curEl = document.getElementById(id);
+            if (newEl) {
+                var imported = document.importNode(newEl, true);
+                if (curEl) {
+                    curEl.replaceWith(imported);
+                } else {
+                    document.body.appendChild(imported);
+                }
+            } else if (curEl) {
+                curEl.remove();
+            }
+        });
+    }
+
+    function runPanelPageInit(doc) {
+        if (typeof window.initAdminInboxPage === 'function'
+            && (doc.getElementById('alert-feed') || doc.getElementById('memoForm'))) {
+            window.initAdminInboxPage();
+        }
+    }
+
     function applyPanelHtml(html, absUrl, options) {
         options = options || {};
         var doc = new DOMParser().parseFromString(html, 'text/html');
@@ -185,6 +211,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             stage.appendChild(document.importNode(child, true));
         });
+
+        syncPanelBodyOverlays(doc);
 
         var newModal = doc.getElementById('createAccountModal');
         var curModal = document.getElementById('createAccountModal');
@@ -219,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof window.superadminInitCreateAccountModal === 'function') {
             window.superadminInitCreateAccountModal();
         }
+        runPanelPageInit(doc);
     }
 
     async function loadPanel(url, options) {

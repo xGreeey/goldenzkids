@@ -1,0 +1,10 @@
+# Ensure Apache runs PHP in this folder (XAMPP / mod_php)
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine on
+</IfModule>
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>

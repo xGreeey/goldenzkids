@@ -3,17 +3,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/superadmin_user_form.php';
 
-/** @return array{company_id: string, email: string, role_name: string} */
+/** @return array{company_id: string, first_name: string, last_name: string, email: string, role_name: string} */
 function admin_profile_defaults(string $companyId = ''): array
 {
     return [
         'company_id' => $companyId,
+        'first_name' => '',
+        'last_name' => '',
         'email' => '',
         'role_name' => auth_role_name(auth_user_role()),
     ];
 }
 
-/** @return array{company_id: string, email: string, role_name: string}|null */
+/** @return array{company_id: string, first_name: string, last_name: string, email: string, role_name: string}|null */
 function admin_profile_load(mysqli $conn, string $companyId): ?array
 {
     if ($companyId === '') {
@@ -21,9 +23,11 @@ function admin_profile_load(mysqli $conn, string $companyId): ?array
     }
 
     $roleCol = auth_users_role_column($conn);
+    $hasProfileNames = auth_users_has_profile_names($conn);
+    $nameCols = $hasProfileNames ? ', First_Name, Last_Name' : '';
     $row = db_query(
         $conn,
-        "SELECT Company_ID, Email, {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1",
+        "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1",
         's',
         [$companyId]
     );
@@ -36,16 +40,19 @@ function admin_profile_load(mysqli $conn, string $companyId): ?array
 
     return [
         'company_id' => (string) ($user['Company_ID'] ?? ''),
+        'first_name' => (string) ($user['First_Name'] ?? ''),
+        'last_name' => (string) ($user['Last_Name'] ?? ''),
         'email' => (string) ($user['Email'] ?? ''),
         'role_name' => auth_role_name(auth_normalize_role($user['role'] ?? AUTH_ROLE_ADMIN)),
     ];
 }
 
 /**
- * @return array{success: ?string, error: ?string, form: array{company_id: string, email: string, role_name: string}}
+ * @return array{success: ?string, error: ?string, form: array{company_id: string, first_name: string, last_name: string, email: string, role_name: string}}
  */
 function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): array
 {
+    $hasProfileNames = auth_users_has_profile_names($conn);
     $form = admin_profile_defaults($sessionCompanyId);
     $error = null;
     $success = null;
@@ -60,6 +67,8 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
     }
 
     $form['company_id'] = trim((string) ($_POST['company_id'] ?? $existing['company_id']));
+    $form['first_name'] = trim((string) ($_POST['first_name'] ?? $existing['first_name']));
+    $form['last_name'] = trim((string) ($_POST['last_name'] ?? $existing['last_name']));
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
     $form['role_name'] = $existing['role_name'];
 
@@ -70,8 +79,18 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
 
     if (!auth_username_valid($form['company_id'])) {
         $error = 'Username must be alphanumeric and up to 20 characters.';
+    } elseif ($hasProfileNames && !auth_profile_name_valid($form['first_name'])) {
+        $error = 'First name is required (letters, up to 64 characters).';
+    } elseif ($hasProfileNames && !auth_profile_name_valid($form['last_name'])) {
+        $error = 'Last name is required (letters, up to 64 characters).';
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
+    } elseif (
+        auth_role_is(AUTH_ROLE_SUPERADMIN)
+        && $form['company_id'] !== $sessionCompanyId
+    ) {
+        $error = 'You cannot change your own username.';
+        $form['company_id'] = $sessionCompanyId;
     } elseif ($wantsPasswordChange) {
         $user = auth_find_user_by_company_id($conn, $sessionCompanyId);
         if ($user === null || !auth_verify_password($currentPassword, (string) ($user['password_hash'] ?? ''))) {
@@ -127,6 +146,13 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
         $types = 's';
         $params = [$form['email']];
 
+        if ($hasProfileNames) {
+            $sql .= ', First_Name = ?, Last_Name = ?';
+            $types .= 'ss';
+            $params[] = $form['first_name'];
+            $params[] = $form['last_name'];
+        }
+
         if ($wantsPasswordChange) {
             $sql .= ', password_hash = ?, password_changed_at = NOW(), failed_login_attempts = 0, locked_until = NULL';
             $types .= 's';
@@ -167,10 +193,13 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
 }
 
 /**
- * @param array{company_id: string, email: string, role_name: string} $form
+ * @param array{company_id: string, first_name: string, last_name: string, email: string, role_name: string} $form
  */
 function admin_render_profile_form(array $form, ?string $error, ?string $success): void
 {
+    global $conn;
+    $showProfileNames = ($conn instanceof mysqli) && auth_users_has_profile_names($conn);
+    $lockUsername = auth_role_is(AUTH_ROLE_SUPERADMIN);
     ?>
     <?php if ($success !== null): ?>
         <div class="alert alert--success" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <?= e($success) ?></div>
@@ -183,6 +212,26 @@ function admin_render_profile_form(array $form, ?string $error, ?string $success
         <?= csrf_field() ?>
         <input type="hidden" name="update_profile" value="1">
 
+        <?php if ($showProfileNames): ?>
+        <div class="form-field">
+            <label for="profile_first_name" class="label-with-icon">
+                <i class="fa-solid fa-user" aria-hidden="true"></i> First name
+            </label>
+            <input type="text" id="profile_first_name" name="first_name" required maxlength="64"
+                   value="<?= e($form['first_name']) ?>"
+                   placeholder="First name">
+        </div>
+
+        <div class="form-field">
+            <label for="profile_last_name" class="label-with-icon">
+                <i class="fa-solid fa-user" aria-hidden="true"></i> Last name
+            </label>
+            <input type="text" id="profile_last_name" name="last_name" required maxlength="64"
+                   value="<?= e($form['last_name']) ?>"
+                   placeholder="Last name">
+        </div>
+        <?php endif; ?>
+
         <div class="form-field">
             <label for="profile_company_id" class="label-with-icon">
                 <i class="fa-solid fa-id-badge" aria-hidden="true"></i> Username
@@ -190,8 +239,11 @@ function admin_render_profile_form(array $form, ?string $error, ?string $success
             <input type="text" id="profile_company_id" name="company_id" required
                    pattern="[A-Za-z0-9]{1,20}" maxlength="20"
                    value="<?= e($form['company_id']) ?>"
-                   placeholder="Portal username">
+                   placeholder="Portal username"
+                   <?= $lockUsername ? ' readonly title="Your username cannot be changed"' : '' ?>>
+            <?php if (!$lockUsername): ?>
             <p class="form-hint">Letters and numbers only, up to 20 characters.</p>
+            <?php endif; ?>
         </div>
 
         <div class="form-field">

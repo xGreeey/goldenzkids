@@ -2,11 +2,43 @@
 declare(strict_types=1);
 
 /**
- * Escape output for HTML context (XSS prevention).
+ * Escape output for HTML body text (XSS prevention).
  */
 function e(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/**
+ * Escape for HTML attribute values (quotes included).
+ */
+function e_attr(?string $value): string
+{
+    return e($value);
+}
+
+/**
+ * Escape for embedding in JavaScript string literals (use inside quoted strings only).
+ */
+function e_js(?string $value): string
+{
+    return json_encode($value ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE)
+        ?: '""';
+}
+
+/**
+ * Strip HTML from untrusted user input before storage or plain-text display.
+ */
+function xss_sanitize_plaintext(string $value, int $maxLength = 10000): string
+{
+    $value = strip_tags($value);
+    $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value) ?? $value;
+
+    if (mb_strlen($value) > $maxLength) {
+        $value = mb_substr($value, 0, $maxLength);
+    }
+
+    return trim($value);
 }
 
 /**
@@ -26,7 +58,25 @@ function csrf_token(): string
  */
 function csrf_field(): string
 {
-    return '<input type="hidden" name="_csrf" value="' . e(csrf_token()) . '" autocomplete="off">';
+    return '<input type="hidden" name="_csrf" value="' . e_attr(csrf_token()) . '" autocomplete="off">';
+}
+
+/**
+ * Read submitted CSRF token from POST body or X-CSRF-Token header (AJAX).
+ */
+function csrf_submitted_token(): string
+{
+    $fromPost = $_POST['_csrf'] ?? '';
+    if (is_string($fromPost) && $fromPost !== '') {
+        return $fromPost;
+    }
+
+    $header = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (is_string($header)) {
+        return trim($header);
+    }
+
+    return '';
 }
 
 /**
@@ -38,12 +88,42 @@ function csrf_verify(): void
         return;
     }
 
-    $submitted = $_POST['_csrf'] ?? '';
-    if (!is_string($submitted) || $submitted === '' || !hash_equals(csrf_token(), $submitted)) {
+    $submitted = csrf_submitted_token();
+    if ($submitted === '' || !hash_equals(csrf_token(), $submitted)) {
         http_response_code(403);
+        $wantsJson = isset($_SERVER['HTTP_ACCEPT'])
+            && str_contains((string) $_SERVER['HTTP_ACCEPT'], 'application/json');
+        $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && strtolower((string) $_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+        if ($wantsJson || $isAjax) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['ok' => false, 'error' => 'Invalid security token. Please refresh and try again.'], JSON_THROW_ON_ERROR);
+            exit;
+        }
+
         header('Content-Type: text/plain; charset=UTF-8');
         exit('Invalid security token. Please refresh the page and try again.');
     }
+}
+
+/**
+ * Enforce CSRF on all POST requests except listed script basenames (e.g. webhooks).
+ *
+ * @param list<string> $exemptScripts Basenames without CSRF check.
+ */
+function csrf_enforce_post(array $exemptScripts = []): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        return;
+    }
+
+    $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? ''));
+    if ($script !== '' && in_array($script, $exemptScripts, true)) {
+        return;
+    }
+
+    csrf_verify();
 }
 
 /**
@@ -70,6 +150,7 @@ function send_security_headers(): void
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    header('X-XSS-Protection: 0');
 
     $csp = implode('; ', [
         "default-src 'self'",

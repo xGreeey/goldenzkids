@@ -10,13 +10,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     exit();
 }
 
-csrf_verify();
-
 $senderId = (string) ($_SESSION['company_id'] ?? '');
 $distributionType = trim((string) ($_POST['distribution_type'] ?? ''));
 $targetGuard = trim((string) ($_POST['target_guard'] ?? ''));
 $memoType = trim((string) ($_POST['memo_type'] ?? ''));
-$bodyText = trim((string) ($_POST['content'] ?? ''));
+$bodyText = xss_sanitize_plaintext(trim((string) ($_POST['content'] ?? '')), 16000);
 
 if ($senderId === '' || $distributionType === '' || $memoType === '' || $bodyText === '') {
     redirect_with_alert('Please complete all required memo fields.', 'announcements.php');
@@ -28,13 +26,12 @@ if ($distributionType === 'targeted' && $targetGuard === '') {
 
 $recipientIds = [];
 if ($distributionType === 'broadcast') {
-    $guards = $conn->query(
+    $rows = db_fetch_all(
+        $conn,
         "SELECT DISTINCT Company_ID FROM guards WHERE Company_ID IS NOT NULL AND Company_ID != ''"
     );
-    if ($guards) {
-        while ($row = $guards->fetch_assoc()) {
-            $recipientIds[] = (string) $row['Company_ID'];
-        }
+    foreach ($rows as $row) {
+        $recipientIds[] = (string) $row['Company_ID'];
     }
     if ($recipientIds === []) {
         redirect_with_alert('No guards found on the roster for broadcast.', 'announcements.php');
@@ -43,43 +40,35 @@ if ($distributionType === 'broadcast') {
     $recipientIds[] = strtoupper($targetGuard);
 }
 
-$conn->begin_transaction();
+$conn->beginTransaction();
 
 try {
-    $stmtMemo = $conn->prepare(
-        'INSERT INTO memos (Company_ID, Distribution_Protocol, Category, Body_Text) VALUES (?, ?, ?, ?)'
-    );
-    if (!$stmtMemo) {
-        throw new RuntimeException('Could not prepare memo insert.');
-    }
-
-    $stmtMemo->bind_param('ssss', $senderId, $distributionType, $memoType, $bodyText);
-    if (!$stmtMemo->execute()) {
+    if (!db_execute(
+        $conn,
+        'INSERT INTO memos (Company_ID, Distribution_Protocol, Category, Body_Text) VALUES (?, ?, ?, ?)',
+        'ssss',
+        [$senderId, $distributionType, $memoType, $bodyText]
+    )) {
         throw new RuntimeException('Memo insert failed.');
     }
 
-    $memoId = (int) $conn->insert_id;
-    $stmtMemo->close();
-
-    $stmtRecipient = $conn->prepare(
-        'INSERT INTO memo_recipients (Memo_ID, Company_ID, is_read) VALUES (?, ?, 0)'
-    );
-    if (!$stmtRecipient) {
-        throw new RuntimeException('Could not prepare recipient insert.');
-    }
+    $memoId = db_last_insert_id($conn);
 
     foreach ($recipientIds as $guardId) {
-        $stmtRecipient->bind_param('is', $memoId, $guardId);
-        if (!$stmtRecipient->execute()) {
+        if (!db_execute(
+            $conn,
+            'INSERT INTO memo_recipients (Memo_ID, Company_ID, is_read) VALUES (?, ?, 0)',
+            'is',
+            [$memoId, $guardId]
+        )) {
             throw new RuntimeException('Recipient insert failed for ' . $guardId);
         }
     }
-    $stmtRecipient->close();
 
     $conn->commit();
     redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'announcements.php');
 } catch (Throwable $e) {
-    $conn->rollback();
+    $conn->rollBack();
     error_log('send-memo: ' . $e->getMessage());
     redirect_with_alert('Memo could not be sent. Please try again.', 'announcements.php');
 }

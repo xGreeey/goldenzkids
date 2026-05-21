@@ -20,7 +20,7 @@ $reportResult = db_query(
     [$companyId]
 );
 if ($reportResult) {
-    while ($r = $reportResult->fetch_assoc()) {
+    while ($r = $reportResult->fetch(PDO::FETCH_ASSOC)) {
         $reports[] = $r;
     }
 }

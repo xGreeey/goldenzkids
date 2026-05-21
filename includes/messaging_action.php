@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Shared POST handlers for messaging thread actions (admin + guard portals).
  */
 
-function messaging_action_handle(mysqli $conn, string $actorId, int $actorRole): void
+function messaging_action_handle(PDO $conn, string $actorId, int $actorRole): void
 {
     require_once __DIR__ . '/messaging_ajax.php';
 

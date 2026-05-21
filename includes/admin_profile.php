@@ -16,7 +16,7 @@ function admin_profile_defaults(string $companyId = ''): array
 }
 
 /** @return array{company_id: string, first_name: string, last_name: string, email: string, role_name: string}|null */
-function admin_profile_load(mysqli $conn, string $companyId): ?array
+function admin_profile_load(PDO $conn, string $companyId): ?array
 {
     if ($companyId === '') {
         return null;
@@ -25,18 +25,16 @@ function admin_profile_load(mysqli $conn, string $companyId): ?array
     $roleCol = auth_users_role_column($conn);
     $hasProfileNames = auth_users_has_profile_names($conn);
     $nameCols = $hasProfileNames ? ', First_Name, Last_Name' : '';
-    $row = db_query(
+    $user = db_fetch_one(
         $conn,
         "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1",
         's',
         [$companyId]
     );
 
-    if (!$row || $row->num_rows === 0) {
+    if ($user === null) {
         return null;
     }
-
-    $user = $row->fetch_assoc();
 
     return [
         'company_id' => (string) ($user['Company_ID'] ?? ''),
@@ -50,7 +48,7 @@ function admin_profile_load(mysqli $conn, string $companyId): ?array
 /**
  * @return array{success: ?string, error: ?string, form: array{company_id: string, first_name: string, last_name: string, email: string, role_name: string}}
  */
-function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): array
+function admin_handle_profile_post(PDO $conn, string $sessionCompanyId): array
 {
     $hasProfileNames = auth_users_has_profile_names($conn);
     $form = admin_profile_defaults($sessionCompanyId);
@@ -105,25 +103,23 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
     }
 
     if ($error === null && strcasecmp($form['email'], $existing['email']) !== 0) {
-        $emailTaken = db_query(
+        if (db_fetch_one(
             $conn,
             'SELECT Company_ID FROM users WHERE Email = ? AND Company_ID != ? LIMIT 1',
             'ss',
             [$form['email'], $sessionCompanyId]
-        );
-        if ($emailTaken && $emailTaken->num_rows > 0) {
+        ) !== null) {
             $error = 'That email address is already in use.';
         }
     }
 
     if ($error === null && $form['company_id'] !== $sessionCompanyId) {
-        $taken = db_query(
+        if (db_fetch_one(
             $conn,
             'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1',
             's',
             [$form['company_id']]
-        );
-        if ($taken && $taken->num_rows > 0) {
+        ) !== null) {
             $error = 'This username is already taken.';
         }
     }
@@ -133,7 +129,7 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
     }
 
     $finalId = $form['company_id'];
-    $conn->begin_transaction();
+    $conn->beginTransaction();
 
     try {
         if ($finalId !== $sessionCompanyId) {
@@ -198,7 +194,7 @@ function admin_handle_profile_post(mysqli $conn, string $sessionCompanyId): arra
 function admin_render_profile_form(array $form, ?string $error, ?string $success): void
 {
     global $conn;
-    $showProfileNames = ($conn instanceof mysqli) && auth_users_has_profile_names($conn);
+    $showProfileNames = ($conn instanceof PDO) && auth_users_has_profile_names($conn);
     $lockUsername = auth_role_is(AUTH_ROLE_SUPERADMIN);
     ?>
     <?php if ($success !== null): ?>

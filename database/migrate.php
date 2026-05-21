@@ -33,9 +33,9 @@ function migrate_out(string $line): void
     }
 }
 
-function migrate_ensure_tracking_table(mysqli $conn): void
+function migrate_ensure_tracking_table(PDO $conn): void
 {
-    $conn->query(
+    $conn->exec(
         'CREATE TABLE IF NOT EXISTS schema_migrations (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             migration VARCHAR(255) NOT NULL,
@@ -46,44 +46,27 @@ function migrate_ensure_tracking_table(mysqli $conn): void
     );
 }
 
-function migrate_applied(mysqli $conn, string $name): bool
+function migrate_applied(PDO $conn, string $name): bool
 {
-    $stmt = $conn->prepare('SELECT 1 FROM schema_migrations WHERE migration = ? LIMIT 1');
-    $stmt->bind_param('s', $name);
-    $stmt->execute();
-    $exists = $stmt->get_result()->num_rows > 0;
-    $stmt->close();
-
-    return $exists;
+    return db_fetch_one($conn, 'SELECT 1 FROM schema_migrations WHERE migration = ? LIMIT 1', 's', [$name]) !== null;
 }
 
-function migrate_record(mysqli $conn, string $name, int $batch): void
+function migrate_record(PDO $conn, string $name, int $batch): void
 {
-    $stmt = $conn->prepare('INSERT INTO schema_migrations (migration, batch) VALUES (?, ?)');
-    $stmt->bind_param('si', $name, $batch);
-    $stmt->execute();
-    $stmt->close();
+    db_execute($conn, 'INSERT INTO schema_migrations (migration, batch) VALUES (?, ?)', 'si', [$name, $batch]);
 }
 
-function migrate_run_sql_file(mysqli $conn, string $path): void
+function migrate_run_sql_file(PDO $conn, string $path): void
 {
     $sql = file_get_contents($path);
     if ($sql === false || trim($sql) === '') {
         return;
     }
 
-    if (!$conn->multi_query($sql)) {
-        throw new RuntimeException('SQL error in ' . basename($path) . ': ' . $conn->error);
-    }
-
-    do {
-        if ($result = $conn->store_result()) {
-            $result->free();
-        }
-    } while ($conn->more_results() && $conn->next_result());
-
-    if ($conn->errno) {
-        throw new RuntimeException('SQL error in ' . basename($path) . ': ' . $conn->error);
+    try {
+        db_exec_sql_file($conn, $sql);
+    } catch (PDOException $e) {
+        throw new RuntimeException('SQL error in ' . basename($path) . ': ' . $e->getMessage(), 0, $e);
     }
 }
 
@@ -101,8 +84,7 @@ sort($sqlFiles, SORT_NATURAL);
 $phpFiles = glob($phpDir . '/*.php') ?: [];
 sort($phpFiles, SORT_NATURAL);
 
-$batchResult = $conn->query('SELECT COALESCE(MAX(batch), 0) + 1 AS next_batch FROM schema_migrations');
-$batchRow = $batchResult ? $batchResult->fetch_assoc() : ['next_batch' => 1];
+$batchRow = db_fetch_one($conn, 'SELECT COALESCE(MAX(batch), 0) + 1 AS next_batch FROM schema_migrations');
 $batch = (int) ($batchRow['next_batch'] ?? 1);
 
 $applied = 0;

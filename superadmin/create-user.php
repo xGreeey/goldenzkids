@@ -24,17 +24,16 @@ $editingSelf = $isEdit && $editId === (string) ($_SESSION['company_id'] ?? '');
 if ($isEdit && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     $roleCol = auth_users_role_column($conn);
     $nameCols = auth_users_has_profile_names($conn) ? ', First_Name, Last_Name' : '';
-    $existing = db_query(
+    $row = db_fetch_one(
         $conn,
         "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role, is_active FROM users WHERE Company_ID = ? LIMIT 1",
         's',
         [$editId]
     );
-    if (!$existing || $existing->num_rows === 0) {
+    if ($row === null) {
         header('Location: users.php');
         exit;
     }
-    $row = $existing->fetch_assoc();
     $form['first_name'] = (string) ($row['First_Name'] ?? '');
     $form['last_name'] = (string) ($row['Last_Name'] ?? '');
     $form['email'] = (string) ($row['Email'] ?? '');

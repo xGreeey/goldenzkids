@@ -18,7 +18,7 @@ function admin_sidebar_profile(): array
     $name = '';
     $email = '';
 
-    if ($companyId !== '' && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) {
+    if ($companyId !== '' && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO) {
         $conn = $GLOBALS['conn'];
         $roleCol = auth_users_role_column($conn);
         $hasUserNames = auth_users_has_profile_names($conn);
@@ -31,20 +31,14 @@ function admin_sidebar_profile(): array
                 LEFT JOIN guards g ON g.Company_ID = u.Company_ID
                 WHERE u.Company_ID = ?
                 LIMIT 1";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param('s', $companyId);
-            $stmt->execute();
-            $row = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            if ($row) {
-                $email = (string) ($row['Email'] ?? '');
-                $first = trim((string) ($row['First_Name'] ?? ''));
-                $last = trim((string) ($row['Last_Name'] ?? ''));
-                $name = trim($first . ' ' . $last);
-                if (isset($row['role'])) {
-                    $role = auth_role_name((int) $row['role']);
-                }
+        $row = db_fetch_one($conn, $sql, 's', [$companyId]);
+        if ($row !== null) {
+            $email = (string) ($row['Email'] ?? '');
+            $first = trim((string) ($row['First_Name'] ?? ''));
+            $last = trim((string) ($row['Last_Name'] ?? ''));
+            $name = trim($first . ' ' . $last);
+            if (isset($row['role'])) {
+                $role = auth_role_name((int) $row['role']);
             }
         }
     }

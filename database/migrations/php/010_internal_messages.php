@@ -4,14 +4,13 @@ declare(strict_types=1);
 /**
  * Staff messaging between administrators and super administrators.
  */
-return static function (mysqli $conn): void {
-    $exists = $conn->query("SHOW TABLES LIKE 'internal_messages'");
-    if ($exists && $exists->num_rows > 0) {
+return static function (PDO $conn): void {
+    if (db_table_exists($conn, 'internal_messages')) {
         echo "  [skip] internal_messages table already exists.\n";
         return;
     }
 
-    if (!$conn->query(
+    $conn->exec(
         'CREATE TABLE internal_messages (
             message_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             sender_company_id VARCHAR(13) NOT NULL,
@@ -27,9 +26,7 @@ return static function (mysqli $conn): void {
             CONSTRAINT fk_internal_messages_recipient
                 FOREIGN KEY (recipient_company_id) REFERENCES users (Company_ID) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    )) {
-        throw new RuntimeException('Could not create internal_messages: ' . $conn->error);
-    }
+    );
 
     echo "  Created internal_messages table.\n";
 };

@@ -93,34 +93,26 @@ function superadmin_default_form(string $companyId = ''): array
     ];
 }
 
-function superadmin_schema_table_exists(mysqli $conn, string $table): bool
+function superadmin_schema_table_exists(PDO $conn, string $table): bool
 {
     $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
-    if ($table === '') {
-        return false;
-    }
-    $res = $conn->query("SHOW TABLES LIKE '{$table}'");
 
-    return $res instanceof mysqli_result && $res->num_rows > 0;
+    return $table !== '' && db_table_exists($conn, $table);
 }
 
-function superadmin_schema_column_exists(mysqli $conn, string $table, string $column): bool
+function superadmin_schema_column_exists(PDO $conn, string $table, string $column): bool
 {
     $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
     $column = preg_replace('/[^A-Za-z0-9_]/', '', $column);
-    if ($table === '' || $column === '') {
-        return false;
-    }
-    $res = $conn->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
 
-    return $res instanceof mysqli_result && $res->num_rows > 0;
+    return $table !== '' && $column !== '' && db_column_exists($conn, $table, $column);
 }
 
 /**
  * Rename portal login id (users.Company_ID) and update referencing rows.
  * Caller must wrap in a transaction if needed. Uses FOREIGN_KEY_CHECKS=0 briefly.
  */
-function superadmin_rename_portal_user_company_id(mysqli $conn, string $oldId, string $newId): bool
+function superadmin_rename_portal_user_company_id(PDO $conn, string $oldId, string $newId): bool
 {
     if ($oldId === '' || $newId === '' || $oldId === $newId) {
         return true;
@@ -130,7 +122,9 @@ function superadmin_rename_portal_user_company_id(mysqli $conn, string $oldId, s
         return db_execute($conn, $sql, $types, $params);
     };
 
-    if (!$conn->query('SET FOREIGN_KEY_CHECKS=0')) {
+    try {
+        $conn->exec('SET FOREIGN_KEY_CHECKS=0');
+    } catch (PDOException) {
         return false;
     }
 
@@ -166,7 +160,7 @@ function superadmin_rename_portal_user_company_id(mysqli $conn, string $oldId, s
     }
     $ok = $ok && $patch('UPDATE users SET Company_ID = ? WHERE Company_ID = ?', 'ss', [$newId, $oldId]);
 
-    $conn->query('SET FOREIGN_KEY_CHECKS=1');
+    $conn->exec('SET FOREIGN_KEY_CHECKS=1');
 
     return $ok;
 }
@@ -183,7 +177,7 @@ function superadmin_rename_portal_user_company_id(mysqli $conn, string $oldId, s
  *   account_trail: array
  * }
  */
-function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $editId): array
+function superadmin_handle_account_post(PDO $conn, bool $isEdit, string $editId): array
 {
     $roleCol = auth_users_role_column($conn);
     $form = superadmin_default_form($isEdit ? $editId : '');
@@ -197,13 +191,13 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
 
     if ($isEdit) {
         $nameCols = $hasProfileNames ? ', First_Name, Last_Name' : '';
-        $existing = db_query(
+        $row = db_fetch_one(
             $conn,
             "SELECT Company_ID, Email{$nameCols}, {$roleCol} AS role, is_active, password_hash FROM users WHERE Company_ID = ? LIMIT 1",
             's',
             [$editId]
         );
-        if (!$existing || $existing->num_rows === 0) {
+        if ($row === null) {
             return [
                 'success' => null,
                 'error' => 'Account not found.',
@@ -214,7 +208,6 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                 'editing_self' => false,
             ];
         }
-        $row = $existing->fetch_assoc();
         $beforeState = [
             'company_id' => (string) ($row['Company_ID'] ?? ''),
             'first_name' => (string) ($row['First_Name'] ?? ''),
@@ -251,8 +244,12 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
     } elseif ($form['email'] === '' || !filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
         $error = 'A valid email address is required.';
     } else {
-        $exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$form['company_id']]);
-        $alreadyExists = $exists && $exists->num_rows > 0;
+        $alreadyExists = db_fetch_one(
+            $conn,
+            'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1',
+            's',
+            [$form['company_id']]
+        ) !== null;
 
         if (!$isEdit && $alreadyExists) {
             $error = 'This username is already registered.';
@@ -278,8 +275,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     if ($editingSelf) {
                         $error = 'You cannot change your own username.';
                     } else {
-                        $taken = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$newUsername]);
-                        if ($taken && $taken->num_rows > 0) {
+                        if (db_fetch_one($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$newUsername]) !== null) {
                             $error = 'This username is already taken.';
                         }
                     }
@@ -287,7 +283,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
 
                 $finalId = $newUsername;
                 if ($error === null) {
-                    $conn->begin_transaction();
+                    $conn->beginTransaction();
                     try {
                         if ($newUsername !== $editId && !$editingSelf) {
                             if (!superadmin_rename_portal_user_company_id($conn, $editId, $newUsername)) {
@@ -315,14 +311,14 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     } catch (\Throwable $e) {
                         $conn->rollback();
                         $ok = false;
-                        $error = 'Could not save account. ' . ($e->getMessage() !== 'rename' && $e->getMessage() !== 'update' ? $conn->error : 'Please try again.');
+                        $error = 'Could not save account. Please try again.';
                     }
                 }
             } elseif ($error === null && !$isEdit && !$alreadyExists) {
                 $temporaryPassword = superadmin_generate_temporary_password();
                 $hash = auth_hash_password($temporaryPassword);
 
-                $conn->begin_transaction();
+                $conn->beginTransaction();
                 if ($hasProfileNames) {
                     $ok = db_execute(
                         $conn,
@@ -392,7 +388,7 @@ function superadmin_handle_account_post(mysqli $conn, bool $isEdit, string $edit
                     $form = superadmin_default_form();
                 }
             } elseif ($error === null) {
-                $error = 'Could not save account. ' . $conn->error;
+                $error = 'Could not save account. Please try again.';
             }
         }
     }
@@ -418,7 +414,7 @@ function superadmin_render_create_account_form(
     string $idPrefix = 'create'
 ): void {
     global $conn;
-    $showProfileNames = ($conn instanceof mysqli) && auth_users_has_profile_names($conn);
+    $showProfileNames = ($conn instanceof PDO) && auth_users_has_profile_names($conn);
     $pid = static fn (string $field): string => $idPrefix . '_' . $field;
     ?>
     <?php if ($error !== null): ?>

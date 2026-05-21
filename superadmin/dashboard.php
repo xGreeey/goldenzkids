@@ -10,12 +10,14 @@ $roleCol = auth_users_role_column($conn);
 
 $userCounts = [
     'total' => 0,
+    'guard' => 0,
     'admin' => 0,
     'superadmin' => 0,
     'active' => 0,
 ];
 $countResult = $conn->query(
     "SELECT COUNT(*) AS total,
+            SUM({$roleCol} = 0) AS guard,
             SUM({$roleCol} = 1) AS admin,
             SUM({$roleCol} = 2) AS superadmin,
             SUM(is_active = 1) AS active
@@ -24,6 +26,7 @@ $countResult = $conn->query(
 if ($countResult) {
     $row = $countResult->fetch_assoc();
     $userCounts['total'] = (int) ($row['total'] ?? 0);
+    $userCounts['guard'] = (int) ($row['guard'] ?? 0);
     $userCounts['admin'] = (int) ($row['admin'] ?? 0);
     $userCounts['superadmin'] = (int) ($row['superadmin'] ?? 0);
     $userCounts['active'] = (int) ($row['active'] ?? 0);
@@ -103,7 +106,8 @@ $superadminMobileTitle = 'System Dashboard';
                                     <circle cx="12" cy="12" r="9"></circle>
                                     <path d="m8.5 12.5 2.2 2.2 4.8-5.2"></path>
                                 </svg>
-                                <?= e((string) $userCounts['active']) ?> active
+                                <?= e((string) $userCounts['active']) ?> active ·
+                                <?= e((string) $userCounts['guard']) ?> guards
                             </p>
                         </div>
                     </article>

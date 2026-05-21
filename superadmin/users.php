@@ -144,6 +144,7 @@ function superadmin_role_badge(int $role): string
 {
     return match (auth_normalize_role($role)) {
         AUTH_ROLE_SUPERADMIN => 'badge--super',
+        AUTH_ROLE_GUARD => 'badge--guard',
         default => 'badge--admin',
     };
 }
@@ -200,6 +201,7 @@ $superadminMobileTitle = 'User Accounts';
                     <label for="role" class="label-with-icon"><i class="fa-solid fa-filter" aria-hidden="true"></i> Role</label>
                     <select id="role" name="role">
                         <option value="all"<?= $filterRole === '' || $filterRole === 'all' ? ' selected' : '' ?>>All roles</option>
+                        <option value="0"<?= $filterRole === '0' ? ' selected' : '' ?>>Guard</option>
                         <option value="1"<?= $filterRole === '1' ? ' selected' : '' ?>>Admin</option>
                         <option value="2"<?= $filterRole === '2' ? ' selected' : '' ?>>Superadmin</option>
                     </select>

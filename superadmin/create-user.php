@@ -141,7 +141,7 @@ $superadminMobileTitle = $isEdit ? 'Edit Account' : 'Create Account';
                         <input type="hidden" name="role" value="<?= e($form['role']) ?>" data-sa-role-fallback>
                     <?php endif; ?>
                     <select id="role" required data-sa-edit-field="role" disabled<?= $editingSelf ? ' data-sa-role-locked="1"' : '' ?>>
-                        <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
+                        <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Security guard</option>
                         <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                         <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
                     </select>

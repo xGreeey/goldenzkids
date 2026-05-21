@@ -19,7 +19,7 @@ Review before importing `abc_security.sql` or running `database/migrate.php`.
 
 | Value | Role |
 |------:|------|
-| 0 | *(legacy; promoted to admin by migration 011)* |
+| 0 | Security guard |
 | 1 | Admin |
 | 2 | Super admin |
 

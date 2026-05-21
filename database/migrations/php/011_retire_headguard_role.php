@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Promote legacy portal role 0 (removed head guard / field portal) to administrator (1).
+ * Role 0 is the security guard portal (guard/*). No data migration required.
  */
 return static function (mysqli $conn): void {
     $role = $conn->query("SHOW COLUMNS FROM users LIKE 'role'");
@@ -12,9 +12,5 @@ return static function (mysqli $conn): void {
         return;
     }
 
-    if (!$conn->query('UPDATE users SET role = 1 WHERE role = 0')) {
-        throw new RuntimeException('Failed to promote role-0 users: ' . $conn->error);
-    }
-
-    echo '  Promoted ' . $conn->affected_rows . " user(s) from role 0 to administrator.\n";
+    echo "  [skip] Role 0 retained for security guard portal accounts.\n";
 };

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 21, 2026 at 12:22 PM
+-- Generation Time: May 21, 2026 at 03:02 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -142,6 +142,73 @@ CREATE TABLE `guards` (
   `First_Name` varchar(255) NOT NULL,
   `Middle_Name` varchar(255) DEFAULT NULL,
   `Post_Assigned` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `guard_announcements`
+--
+
+CREATE TABLE `guard_announcements` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `body` text NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `guard_announcements`
+--
+
+INSERT INTO `guard_announcements` (`id`, `title`, `body`, `is_active`, `created_at`) VALUES
+(1, 'Shift briefing', 'Review post orders and radio check every hour. Report incidents through the portal immediately.', 1, '2026-05-21 13:01:54'),
+(2, 'Uniform inspection', 'Full uniform and ID must be worn during duty hours. Non-compliance will be noted in daily reports.', 1, '2026-05-21 13:01:54');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `guard_duty_status`
+--
+
+CREATE TABLE `guard_duty_status` (
+  `company_id` varchar(13) NOT NULL,
+  `duty_status` enum('active','off_duty','on_report') NOT NULL DEFAULT 'active',
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `guard_report_evidence`
+--
+
+CREATE TABLE `guard_report_evidence` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `report_number` int(11) NOT NULL,
+  `company_id` varchar(13) NOT NULL,
+  `file_name` text NOT NULL,
+  `meta_cipher` text DEFAULT NULL,
+  `gps_lat` decimal(10,7) DEFAULT NULL,
+  `gps_lng` decimal(10,7) DEFAULT NULL,
+  `captured_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `guard_staff_messages`
+--
+
+CREATE TABLE `guard_staff_messages` (
+  `message_id` bigint(20) UNSIGNED NOT NULL,
+  `sender_company_id` varchar(13) NOT NULL,
+  `recipient_company_id` varchar(13) NOT NULL,
+  `body_text` text NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -381,7 +448,12 @@ INSERT INTO `recording` (`id`, `Company_ID`, `actor_company_id`, `Designation`, 
 (92, 'grey', NULL, 'SUPERADMIN', 'LOGOUT', NULL, '2026-05-21 18:00:40'),
 (93, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:00:54'),
 (94, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 18:01:10'),
-(95, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:01:14');
+(95, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:01:14'),
+(96, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 18:27:30'),
+(97, 'amor', NULL, 'GUARD', 'LOGIN', NULL, '2026-05-21 18:27:56'),
+(98, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:28:19'),
+(99, 'amor', NULL, 'GUARD', 'LOGOUT', NULL, '2026-05-21 19:43:38'),
+(100, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 19:45:53');
 
 -- --------------------------------------------------------
 
@@ -417,7 +489,9 @@ INSERT INTO `schema_migrations` (`id`, `migration`, `batch`, `executed_at`) VALU
 (15, 'php/013_message_groups.php', 4, '2026-05-21 07:37:15'),
 (16, '014_link_callout_head_guard_accounts.sql', 5, '2026-05-21 08:22:59'),
 (17, '015_users_profile_names.sql', 6, '2026-05-21 09:51:00'),
-(18, 'php/015_users_profile_names.php', 6, '2026-05-21 09:51:00');
+(18, 'php/015_users_profile_names.php', 6, '2026-05-21 09:51:00'),
+(19, '013_guard_portal_features.sql', 7, '2026-05-21 13:01:54'),
+(20, 'php/016_guard_report_evidence_encrypt.php', 7, '2026-05-21 13:01:55');
 
 -- --------------------------------------------------------
 
@@ -449,8 +523,8 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`Company_ID`, `Email`, `First_Name`, `Last_Name`, `password_hash`, `role_id`, `role`, `is_active`, `failed_login_attempts`, `locked_until`, `last_login_at`, `password_changed_at`, `created_at`, `updated_at`) VALUES
 ('ABC-2024-0001', 'abc.admin0001@gmail.com', NULL, NULL, '$2y$10$JPAGPhDLQogMxfQDxxQeoeE2Zv4/IOb1K72rKzdqRbTiU4weISmOS', NULL, 2, 1, 0, NULL, '2026-05-20 16:54:47', '2026-05-20 09:12:51', '2026-05-20 01:12:51', '2026-05-20 08:54:47'),
 ('ABC-2024-0021', 'abc.guard0021@gmail.com', NULL, NULL, '$2y$10$sEC7yFme4cLMi//zlSTNpucul1BB9LqxXOojhNl/PUJa.ro6BSPNi', NULL, 0, 1, 0, NULL, NULL, '2026-05-20 09:12:56', '2026-05-20 01:12:56', '2026-05-20 01:12:56'),
-('amor', 'christian5787264@gmail.com', NULL, NULL, '$2y$10$KSOWzWbMYeNhGZDR83.bwetV6vKTRE9cx3hSMSCeoonmLWWqx4c0a', NULL, 0, 1, 0, NULL, '2026-05-20 17:44:37', '2026-05-20 17:44:46', '2026-05-20 09:43:53', '2026-05-21 08:25:36'),
-('grey', 'aldrininocencio212527@gmail.com', 'Aldrin', 'Inocencio', '$2y$10$DT29ptsKGboY3CT/TGjbmeAbWRM2A7F2RJjT3LfA7ifY/ZMgzNZM.', NULL, 1, 1, 0, NULL, '2026-05-21 18:01:14', '2026-05-20 18:26:02', '2026-05-20 09:07:40', '2026-05-21 10:01:14');
+('amor', 'christian5787264@gmail.com', NULL, NULL, '$2y$10$KSOWzWbMYeNhGZDR83.bwetV6vKTRE9cx3hSMSCeoonmLWWqx4c0a', NULL, 0, 1, 0, NULL, '2026-05-21 18:27:56', '2026-05-20 17:44:46', '2026-05-20 09:43:53', '2026-05-21 10:27:56'),
+('grey', 'aldrininocencio212527@gmail.com', 'Aldrin', 'Inocencio', '$2y$10$DT29ptsKGboY3CT/TGjbmeAbWRM2A7F2RJjT3LfA7ifY/ZMgzNZM.', NULL, 1, 1, 0, NULL, '2026-05-21 19:45:53', '2026-05-20 18:26:02', '2026-05-20 09:07:40', '2026-05-21 11:45:53');
 
 --
 -- Indexes for dumped tables
@@ -501,6 +575,35 @@ ALTER TABLE `establishments`
 ALTER TABLE `guards`
   ADD PRIMARY KEY (`Company_ID`),
   ADD KEY `idx_guards_head` (`Head_ID`);
+
+--
+-- Indexes for table `guard_announcements`
+--
+ALTER TABLE `guard_announcements`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_guard_announcements_active` (`is_active`,`created_at`);
+
+--
+-- Indexes for table `guard_duty_status`
+--
+ALTER TABLE `guard_duty_status`
+  ADD PRIMARY KEY (`company_id`);
+
+--
+-- Indexes for table `guard_report_evidence`
+--
+ALTER TABLE `guard_report_evidence`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_guard_evidence_report` (`report_number`),
+  ADD KEY `idx_guard_evidence_guard` (`company_id`);
+
+--
+-- Indexes for table `guard_staff_messages`
+--
+ALTER TABLE `guard_staff_messages`
+  ADD PRIMARY KEY (`message_id`),
+  ADD KEY `idx_guard_msg_recipient` (`recipient_company_id`,`is_read`,`created_at`),
+  ADD KEY `idx_guard_msg_thread` (`sender_company_id`,`recipient_company_id`,`created_at`);
 
 --
 -- Indexes for table `internal_messages`
@@ -614,6 +717,24 @@ ALTER TABLE `establishments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `guard_announcements`
+--
+ALTER TABLE `guard_announcements`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `guard_report_evidence`
+--
+ALTER TABLE `guard_report_evidence`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `guard_staff_messages`
+--
+ALTER TABLE `guard_staff_messages`
+  MODIFY `message_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `internal_messages`
 --
 ALTER TABLE `internal_messages`
@@ -653,13 +774,13 @@ ALTER TABLE `message_group_messages`
 -- AUTO_INCREMENT for table `recording`
 --
 ALTER TABLE `recording`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=101;
 
 --
 -- AUTO_INCREMENT for table `schema_migrations`
 --
 ALTER TABLE `schema_migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- Constraints for dumped tables
@@ -696,6 +817,26 @@ ALTER TABLE `establishments`
 ALTER TABLE `guards`
   ADD CONSTRAINT `fk_guards_head` FOREIGN KEY (`Head_ID`) REFERENCES `users` (`Company_ID`) ON DELETE SET NULL,
   ADD CONSTRAINT `fk_guards_user` FOREIGN KEY (`Company_ID`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `guard_duty_status`
+--
+ALTER TABLE `guard_duty_status`
+  ADD CONSTRAINT `fk_guard_duty_status_user` FOREIGN KEY (`company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `guard_report_evidence`
+--
+ALTER TABLE `guard_report_evidence`
+  ADD CONSTRAINT `fk_guard_evidence_report` FOREIGN KEY (`report_number`) REFERENCES `dgd` (`Report_Number`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_guard_evidence_user` FOREIGN KEY (`company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `guard_staff_messages`
+--
+ALTER TABLE `guard_staff_messages`
+  ADD CONSTRAINT `fk_guard_msg_recipient` FOREIGN KEY (`recipient_company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_guard_msg_sender` FOREIGN KEY (`sender_company_id`) REFERENCES `users` (`Company_ID`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `internal_messages`

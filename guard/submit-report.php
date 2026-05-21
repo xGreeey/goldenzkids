@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
 require_once __DIR__ . '/../includes/guard_portal.php';
+require_once __DIR__ . '/../includes/guard_ui_icons.php';
 
 auth_require_permission('guard.reports.submit');
 
@@ -17,7 +18,7 @@ guard_layout_head('Submit Report');
         <div class="guard-section-stack">
         <header class="page-header">
             <h1 class="page-title">Submit report</h1>
-            <p class="page-subtitle">Three-step submission: scan your filled report, attach evidences, then submit for admin review.</p>
+            <p class="page-subtitle">Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.</p>
         </header>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
@@ -78,10 +79,18 @@ guard_layout_head('Submit Report');
                         </div>
                     </div>
                     <div class="guard-scanner" data-guard-scanner>
-                        <video class="guard-scanner__video" data-guard-scanner-video playsinline muted autoplay aria-label="Camera preview"></video>
+                        <video class="guard-scanner__video" data-guard-scanner-video playsinline muted aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
+                        <button
+                            type="button"
+                            class="guard-scanner__torch"
+                            data-guard-scanner-torch
+                            aria-label="Toggle flashlight"
+                            aria-pressed="false"
+                            hidden
+                        ><?= guard_ui_icon('flashlight', 20) ?></button>
                         <div class="guard-scanner__frame" aria-hidden="true"></div>
-                        <p class="guard-scanner__hint" data-guard-scanner-hint>Align document inside frame…</p>
+                        <p class="guard-scanner__hint" data-guard-scanner-hint>Tap Smart scan to open the camera.</p>
                     </div>
                     <div class="guard-scanner__actions">
                         <button type="button" class="btn-primary" data-guard-scan-capture>

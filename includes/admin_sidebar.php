@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $adminNavActive = $adminNavActive ?? 'dashboard';
+$adminProfile = admin_sidebar_profile();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -28,6 +29,10 @@ $adminNavActive = $adminNavActive ?? 'dashboard';
         <a href="duty-detail.php" class="sidebar-link<?= $adminNavActive === 'duty' ? ' active' : '' ?>"<?= $adminNavActive === 'duty' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Duty posts and personnel assignments') ?>>
             <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
             Duty detail
+        </a>
+        <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
+            <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+            Head guard posts
         </a>
     </nav>
 

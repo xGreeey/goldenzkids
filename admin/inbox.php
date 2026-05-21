@@ -75,8 +75,6 @@ try {
     error_log('admin/inbox messaging: ' . $e->getMessage());
 }
 
-$memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
-
 $adminNavActive = 'inbox';
 ?>
 <!DOCTYPE html>
@@ -99,11 +97,10 @@ $adminNavActive = 'inbox';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Internal communications, staff messaging, and memos.</p>
+            <p class="page-subtitle">Staff messaging board for direct and group conversations.</p>
         </header>
 
-        <div class="inbox-top-grid">
-            <?php require __DIR__ . '/../includes/admin_internal_communications.php'; ?>
+        <div class="inbox-messaging-solo">
             <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
         </div>
     </main>

@@ -94,21 +94,34 @@ function db_fetch_all(PDO $conn, string $sql, string $types = '', array $params 
 
 function db_table_exists(PDO $conn, string $table): bool
 {
-    $stmt = db_query($conn, 'SHOW TABLES LIKE ?', 's', [$table]);
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+        return false;
+    }
 
-    return $stmt !== false && $stmt->fetch(PDO::FETCH_NUM) !== false;
+    return db_fetch_one(
+        $conn,
+        'SELECT 1 FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+         LIMIT 1',
+        's',
+        [$table]
+    ) !== null;
 }
 
 function db_column_exists(PDO $conn, string $table, string $column): bool
 {
-    $stmt = db_query(
-        $conn,
-        'SHOW COLUMNS FROM `' . str_replace('`', '``', $table) . '` LIKE ?',
-        's',
-        [$column]
-    );
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+        return false;
+    }
 
-    return $stmt !== false && $stmt->fetch(PDO::FETCH_NUM) !== false;
+    return db_fetch_one(
+        $conn,
+        'SELECT 1 FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+         LIMIT 1',
+        'ss',
+        [$table, $column]
+    ) !== null;
 }
 
 function db_last_insert_id(PDO $conn): int

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../includes/guard_portal.php';
 
 auth_require_permission('admin.reports.view');
 
@@ -56,7 +57,7 @@ $adminNavActive = 'reports';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Reports</h1>
-            <p class="page-subtitle">Review daily guard reports, update status, and view scanned forms.</p>
+            <p class="page-subtitle">Review post-incident and daily attendance documents from guards, update status, and view scanned forms.</p>
         </header>
 
         <?php if ($error !== null): ?>
@@ -86,6 +87,8 @@ $adminNavActive = 'reports';
                     $time_sent = (string) $row['Time_of_Report'];
                     $status = (string) $row['Status'];
                     $status_text = strtoupper($status);
+                    $report_type_label = guard_portal_report_type_label((string) ($row['Template'] ?? ''));
+                    $report_type_icon = guard_portal_report_type_icon($report_type_label);
 
                     $badge_bg = 'var(--accent-blue-soft)';
                     $badge_color = 'var(--accent-blue)';
@@ -106,15 +109,16 @@ $adminNavActive = 'reports';
                      data-est="<?= htmlspecialchars($decrypted_est, ENT_QUOTES, 'UTF-8') ?>"
                      data-time="<?= htmlspecialchars($time_sent, ENT_QUOTES, 'UTF-8') ?>"
                      data-template="<?= htmlspecialchars($decrypted_template, ENT_QUOTES, 'UTF-8') ?>"
+                     data-report-type="<?= htmlspecialchars($report_type_label, ENT_QUOTES, 'UTF-8') ?>"
                      data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
                      data-aitext="<?= htmlspecialchars($decrypted_ai, ENT_QUOTES, 'UTF-8') ?>">
-                <div class="icon-box" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></div>
+                <div class="icon-box" aria-hidden="true"><i class="fa-solid <?= e($report_type_icon) ?>"></i></div>
                 <div class="content-box">
                     <div class="notif-title">
-                        Daily guard report
+                        <?= htmlspecialchars($report_type_label) ?>
                         <span class="status-badge" style="background:<?= $badge_bg ?>;color:<?= $badge_color ?>;"><?= htmlspecialchars($status_text) ?></span>
                     </div>
-                    <p class="notif-desc">Submitted for <?= htmlspecialchars($decrypted_est) ?>.</p>
+                    <p class="notif-desc"><?= htmlspecialchars($guard_name) ?> · <?= htmlspecialchars($decrypted_est) ?></p>
                     <div class="timestamp">
                         <span>Employee ID: <?= htmlspecialchars($guard_id) ?></span>
                         <span><?= htmlspecialchars($time_sent) ?></span>

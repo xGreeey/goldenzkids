@@ -54,6 +54,28 @@ function guard_portal_report_types(): array
     ];
 }
 
+function guard_portal_report_type_label(string $template): string
+{
+    $template = trim($template);
+    if ($template === '') {
+        return 'Guard report';
+    }
+    if (in_array($template, guard_portal_report_types(), true)) {
+        return $template;
+    }
+
+    return $template;
+}
+
+function guard_portal_report_type_icon(string $label): string
+{
+    return match ($label) {
+        'Post incident' => 'fa-triangle-exclamation',
+        'Daily Attendance Document' => 'fa-calendar-day',
+        default => 'fa-file-lines',
+    };
+}
+
 /** @param list<array<string,mixed>> $reports */
 function guard_portal_report_history_markup(array $reports): void
 {

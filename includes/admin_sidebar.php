@@ -22,7 +22,7 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
             Announcement
         </a>
-        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard report review') ?>>
+        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Post-incident and attendance report review') ?>>
             <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
             Reports
         </a>

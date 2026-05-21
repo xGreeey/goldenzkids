@@ -57,11 +57,12 @@
         var est = card.getAttribute('data-est');
         var time = card.getAttribute('data-time');
         var status = card.getAttribute('data-status');
+        var reportType = card.getAttribute('data-report-type') || 'Guard report';
         var tempPath = cleanTemplatePath(card.getAttribute('data-template'));
         var aiText = card.getAttribute('data-aitext') || '';
 
-        document.getElementById('modalTitle').textContent = 'Report from ' + est;
-        document.getElementById('modalTimestamp').textContent = 'Logged: ' + time;
+        document.getElementById('modalTitle').textContent = reportType;
+        document.getElementById('modalTimestamp').textContent = est + ' · Logged ' + time;
 
         var img = document.getElementById('imgTemp');
         img.src = tempPath || '';
@@ -78,8 +79,10 @@
         };
 
         document.getElementById('modalInfo').innerHTML =
+            '<p><strong>Report type:</strong> ' + reportType + '</p>' +
             '<p><strong>Employee ID:</strong> ' + guardId + '</p>' +
             '<p><strong>Personnel:</strong> ' + guard + '</p>' +
+            '<p><strong>Post / establishment:</strong> ' + est + '</p>' +
             '<p><strong>Status:</strong> ' + status + '</p>';
 
         var aiContainer = document.getElementById('aiTextContainer');

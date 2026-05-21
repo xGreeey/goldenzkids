@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
+require_once APP_ROOT . '/includes/internal_messaging.php';
 require_once APP_ROOT . '/includes/group_messaging.php';
 
 auth_require_permission('guard.inbox.view');
@@ -49,9 +50,10 @@ $messagingViewerId = $companyId;
 $messagingContacts = [];
 $messagingActivePeer = null;
 $messagingThread = [];
-$messagingPostUrl = '';
+$messagingPostUrl = 'send-internal-message.php';
 $messagingReturnUrl = 'inbox.php';
-$messagingMode = 'group';
+$messagingMode = 'idle';
+$messagingShowCreatePanel = false;
 $messagingGroups = [];
 $messagingActiveGroupId = null;
 $messagingGroupThread = [];
@@ -59,23 +61,41 @@ $messagingGroupMeta = null;
 $messagingCanCreateGroups = false;
 $messagingHeadGuardOptions = [];
 $messagingGroupPostUrl = 'send-group-message.php';
-$messagingShowDirect = false;
+$messagingShowDirect = internal_messaging_can_use_direct(auth_user_role());
 $groupsAvailable = false;
 
 try {
+    $messagingAvailable = internal_messages_table_exists($conn);
+    if ($messagingShowDirect && $messagingAvailable) {
+        $messagingContacts = internal_messaging_list_contacts($conn, auth_user_role());
+    }
+
     $groupsAvailable = message_groups_table_exists($conn);
     if ($groupsAvailable) {
-        $messagingAvailable = true;
+        $messagingAvailable = $messagingAvailable || true;
         $messagingGroups = group_messaging_list_groups_for_user($conn, $messagingViewerId);
+
+        $wantsCreateGroup = isset($_GET['create_group']);
         $groupParam = isset($_GET['group']) ? (int) $_GET['group'] : 0;
-        if ($groupParam > 0 && group_messaging_user_in_group($conn, $groupParam, $messagingViewerId)) {
+        $peerParam = isset($_GET['peer']) ? trim((string) $_GET['peer']) : null;
+
+        if ($peerParam !== null && $peerParam !== ''
+            && internal_messaging_validate_peer_for_viewer($conn, $peerParam, auth_user_role())) {
+            $messagingMode = 'direct';
+            $messagingActivePeer = $peerParam;
+            $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $peerParam);
+        } elseif ($groupParam > 0 && group_messaging_user_in_group($conn, $groupParam, $messagingViewerId)) {
+            $messagingMode = 'group';
             $messagingActiveGroupId = $groupParam;
             $messagingGroupMeta = group_messaging_get_group_meta($conn, $groupParam, $messagingViewerId);
             $messagingGroupThread = group_messaging_fetch_messages($conn, $groupParam, $messagingViewerId);
-        } elseif ($messagingGroups !== []) {
-            $messagingActiveGroupId = $messagingGroups[0]['group_id'];
-            $messagingGroupMeta = group_messaging_get_group_meta($conn, $messagingActiveGroupId, $messagingViewerId);
-            $messagingGroupThread = group_messaging_fetch_messages($conn, $messagingActiveGroupId, $messagingViewerId);
+        }
+    } elseif ($messagingAvailable && isset($_GET['peer'])) {
+        $peerParam = trim((string) $_GET['peer']);
+        if ($peerParam !== '' && internal_messaging_validate_peer_for_viewer($conn, $peerParam, auth_user_role())) {
+            $messagingMode = 'direct';
+            $messagingActivePeer = $peerParam;
+            $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $peerParam);
         }
     }
 } catch (Throwable $e) {
@@ -132,7 +152,7 @@ guard_layout_head('Inbox');
             <?php endif; ?>
         </section>
 
-        <?php if ($groupsAvailable): ?>
+        <?php if ($messagingAvailable || $groupsAvailable): ?>
             <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
         <?php endif; ?>
 

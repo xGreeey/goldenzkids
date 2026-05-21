@@ -713,5 +713,6 @@ document.addEventListener('DOMContentLoaded', function () {
     theme_toggle_script();
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
+        echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
     }
 }

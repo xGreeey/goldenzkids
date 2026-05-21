@@ -24,6 +24,8 @@ if (!function_exists('message_groups_table_exists')) {
  * @var string $messagingCreateGroupUrl
  * @var bool $messagingShowDirect
  * @var bool $groupsAvailable
+ * @var bool $messagingShowCreatePanel
+ * @var string $messagingThreadApi
  */
 $messagingContacts = $messagingContacts ?? [];
 $messagingViewerId = $messagingViewerId ?? '';
@@ -41,8 +43,10 @@ $messagingCanCreateGroups = $messagingCanCreateGroups ?? false;
 $messagingHeadGuardOptions = $messagingHeadGuardOptions ?? [];
 $messagingGroupPostUrl = $messagingGroupPostUrl ?? 'send-group-message.php';
 $messagingCreateGroupUrl = $messagingCreateGroupUrl ?? 'create-message-group.php';
-$messagingShowDirect = $messagingShowDirect ?? (internal_messaging_peer_role(auth_user_role()) >= 0);
+$messagingShowDirect = $messagingShowDirect ?? internal_messaging_can_use_direct(auth_user_role());
 $groupsAvailable = $groupsAvailable ?? (isset($conn) && $conn instanceof mysqli && message_groups_table_exists($conn));
+$messagingShowCreatePanel = $messagingShowCreatePanel ?? false;
+$messagingThreadApi = $messagingThreadApi ?? 'messaging-thread.php';
 
 $messagingPeerLabel = '';
 if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
@@ -57,16 +61,40 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
     }
 }
 
-$boardSubtitle = $messagingShowDirect
-    ? 'Direct messages with super administrators, plus group chats with head guards.'
-    : 'Group chats with operations administrators.';
+$boardSubtitle = match (auth_normalize_role(auth_user_role())) {
+    AUTH_ROLE_ADMIN => 'Direct messages to super administrators and head guards, plus group chats.',
+    AUTH_ROLE_GUARD => 'Direct messages with administrators, plus group chats.',
+    default => 'Direct messages with administrators, plus group chats with head guards.',
+};
+
+$canRenderCreateForm = $messagingCanCreateGroups && $messagingHeadGuardOptions !== [];
+$hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
+    || ($messagingMode === 'direct' && $messagingActivePeer !== null && $messagingActivePeer !== '');
 ?>
-<section class="messaging-board" id="messaging-board" aria-labelledby="messaging-board-heading">
+<section class="messaging-board"
+         id="messaging-board"
+         aria-labelledby="messaging-board-heading"
+         data-thread-api="<?= e($messagingThreadApi) ?>"
+         data-send-direct="<?= e($messagingPostUrl) ?>"
+         data-send-group="<?= e($messagingGroupPostUrl) ?>"
+         data-base-url="<?= e($messagingReturnUrl) ?>"
+         data-csrf="<?= e(csrf_token()) ?>"
+         data-initial-peer="<?= $messagingMode === 'direct' && $messagingActivePeer ? e($messagingActivePeer) : '' ?>"
+         data-initial-group="<?= $messagingMode === 'group' && $messagingActiveGroupId ? (int) $messagingActiveGroupId : '' ?>"
+         data-initial-create="<?= $messagingShowCreatePanel ? '1' : '0' ?>">
     <div class="messaging-board__head">
-        <h2 id="messaging-board-heading" class="messaging-board__title">
-            <i class="fa-solid fa-comments" aria-hidden="true"></i>
-            Staff messaging board
-        </h2>
+        <div class="messaging-board__head-row">
+            <h2 id="messaging-board-heading" class="messaging-board__title">
+                <i class="fa-solid fa-comments" aria-hidden="true"></i>
+                Staff messaging board
+            </h2>
+            <?php if ($messagingCanCreateGroups && $groupsAvailable): ?>
+                <button type="button" class="messaging-board__head-create" data-messaging-action="create-group">
+                    <i class="fa-solid fa-users-rays" aria-hidden="true"></i>
+                    Create group chat
+                </button>
+            <?php endif; ?>
+        </div>
         <p class="messaging-board__subtitle"><?= e($boardSubtitle) ?></p>
     </div>
     <?php if (!$messagingAvailable && !$groupsAvailable): ?>
@@ -80,25 +108,26 @@ $boardSubtitle = $messagingShowDirect
             <div class="messaging-board__section">
                 <h3 class="messaging-board__section-title">Direct</h3>
                 <?php if ($messagingContacts === []): ?>
-                    <p class="messaging-board__empty">No <?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN ? 'super administrator' : 'administrator' ?> accounts are active yet.</p>
+                    <p class="messaging-board__empty"><?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN
+                        ? 'No super administrator or head guard accounts are active yet.'
+                        : 'No administrator accounts are active yet.' ?></p>
                 <?php else: ?>
                 <ul class="messaging-contact-list">
                     <?php foreach ($messagingContacts as $contact): ?>
-                        <?php
-                        $isActive = $messagingMode === 'direct' && $messagingActivePeer === $contact['company_id'];
-                        $peerUrl = $messagingReturnUrl . (str_contains($messagingReturnUrl, '?') ? '&' : '?')
-                            . 'peer=' . rawurlencode($contact['company_id']) . '#messaging-board';
-                        ?>
+                        <?php $isActive = $messagingMode === 'direct' && $messagingActivePeer === $contact['company_id']; ?>
                     <li>
-                        <a href="<?= e($peerUrl) ?>"
-                           class="messaging-contact<?= $isActive ? ' is-active' : '' ?>"
-                           <?= $isActive ? 'aria-current="true"' : '' ?>>
+                        <button type="button"
+                                class="messaging-contact<?= $isActive ? ' is-active' : '' ?>"
+                                data-chat-type="direct"
+                                data-peer-id="<?= e($contact['company_id']) ?>"
+                                data-chat-label="<?= e($contact['label']) ?>"
+                                <?= $isActive ? 'aria-current="true"' : '' ?>>
                             <span class="messaging-contact__label"><?= e($contact['label']) ?></span>
                             <span class="messaging-contact__id"><?= e($contact['company_id']) ?></span>
                             <?php if ($contact['unread'] > 0): ?>
                                 <span class="messaging-contact__badge" aria-label="<?= (int) $contact['unread'] ?> unread"><?= (int) $contact['unread'] ?></span>
                             <?php endif; ?>
-                        </a>
+                        </button>
                     </li>
                     <?php endforeach; ?>
                 </ul>
@@ -108,63 +137,28 @@ $boardSubtitle = $messagingShowDirect
 
             <?php if ($groupsAvailable): ?>
             <div class="messaging-board__section<?= $messagingShowDirect ? ' messaging-board__section--groups' : '' ?>">
-                <div class="messaging-board__section-head">
-                    <h3 class="messaging-board__section-title">Groups</h3>
-                    <?php if ($messagingCanCreateGroups): ?>
-                        <button type="button"
-                                class="messaging-board__new-group"
-                                id="openCreateGroup"
-                                aria-expanded="false"
-                                aria-controls="createGroupPanel">
-                            <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                            New group
-                        </button>
-                    <?php endif; ?>
-                </div>
+                <h3 class="messaging-board__section-title">Groups</h3>
 
-                <?php if ($messagingCanCreateGroups && $messagingHeadGuardOptions !== []): ?>
-                <div class="messaging-create-group" id="createGroupPanel" hidden>
-                    <form method="POST" action="<?= e($messagingCreateGroupUrl) ?>" class="messaging-create-group__form">
-                        <?= csrf_field() ?>
-                        <label class="messaging-create-group__label" for="groupNameInput">Group name</label>
-                        <input type="text"
-                               name="group_name"
-                               id="groupNameInput"
-                               class="messaging-create-group__input"
-                               maxlength="120"
-                               required
-                               placeholder="e.g. SM Megamall supervisors">
-                        <span class="messaging-create-group__label">Head guards</span>
-                        <div class="messaging-create-group__members" role="group" aria-label="Select head guards">
-                            <?php foreach ($messagingHeadGuardOptions as $option): ?>
-                            <label class="messaging-member-option">
-                                <input type="checkbox" name="member_ids[]" value="<?= e($option['company_id']) ?>">
-                                <span><?= e($option['label']) ?></span>
-                                <span class="messaging-member-option__id"><?= e($option['company_id']) ?></span>
-                            </label>
-                            <?php endforeach; ?>
-                        </div>
-                        <button type="submit" class="messaging-create-group__submit">Create group</button>
-                    </form>
-                </div>
-                <?php elseif ($messagingCanCreateGroups): ?>
-                <p class="messaging-board__empty">Link head guards to user accounts in callout settings before creating groups.</p>
+                <?php if ($messagingCanCreateGroups): ?>
+                <button type="button" class="messaging-board__create-group-btn" data-messaging-action="create-group">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    Create group chat
+                </button>
                 <?php endif; ?>
 
                 <?php if ($messagingGroups === []): ?>
-                    <p class="messaging-board__empty">No group chats yet.</p>
+                    <p class="messaging-board__empty">No group chats yet. Use <strong>Create group chat</strong> to start one.</p>
                 <?php else: ?>
                 <ul class="messaging-contact-list">
                     <?php foreach ($messagingGroups as $group): ?>
-                        <?php
-                        $isActive = $messagingMode === 'group' && $messagingActiveGroupId === $group['group_id'];
-                        $groupUrl = $messagingReturnUrl . (str_contains($messagingReturnUrl, '?') ? '&' : '?')
-                            . 'group=' . (int) $group['group_id'] . '#messaging-board';
-                        ?>
+                        <?php $isActive = $messagingMode === 'group' && $messagingActiveGroupId === $group['group_id']; ?>
                     <li>
-                        <a href="<?= e($groupUrl) ?>"
-                           class="messaging-contact messaging-contact--group<?= $isActive ? ' is-active' : '' ?>"
-                           <?= $isActive ? 'aria-current="true"' : '' ?>>
+                        <button type="button"
+                                class="messaging-contact messaging-contact--group<?= $isActive ? ' is-active' : '' ?>"
+                                data-chat-type="group"
+                                data-group-id="<?= (int) $group['group_id'] ?>"
+                                data-chat-label="<?= e($group['group_name']) ?>"
+                                <?= $isActive ? 'aria-current="true"' : '' ?>>
                             <span class="messaging-contact__label">
                                 <i class="fa-solid fa-users" aria-hidden="true"></i>
                                 <?= e($group['group_name']) ?>
@@ -173,7 +167,7 @@ $boardSubtitle = $messagingShowDirect
                             <?php if ($group['unread'] > 0): ?>
                                 <span class="messaging-contact__badge" aria-label="<?= (int) $group['unread'] ?> unread"><?= (int) $group['unread'] ?></span>
                             <?php endif; ?>
-                        </a>
+                        </button>
                     </li>
                     <?php endforeach; ?>
                 </ul>
@@ -182,8 +176,12 @@ $boardSubtitle = $messagingShowDirect
             <?php endif; ?>
         </div>
 
-        <div class="messaging-board__thread">
-            <?php if ($messagingMode === 'group' && $messagingActiveGroupId !== null && $messagingGroupMeta !== null): ?>
+        <div class="messaging-board__thread"
+             id="messagingThreadPane"
+             data-thread-mode="<?= e($messagingShowCreatePanel ? 'create' : ($hasActiveThread ? $messagingMode : 'idle')) ?>">
+            <?php if ($messagingShowCreatePanel && $messagingCanCreateGroups): ?>
+                <?php require __DIR__ . '/messaging_board_create_panel.php'; ?>
+            <?php elseif ($messagingMode === 'group' && $messagingActiveGroupId !== null && $messagingGroupMeta !== null): ?>
                 <div class="messaging-thread__header">
                     <strong><?= e($messagingGroupMeta['group_name']) ?></strong>
                     <span class="messaging-thread__meta">
@@ -208,13 +206,13 @@ $boardSubtitle = $messagingShowDirect
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <form method="POST" action="<?= e($messagingGroupPostUrl) ?>" class="messaging-compose">
+                <form method="POST" action="<?= e($messagingGroupPostUrl) ?>" class="messaging-compose js-messaging-compose">
                     <?= csrf_field() ?>
                     <input type="hidden" name="group_id" value="<?= (int) $messagingActiveGroupId ?>">
                     <label class="visually-hidden" for="messagingGroupBody">Group message</label>
                     <div class="messaging-compose__field">
                         <textarea name="body" id="messagingGroupBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Message the group…"></textarea>
-                        <button type="submit" class="messaging-compose__submit" aria-label="Send group message"<?= ui_tooltip('Send message') ?>>
+                        <button type="submit" class="messaging-compose__submit" aria-label="Send group message">
                             <svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
                                 <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
                             </svg>
@@ -240,14 +238,14 @@ $boardSubtitle = $messagingShowDirect
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <form method="POST" action="<?= e($messagingPostUrl) ?>" class="messaging-compose">
+                <form method="POST" action="<?= e($messagingPostUrl) ?>" class="messaging-compose js-messaging-compose">
                     <?= csrf_field() ?>
                     <input type="hidden" name="recipient_id" value="<?= e($messagingActivePeer) ?>">
                     <input type="hidden" name="return_peer" value="<?= e($messagingActivePeer) ?>">
                     <label class="visually-hidden" for="messagingBody">Message</label>
                     <div class="messaging-compose__field">
                         <textarea name="body" id="messagingBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Type your message…"></textarea>
-                        <button type="submit" class="messaging-compose__submit" aria-label="Send message"<?= ui_tooltip('Send message') ?>>
+                        <button type="submit" class="messaging-compose__submit" aria-label="Send message">
                             <svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
                                 <path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
                             </svg>
@@ -255,27 +253,43 @@ $boardSubtitle = $messagingShowDirect
                     </div>
                 </form>
             <?php else: ?>
-                <p class="messaging-board__placeholder">
-                    <?= $messagingShowDirect ? 'Select a direct contact or group to view the conversation.' : 'Select a group to view the conversation.' ?>
-                </p>
+                <div class="messaging-board__idle">
+                    <?php if ($messagingShowDirect): ?>
+                        <p class="messaging-board__placeholder">Select a direct contact or a group from the list to open a conversation.</p>
+                    <?php else: ?>
+                        <p class="messaging-board__placeholder">Select a group from the list to open the conversation.</p>
+                    <?php endif; ?>
+                    <?php if ($messagingCanCreateGroups && $groupsAvailable): ?>
+                        <button type="button" class="messaging-board__idle-create" data-messaging-action="create-group">
+                            <i class="fa-solid fa-users-rays" aria-hidden="true"></i>
+                            Create group chat
+                        </button>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($messagingCanCreateGroups): ?>
+    <template id="createGroupPanel">
+        <?php require __DIR__ . '/messaging_board_create_panel.php'; ?>
+    </template>
+    <?php endif; ?>
+
+    <template id="messagingIdleTemplate">
+        <div class="messaging-board__idle">
+            <?php if ($messagingShowDirect): ?>
+                <p class="messaging-board__placeholder">Select a direct contact or a group from the list to open a conversation.</p>
+            <?php else: ?>
+                <p class="messaging-board__placeholder">Select a group from the list to open the conversation.</p>
+            <?php endif; ?>
+            <?php if ($messagingCanCreateGroups && $groupsAvailable): ?>
+                <button type="button" class="messaging-board__idle-create" data-messaging-action="create-group">
+                    <i class="fa-solid fa-users-rays" aria-hidden="true"></i>
+                    Create group chat
+                </button>
+            <?php endif; ?>
+        </div>
+    </template>
     <?php endif; ?>
 </section>
-<?php if ($messagingCanCreateGroups): ?>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var btn = document.getElementById('openCreateGroup');
-    var panel = document.getElementById('createGroupPanel');
-    if (!btn || !panel) {
-        return;
-    }
-    btn.addEventListener('click', function () {
-        var open = panel.hidden;
-        panel.hidden = !open;
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-});
-</script>
-<?php endif; ?>

@@ -14,13 +14,29 @@ function internal_messages_table_exists(mysqli $conn): bool
     return $cached;
 }
 
+/**
+ * Which roles the viewer may direct-message.
+ *
+ * @return list<int>
+ */
+function internal_messaging_allowed_peer_roles(int $viewerRole): array
+{
+    $viewerRole = auth_normalize_role($viewerRole);
+
+    return match ($viewerRole) {
+        AUTH_ROLE_SUPERADMIN => [AUTH_ROLE_ADMIN],
+        AUTH_ROLE_ADMIN => [AUTH_ROLE_SUPERADMIN, AUTH_ROLE_GUARD],
+        AUTH_ROLE_GUARD => [AUTH_ROLE_ADMIN],
+        default => [],
+    };
+}
+
 function internal_messaging_roles_may_chat(int $roleA, int $roleB): bool
 {
     $roleA = auth_normalize_role($roleA);
     $roleB = auth_normalize_role($roleB);
 
-    return ($roleA === AUTH_ROLE_ADMIN && $roleB === AUTH_ROLE_SUPERADMIN)
-        || ($roleA === AUTH_ROLE_SUPERADMIN && $roleB === AUTH_ROLE_ADMIN);
+    return in_array($roleB, internal_messaging_allowed_peer_roles($roleA), true);
 }
 
 /**
@@ -33,26 +49,31 @@ function internal_messaging_list_contacts(mysqli $conn, int $viewerRole): array
     }
 
     $viewerRole = auth_normalize_role($viewerRole);
-    $peerRole = internal_messaging_peer_role($viewerRole);
-    if ($peerRole < 0) {
+    $peerRoles = internal_messaging_allowed_peer_roles($viewerRole);
+    if ($peerRoles === []) {
         return [];
     }
+
     $roleCol = auth_users_role_column($conn);
     $viewerId = (string) ($_SESSION['company_id'] ?? '');
+    $placeholders = implode(', ', array_fill(0, count($peerRoles), '?'));
 
     $sql = "SELECT u.Company_ID AS company_id,
-                   COALESCE(NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','), u.Email, u.Company_ID) AS label
+                   COALESCE(NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
+                            NULLIF(TRIM(u.Email), ''),
+                            u.Company_ID) AS label
             FROM users u
             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
-            WHERE u.is_active = 1 AND u.{$roleCol} = ?
-            ORDER BY label ASC";
+            WHERE u.is_active = 1 AND u.{$roleCol} IN ({$placeholders})
+            ORDER BY u.{$roleCol} ASC, label ASC";
 
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         return [];
     }
 
-    $stmt->bind_param('i', $peerRole);
+    $types = str_repeat('i', count($peerRoles));
+    $stmt->bind_param($types, ...$peerRoles);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -163,16 +184,35 @@ function internal_messaging_mark_thread_read(mysqli $conn, string $viewerId, str
 /** @return int Peer role constant, or -1 when the viewer cannot use staff messaging. */
 function internal_messaging_peer_role(int $viewerRole): int
 {
-    $viewerRole = auth_normalize_role($viewerRole);
+    $roles = internal_messaging_allowed_peer_roles($viewerRole);
 
-    if ($viewerRole === AUTH_ROLE_SUPERADMIN) {
-        return AUTH_ROLE_ADMIN;
-    }
-    if ($viewerRole === AUTH_ROLE_ADMIN) {
-        return AUTH_ROLE_SUPERADMIN;
+    return $roles[0] ?? -1;
+}
+
+function internal_messaging_user_role(mysqli $conn, string $companyId): ?int
+{
+    if ($companyId === '') {
+        return null;
     }
 
-    return -1;
+    $roleCol = auth_users_role_column($conn);
+    $stmt = $conn->prepare(
+        "SELECT {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1"
+    );
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('s', $companyId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if (!$row) {
+        return null;
+    }
+
+    return auth_normalize_role($row['role']);
 }
 
 function internal_messaging_validate_peer(mysqli $conn, string $peerId, int $expectedRole): bool
@@ -181,24 +221,23 @@ function internal_messaging_validate_peer(mysqli $conn, string $peerId, int $exp
         return false;
     }
 
-    $roleCol = auth_users_role_column($conn);
-    $stmt = $conn->prepare(
-        "SELECT {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1"
-    );
-    if (!$stmt) {
+    $peerRole = internal_messaging_user_role($conn, $peerId);
+
+    return $peerRole !== null && $peerRole === auth_normalize_role($expectedRole);
+}
+
+function internal_messaging_validate_peer_for_viewer(mysqli $conn, string $peerId, int $viewerRole): bool
+{
+    if ($peerId === '') {
         return false;
     }
 
-    $stmt->bind_param('s', $peerId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$row) {
+    $peerRole = internal_messaging_user_role($conn, $peerId);
+    if ($peerRole === null) {
         return false;
     }
 
-    return auth_normalize_role($row['role']) === auth_normalize_role($expectedRole);
+    return in_array($peerRole, internal_messaging_allowed_peer_roles($viewerRole), true);
 }
 
 function internal_messaging_send(mysqli $conn, string $senderId, int $senderRole, string $recipientId, string $body): bool
@@ -212,11 +251,9 @@ function internal_messaging_send(mysqli $conn, string $senderId, int $senderRole
         return false;
     }
 
-    $recipientRole = internal_messaging_peer_role($senderRole);
-    if ($recipientRole < 0) {
-        return false;
-    }
-    if (!internal_messaging_validate_peer($conn, $recipientId, $recipientRole)) {
+    $senderRole = auth_normalize_role($senderRole);
+    $recipientRole = internal_messaging_user_role($conn, $recipientId);
+    if ($recipientRole === null) {
         return false;
     }
 
@@ -237,4 +274,9 @@ function internal_messaging_send(mysqli $conn, string $senderId, int $senderRole
     $stmt->close();
 
     return $ok;
+}
+
+function internal_messaging_can_use_direct(int $viewerRole): bool
+{
+    return internal_messaging_allowed_peer_roles($viewerRole) !== [];
 }

@@ -28,6 +28,8 @@ function callout_head_guards_table_exists(mysqli $conn): bool
 }
 
 /**
+ * Active head-guard portal accounts (users.role = 0).
+ *
  * @return list<array{company_id:string,label:string,head_guard_id:?int}>
  */
 function group_messaging_list_head_guard_options(mysqli $conn): array
@@ -37,58 +39,41 @@ function group_messaging_list_head_guard_options(mysqli $conn): array
     }
 
     $roleCol = auth_users_role_column($conn);
-
-    if (callout_head_guards_table_exists($conn)) {
-        $sql = "SELECT hg.head_guard_id, hg.display_name, hg.company_id
-                FROM callout_head_guards hg
-                INNER JOIN users u ON u.Company_ID = hg.company_id
-                WHERE hg.is_active = 1
-                  AND hg.company_id IS NOT NULL
-                  AND TRIM(hg.company_id) != ''
-                  AND u.is_active = 1
-                  AND u.{$roleCol} = ?
-                ORDER BY hg.display_name ASC";
-        $stmt = $conn->prepare($sql);
-        if (!$stmt) {
-            return [];
-        }
-        $guardRole = AUTH_ROLE_GUARD;
-        $stmt->bind_param('i', $guardRole);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $options = [];
-        while ($row = $result->fetch_assoc()) {
-            $options[] = [
-                'company_id' => (string) $row['company_id'],
-                'label' => (string) $row['display_name'],
-                'head_guard_id' => (int) $row['head_guard_id'],
-            ];
-        }
-        $stmt->close();
-
-        return $options;
-    }
+    $hgJoin = callout_head_guards_table_exists($conn)
+        ? 'LEFT JOIN callout_head_guards hg ON hg.company_id = u.Company_ID AND hg.is_active = 1'
+        : '';
+    $hgLabel = callout_head_guards_table_exists($conn)
+        ? "NULLIF(TRIM(hg.display_name), ''),"
+        : '';
 
     $sql = "SELECT u.Company_ID AS company_id,
-                   COALESCE(NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','), u.Company_ID) AS label
+                   COALESCE({$hgLabel}
+                            NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
+                            NULLIF(TRIM(u.Email), ''),
+                            u.Company_ID) AS label,
+                   hg.head_guard_id
             FROM users u
             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
+            {$hgJoin}
             WHERE u.is_active = 1 AND u.{$roleCol} = ?
             ORDER BY label ASC";
+
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         return [];
     }
+
     $guardRole = AUTH_ROLE_GUARD;
     $stmt->bind_param('i', $guardRole);
     $stmt->execute();
     $result = $stmt->get_result();
     $options = [];
     while ($row = $result->fetch_assoc()) {
+        $headGuardId = $row['head_guard_id'] ?? null;
         $options[] = [
             'company_id' => (string) $row['company_id'],
             'label' => (string) $row['label'],
-            'head_guard_id' => null,
+            'head_guard_id' => $headGuardId !== null ? (int) $headGuardId : null,
         ];
     }
     $stmt->close();
@@ -102,13 +87,21 @@ function group_messaging_is_selectable_head_guard(mysqli $conn, string $companyI
         return false;
     }
 
-    foreach (group_messaging_list_head_guard_options($conn) as $option) {
-        if ($option['company_id'] === $companyId) {
-            return true;
-        }
+    $roleCol = auth_users_role_column($conn);
+    $stmt = $conn->prepare(
+        "SELECT 1 FROM users WHERE Company_ID = ? AND is_active = 1 AND {$roleCol} = ? LIMIT 1"
+    );
+    if (!$stmt) {
+        return false;
     }
 
-    return false;
+    $guardRole = AUTH_ROLE_GUARD;
+    $stmt->bind_param('si', $companyId, $guardRole);
+    $stmt->execute();
+    $ok = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+
+    return $ok;
 }
 
 /**

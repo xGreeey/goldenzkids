@@ -5,10 +5,10 @@ require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/internal_messaging.php';
 require_once APP_ROOT . '/includes/messaging_ajax.php';
 
-auth_require_permission('admin.messaging.send');
+auth_require_permission('guard.inbox.view');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    header('Location: ' . app_url('admin/inbox.php'));
+    header('Location: ' . app_url('guard/inbox.php'));
     exit();
 }
 
@@ -50,5 +50,4 @@ $redirect = 'inbox.php';
 if ($returnPeer !== '') {
     $redirect .= '?peer=' . rawurlencode($returnPeer) . '#messaging-board';
 }
-
 redirect_with_alert('Message sent.', $redirect);

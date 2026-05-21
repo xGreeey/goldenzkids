@@ -234,11 +234,20 @@ function document_ai_build_structured(Document $document, string $reportType, st
 
     $parsed = document_ai_parse_by_template($rawText, $reportType);
 
-    return array_merge($parsed, [
+    $merged = array_merge($parsed, [
         'report_type' => $reportType,
         'form_fields' => $formFields,
         'tables' => $tables,
     ]);
+
+    if (($merged['template'] ?? '') === 'daily_attendance') {
+        $spatial = document_ai_parse_dad_spatial($document, $rawText, $formFields);
+        $merged = document_ai_dad_merge_spatial($spatial, $merged);
+
+        return document_ai_enrich_dad_structured($merged);
+    }
+
+    return $merged;
 }
 
 /**
@@ -267,6 +276,567 @@ function document_ai_table_matrix(Table $table, string $fullText): array
     }
 
     return $rows;
+}
+
+/**
+ * @param \Google\Cloud\DocumentAI\V1\BoundingPoly|null $poly
+ * @return array{x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}|null
+ */
+function document_ai_bounds_from_poly($poly): ?array
+{
+    if ($poly === null) {
+        return null;
+    }
+
+    $xs = [];
+    $ys = [];
+    foreach ($poly->getNormalizedVertices() as $vertex) {
+        $xs[] = (float) $vertex->getX();
+        $ys[] = (float) $vertex->getY();
+    }
+    if ($xs === [] || $ys === []) {
+        foreach ($poly->getVertices() as $vertex) {
+            $xs[] = (float) $vertex->getX();
+            $ys[] = (float) $vertex->getY();
+        }
+    }
+    if ($xs === [] || $ys === []) {
+        return null;
+    }
+
+    $xMin = min($xs);
+    $xMax = max($xs);
+    $yMin = min($ys);
+    $yMax = max($ys);
+
+    return [
+        'x_min' => $xMin,
+        'x_max' => $xMax,
+        'y_min' => $yMin,
+        'y_max' => $yMax,
+        'x_center' => ($xMin + $xMax) / 2,
+        'y_center' => ($yMin + $yMax) / 2,
+    ];
+}
+
+/**
+ * @return list<array{text: string, x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}>
+ */
+function document_ai_collect_page_lines(Document $document, string $rawText): array
+{
+    $lines = [];
+    foreach ($document->getPages() as $page) {
+        foreach ($page->getLines() as $line) {
+            $layout = $line->getLayout();
+            if ($layout === null) {
+                continue;
+            }
+            $text = trim(document_ai_anchor_text($layout->getTextAnchor(), $rawText));
+            if ($text === '') {
+                continue;
+            }
+            $bounds = document_ai_bounds_from_poly($layout->getBoundingPoly());
+            if ($bounds === null) {
+                continue;
+            }
+            $lines[] = array_merge(['text' => $text], $bounds);
+        }
+    }
+
+    usort($lines, static fn (array $a, array $b): int => $a['y_center'] <=> $b['y_center'] ?: $a['x_center'] <=> $b['x_center']);
+
+    return $lines;
+}
+
+function document_ai_dad_is_boilerplate(string $text): bool
+{
+    $upper = strtoupper(trim($text));
+    if ($upper === '') {
+        return true;
+    }
+
+    $needles = [
+        'DAILY ATTENDANCE',
+        'SINGLE/DOUBLE POST',
+        'GOLDEN Z',
+        'SECURITY AND INVESTIGATION',
+        'AGENCY, INC',
+        'AGENCY INC',
+        'PLEASE WRITE',
+        'BIG LETTERS',
+        'CAPITALIZED',
+        'PROCESSED DIGITALLY',
+        'THIS DOCUMENT IS TO BE',
+        'TIME IN TIME OUT',
+        'NAME TIME IN',
+    ];
+
+    foreach ($needles as $needle) {
+        if (str_contains($upper, $needle)) {
+            return true;
+        }
+    }
+
+    if (preg_match('/^(DATE|POST|NAME|TIME\s*IN|TIME\s*OUT)\s*:?\s*$/iu', $upper)) {
+        return true;
+    }
+
+    return preg_match('/^\d+\.\s*$/', $upper) === 1;
+}
+
+function document_ai_dad_is_date_text(string $text): bool
+{
+    $t = trim($text);
+    if ($t === '') {
+        return false;
+    }
+
+    return preg_match(
+        '/\b(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\b[\s,.\-]*\d{1,2}|\d{1,2}[\s,.\-\/]+\d{1,2}[\s,.\-\/]+\d{2,4}/iu',
+        $t
+    ) === 1;
+}
+
+function document_ai_dad_is_time_text(string $text): bool
+{
+    $t = trim($text);
+    if ($t === '') {
+        return false;
+    }
+
+    return preg_match('/^\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?$/iu', $t) === 1
+        || preg_match('/\b\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)\b/iu', $t) === 1;
+}
+
+function document_ai_sanitize_dad_name(string $name): string
+{
+    $name = trim($name);
+    if ($name === '') {
+        return '';
+    }
+
+    $stripPatterns = [
+        '/\bBIG\s+LETTERS\.?\s*/iu',
+        '/\bPLEASE\s+WRITE\b.*$/iu',
+        '/\bIN\s+CAPITALIZED\b.*$/iu',
+        '/\bCAPITALIZED\/BIG\s+LETTERS\.?\s*/iu',
+        '/\b(?:NAME|TIME\s*IN|TIME\s*OUT)\b/iu',
+        '/\b\d{1,2}\.\s*/u',
+        '/\b(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\b[\s,.\-]*\d{1,2}(?:,?\s*\d{4})?/iu',
+        '/\bDAILY\s+ATTENDANCE\b.*$/iu',
+        '/\bGOLDEN\s+Z[\w\s\-]*\b(?:SECURITY|AGENCY|INVESTIGATION).*$/iu',
+        '/\bSINGLE\/DOUBLE\s+POST\b/iu',
+        '/\bPROCESSED\s+DIGITALLY\b/iu',
+    ];
+
+    foreach ($stripPatterns as $pattern) {
+        $name = trim(preg_replace($pattern, ' ', $name) ?? $name);
+    }
+
+    $name = trim(preg_replace('/\s{2,}/u', ' ', $name) ?? $name);
+    if ($name === '' || document_ai_dad_is_boilerplate($name)) {
+        return '';
+    }
+
+    if (preg_match('/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/u', $name, $m)) {
+        return trim((string) $m[1]);
+    }
+
+    if (preg_match('/\b([A-Z]{2,}(?:\s+[A-Z]{2,}){1,5})\b/u', $name, $m)) {
+        $candidate = trim((string) $m[1]);
+        if (!document_ai_dad_is_boilerplate($candidate) && !document_ai_dad_is_date_text($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return $name;
+}
+
+function document_ai_sanitize_dad_post(string $post): string
+{
+    $post = trim($post);
+    if ($post === '' || document_ai_dad_is_boilerplate($post)) {
+        return '';
+    }
+
+    $post = trim(preg_replace('/\bGOLDEN\s+Z[\w\s\-]*\b(?:SECURITY|AGENCY|INVESTIGATION).*$/iu', '', $post) ?? $post);
+    $post = trim(preg_replace('/^POST\s*:+\s*/iu', '', $post) ?? $post);
+    $post = trim(preg_replace('/^DATE\s*:+\s*/iu', '', $post) ?? $post);
+    $post = trim(preg_replace('/^[_\-\s\.]+/u', '', $post) ?? $post);
+    $post = trim(preg_replace('/[_\-\s\.]+$/u', '', $post) ?? $post);
+
+    if ($post === '' || document_ai_dad_is_boilerplate($post) || document_ai_dad_is_date_text($post)) {
+        return '';
+    }
+
+    return trim(preg_replace('/\s{2,}/u', ' ', $post) ?? $post);
+}
+
+/**
+ * Extract handwritten post from the printed "POST:" / "POST:_______" field (not title "SINGLE/DOUBLE POST").
+ */
+function document_ai_extract_dad_post_from_text(string $text): string
+{
+    $patterns = [
+        '/(?<!(?:SINGLE\/DOUBLE|ATTENDANCE)\s*)POST\s*:+\s*(?:[_\-\s\.]+)?\s*([A-Za-z0-9][^\n_]{1,80})/iu',
+        '/(?<!(?:SINGLE\/DOUBLE|ATTENDANCE)\s*)POST\s*:+\s*(?:[_\-\s\.]*)?\s*[\r\n]+\s*([A-Za-z0-9][^\n_]{1,80})/iu',
+        '/^POST\s*:+\s*(?:[_\-\s\.]+)?\s*([A-Za-z0-9][^\n_]{1,80})$/imu',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $text, $m)) {
+            $value = document_ai_sanitize_dad_post(trim((string) ($m[1])));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+
+    return '';
+}
+
+/**
+ * @param list<array{text: string, x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}> $lines
+ */
+function document_ai_extract_dad_post_from_lines(array $lines): string
+{
+    $postLabelYMax = null;
+    $postXMin = null;
+    $postXMax = null;
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        if (preg_match('/(?:SINGLE\/DOUBLE|ATTENDANCE\s+DOCUMENT).*POST/iu', $text)) {
+            continue;
+        }
+        if (!preg_match('/\bPOST\s*:+/iu', $text)) {
+            continue;
+        }
+
+        if (preg_match('/\bPOST\s*:+\s*(?:[_\-\s\.]+)?\s*(.+)$/iu', $text, $m)) {
+            $value = document_ai_sanitize_dad_post(trim((string) $m[1]));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        $postLabelYMax = (float) $line['y_max'];
+        $postXMin = (float) $line['x_min'];
+        $postXMax = (float) $line['x_max'];
+    }
+
+    if ($postLabelYMax === null) {
+        return '';
+    }
+
+    foreach ($lines as $line) {
+        $yc = (float) $line['y_center'];
+        if ($yc <= $postLabelYMax + 0.005) {
+            continue;
+        }
+        if ($yc > $postLabelYMax + 0.12) {
+            continue;
+        }
+        $xc = (float) $line['x_center'];
+        if ($postXMin !== null && $xc < $postXMin - 0.12) {
+            continue;
+        }
+        $text = (string) $line['text'];
+        if (preg_match('/\b(?:POST|DATE|NAME|TIME)\b\s*:?/iu', $text)) {
+            continue;
+        }
+        $value = document_ai_sanitize_dad_post($text);
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return '';
+}
+
+function document_ai_sanitize_dad_date(string $date): string
+{
+    $date = trim($date);
+    if ($date === '' || document_ai_dad_is_boilerplate($date)) {
+        return '';
+    }
+
+    $date = trim(preg_replace('/^DATE\s*:?\s*/iu', '', $date) ?? $date);
+
+    return document_ai_dad_is_date_text($date) ? $date : '';
+}
+
+function document_ai_sanitize_dad_time(string $time): string
+{
+    $time = trim($time);
+    if ($time === '') {
+        return '';
+    }
+
+    if (preg_match('/(\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?)/iu', $time, $m)) {
+        return trim((string) $m[1]);
+    }
+
+    return '';
+}
+
+/**
+ * @param list<array{label: string, value: string}> $formFields
+ * @return array{post: string, dates: list<string>, attendance_rows: list<array{name: string, time_in: string, time_out: string}>}
+ */
+function document_ai_parse_dad_spatial(Document $document, string $rawText, array $formFields): array
+{
+    $lines = document_ai_collect_page_lines($document, $rawText);
+    $post = document_ai_extract_dad_post_from_text($rawText);
+    if ($post === '') {
+        $post = document_ai_extract_dad_post_from_lines($lines);
+    }
+    $dates = [];
+    $attendanceRows = [];
+
+    $agencyYMax = 0.0;
+    $headerYMin = 1.0;
+    $headerYMax = 0.0;
+    $nameColX = 0.25;
+    $timeInColX = 0.5;
+    $timeOutColX = 0.72;
+    $dateRightMinX = 0.52;
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $upper = strtoupper($text);
+        if (
+            str_contains($upper, 'GOLDEN')
+            && (str_contains($upper, 'SECURITY') || str_contains($upper, 'AGENCY') || str_contains($upper, 'INVESTIGATION'))
+        ) {
+            $agencyYMax = max($agencyYMax, (float) $line['y_max']);
+        }
+    }
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $upper = strtoupper($text);
+        if (preg_match('/\bNAME\b/u', $upper) && preg_match('/\bTIME\b/u', $upper)) {
+            $headerYMin = min($headerYMin, (float) $line['y_min']);
+            $headerYMax = max($headerYMax, (float) $line['y_max']);
+        }
+    }
+
+    if ($agencyYMax > 0 && $headerYMin >= 1.0) {
+        $headerYMin = min(0.95, $agencyYMax + 0.28);
+    }
+    if ($headerYMax <= 0 && $agencyYMax > 0) {
+        $headerYMax = min(0.95, $agencyYMax + 0.22);
+    }
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $upper = strtoupper(trim($text));
+        $xc = (float) $line['x_center'];
+
+        if ($upper === 'NAME' || str_starts_with($upper, 'NAME ')) {
+            $nameColX = $xc;
+        } elseif (preg_match('/^TIME\s*IN\b/u', $upper)) {
+            $timeInColX = $xc;
+        } elseif (preg_match('/^TIME\s*OUT\b/u', $upper)) {
+            $timeOutColX = $xc;
+        } elseif ($upper === 'DATE' || str_starts_with($upper, 'DATE ')) {
+            if ($xc >= $dateRightMinX) {
+                $dateRightMinX = min($dateRightMinX, (float) $line['x_min']);
+            }
+        }
+    }
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $yc = (float) $line['y_center'];
+        $xc = (float) $line['x_center'];
+
+        if (document_ai_dad_is_boilerplate($text)) {
+            continue;
+        }
+
+        if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.02) {
+            continue;
+        }
+
+        if (document_ai_dad_is_date_text($text) && $xc >= $dateRightMinX) {
+            $cleanDate = document_ai_sanitize_dad_date($text);
+            if ($cleanDate !== '') {
+                $dates[] = $cleanDate;
+            }
+            continue;
+        }
+
+        if (
+            $post === ''
+            && $headerYMax > 0
+            && $yc > $agencyYMax
+            && $yc < $headerYMin
+            && !preg_match('/\bPOST\s*:+/iu', $text)
+        ) {
+            if ($xc < $dateRightMinX && !document_ai_dad_is_date_text($text) && !document_ai_dad_is_time_text($text)) {
+                $candidate = document_ai_sanitize_dad_post($text);
+                if ($candidate !== '') {
+                    $post = $candidate;
+                }
+            }
+        }
+    }
+
+    if ($post === '') {
+        $post = document_ai_extract_dad_post_from_lines($lines);
+    }
+
+    $valueLines = [];
+    foreach ($lines as $line) {
+        $yc = (float) $line['y_center'];
+        if ($headerYMax > 0 && $yc <= $headerYMax + 0.01) {
+            continue;
+        }
+        if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.015) {
+            continue;
+        }
+        $text = (string) $line['text'];
+        if (document_ai_dad_is_boilerplate($text)) {
+            continue;
+        }
+        $valueLines[] = $line;
+    }
+
+    $currentRow = ['name' => '', 'time_in' => '', 'time_out' => ''];
+    foreach ($valueLines as $line) {
+        $text = (string) $line['text'];
+        $xc = (float) $line['x_center'];
+
+        if (document_ai_dad_is_date_text($text) && $xc >= $dateRightMinX) {
+            $cleanDate = document_ai_sanitize_dad_date($text);
+            if ($cleanDate !== '') {
+                $dates[] = $cleanDate;
+            }
+            continue;
+        }
+
+        if (document_ai_dad_is_time_text($text)) {
+            $time = document_ai_sanitize_dad_time($text);
+            if ($time === '') {
+                continue;
+            }
+            $distIn = abs($xc - $timeInColX);
+            $distOut = abs($xc - $timeOutColX);
+            if ($distOut < $distIn) {
+                $currentRow['time_out'] = $time;
+            } else {
+                $currentRow['time_in'] = $time;
+            }
+            continue;
+        }
+
+        if ($xc < $dateRightMinX && !document_ai_dad_is_date_text($text)) {
+            $name = document_ai_sanitize_dad_name($text);
+            if ($name !== '') {
+                if ($currentRow['name'] !== '' || $currentRow['time_in'] !== '' || $currentRow['time_out'] !== '') {
+                    $attendanceRows[] = $currentRow;
+                    $currentRow = ['name' => '', 'time_in' => '', 'time_out' => ''];
+                }
+                $currentRow['name'] = $name;
+            }
+        }
+    }
+
+    if ($currentRow['name'] !== '' || $currentRow['time_in'] !== '' || $currentRow['time_out'] !== '') {
+        $attendanceRows[] = $currentRow;
+    }
+
+    foreach ($formFields as $field) {
+        if (!is_array($field)) {
+            continue;
+        }
+        $key = document_ai_dad_field_key((string) ($field['label'] ?? ''));
+        $value = trim((string) ($field['value'] ?? ''));
+        if ($key === null || $value === '' || document_ai_dad_is_boilerplate($value)) {
+            continue;
+        }
+        if ($key === 'post') {
+            $cleanPost = document_ai_sanitize_dad_post($value);
+            if ($cleanPost !== '' && ($post === '' || strlen($cleanPost) > strlen($post))) {
+                $post = $cleanPost;
+            }
+        } elseif ($key === 'date') {
+            $dates[] = document_ai_sanitize_dad_date($value);
+        } elseif ($key === 'name') {
+            $attendanceRows[] = [
+                'name' => document_ai_sanitize_dad_name($value),
+                'time_in' => '',
+                'time_out' => '',
+            ];
+        } elseif ($key === 'time_in' && $attendanceRows !== []) {
+            $attendanceRows[count($attendanceRows) - 1]['time_in'] = document_ai_sanitize_dad_time($value);
+        } elseif ($key === 'time_out' && $attendanceRows !== []) {
+            $attendanceRows[count($attendanceRows) - 1]['time_out'] = document_ai_sanitize_dad_time($value);
+        }
+    }
+
+    $dates = array_values(array_unique(array_filter($dates)));
+
+    return [
+        'post' => $post,
+        'dates' => $dates,
+        'attendance_rows' => $attendanceRows,
+    ];
+}
+
+/**
+ * @param array{post?: string, dates?: list<string>, attendance_rows?: list<array<string, string>>} $spatial
+ * @param array<string, mixed> $textParsed
+ * @return array<string, mixed>
+ */
+function document_ai_dad_merge_spatial(array $spatial, array $textParsed): array
+{
+    $post = document_ai_sanitize_dad_post(trim((string) ($spatial['post'] ?? '')));
+    $textPost = document_ai_sanitize_dad_post((string) ($textParsed['post'] ?? ''));
+    if ($post === '' || ($textPost !== '' && strlen($textPost) > strlen($post))) {
+        $post = $textPost;
+    }
+
+    $dates = is_array($spatial['dates'] ?? null) ? $spatial['dates'] : [];
+    if ($dates === []) {
+        $dates = is_array($textParsed['dates'] ?? null) ? $textParsed['dates'] : [];
+    }
+
+    $rows = is_array($spatial['attendance_rows'] ?? null) ? $spatial['attendance_rows'] : [];
+    if ($rows === []) {
+        $rows = is_array($textParsed['attendance_rows'] ?? null) ? $textParsed['attendance_rows'] : [];
+    }
+
+    $textParsed['post'] = $post;
+    $textParsed['dates'] = $dates;
+    $textParsed['attendance_rows'] = $rows;
+
+    return $textParsed;
+}
+
+/**
+ * @param list<array{name: string, time_in: string, time_out: string}> $rows
+ * @return list<array{name: string, time_in: string, time_out: string}>
+ */
+function document_ai_dad_sanitize_rows(array $rows): array
+{
+    $out = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = document_ai_sanitize_dad_name((string) ($row['name'] ?? ''));
+        $timeIn = document_ai_sanitize_dad_time((string) ($row['time_in'] ?? ''));
+        $timeOut = document_ai_sanitize_dad_time((string) ($row['time_out'] ?? ''));
+        if ($name === '' && $timeIn === '' && $timeOut === '') {
+            continue;
+        }
+        $out[] = ['name' => $name, 'time_in' => $timeIn, 'time_out' => $timeOut];
+    }
+
+    return $out;
 }
 
 /**
@@ -312,37 +882,310 @@ function document_ai_parse_incident_report(string $text): array
 }
 
 /**
+ * Map OCR / form labels to DAD sheet field keys (matches printed template).
+ */
+function document_ai_dad_field_key(string $label): ?string
+{
+    $normalized = strtoupper(trim(preg_replace('/[\s:._\-]+/u', ' ', $label) ?? $label));
+    $normalized = trim(preg_replace('/\s+/u', ' ', $normalized));
+
+    return match (true) {
+        $normalized === 'POST'
+            || str_starts_with($normalized, 'POST ')
+            || preg_match('/^POST\s*:?$/u', $normalized) === 1 => 'post',
+        $normalized === 'DATE' || str_starts_with($normalized, 'DATE ') => 'date',
+        $normalized === 'NAME' || str_starts_with($normalized, 'NAME ') => 'name',
+        str_contains($normalized, 'TIME IN') || $normalized === 'TIMEIN' => 'time_in',
+        str_contains($normalized, 'TIME OUT') || $normalized === 'TIMEOUT' => 'time_out',
+        default => null,
+    };
+}
+
+/**
+ * @param list<array{label: string, value: string}> $formFields
+ * @param array{post?: string, dates?: list<string>, attendance_rows?: list<array<string, string>>} $seed
+ * @return array{post: string, dates: list<string>, attendance_rows: list<array{name: string, time_in: string, time_out: string}>}
+ */
+function document_ai_dad_merge_form_fields(array $formFields, array $seed): array
+{
+    $post = trim((string) ($seed['post'] ?? ''));
+    $dates = is_array($seed['dates'] ?? null) ? $seed['dates'] : [];
+    $rows = is_array($seed['attendance_rows'] ?? null) ? $seed['attendance_rows'] : [];
+    $currentRow = ['name' => '', 'time_in' => '', 'time_out' => ''];
+
+    foreach ($formFields as $field) {
+        if (!is_array($field)) {
+            continue;
+        }
+        $key = document_ai_dad_field_key((string) ($field['label'] ?? ''));
+        $value = trim((string) ($field['value'] ?? ''));
+        if ($key === null || $value === '') {
+            continue;
+        }
+        if ($key === 'post') {
+            $post = document_ai_sanitize_dad_post($value);
+            continue;
+        }
+        if ($key === 'date') {
+            $cleanDate = document_ai_sanitize_dad_date($value);
+            if ($cleanDate !== '') {
+                $dates[] = $cleanDate;
+            }
+            continue;
+        }
+        if ($key === 'name') {
+            if ($currentRow['name'] !== '' || $currentRow['time_in'] !== '' || $currentRow['time_out'] !== '') {
+                $rows[] = $currentRow;
+                $currentRow = ['name' => '', 'time_in' => '', 'time_out' => ''];
+            }
+            $currentRow['name'] = document_ai_sanitize_dad_name($value);
+            continue;
+        }
+        if ($key === 'time_in') {
+            $currentRow['time_in'] = document_ai_sanitize_dad_time($value);
+            continue;
+        }
+        if ($key === 'time_out') {
+            $currentRow['time_out'] = document_ai_sanitize_dad_time($value);
+        }
+    }
+
+    if ($currentRow['name'] !== '' || $currentRow['time_in'] !== '' || $currentRow['time_out'] !== '') {
+        $rows[] = $currentRow;
+    }
+
+    $dates = array_values(array_unique(array_filter(array_map(
+        static fn ($d): string => trim((string) $d),
+        $dates
+    ))));
+
+    return ['post' => $post, 'dates' => $dates, 'attendance_rows' => $rows];
+}
+
+/**
+ * @param list<list<list<string>>> $tables
+ * @param list<array{name: string, time_in: string, time_out: string}> $existing
+ * @return list<array{name: string, time_in: string, time_out: string}>
+ */
+function document_ai_dad_rows_from_tables(array $tables, array $existing): array
+{
+    $rows = $existing;
+
+    foreach ($tables as $matrix) {
+        if (!is_array($matrix) || $matrix === []) {
+            continue;
+        }
+        $header = $matrix[0] ?? [];
+        if (!is_array($header)) {
+            continue;
+        }
+        $colMap = [];
+        foreach ($header as $colIdx => $cell) {
+            $key = document_ai_dad_field_key((string) $cell);
+            if ($key !== null && in_array($key, ['name', 'time_in', 'time_out', 'date'], true)) {
+                $colMap[$key] = (int) $colIdx;
+            }
+        }
+        if ($colMap === []) {
+            continue;
+        }
+        $bodyStart = isset($colMap['name']) || isset($colMap['time_in']) ? 1 : 0;
+        for ($r = $bodyStart, $rMax = count($matrix); $r < $rMax; $r++) {
+            $line = $matrix[$r] ?? [];
+            if (!is_array($line)) {
+                continue;
+            }
+            $row = ['name' => '', 'time_in' => '', 'time_out' => ''];
+            foreach ($colMap as $key => $idx) {
+                if ($key === 'date') {
+                    continue;
+                }
+                $row[$key] = trim((string) ($line[$idx] ?? ''));
+            }
+            if ($row['name'] !== '' || $row['time_in'] !== '' || $row['time_out'] !== '') {
+                $rows[] = $row;
+            }
+        }
+    }
+
+    return $rows;
+}
+
+/**
+ * Ordered fields matching the printed DAD sheet (POST, DATE, NAME, TIME IN, TIME OUT).
+ *
+ * @param list<string> $dates
+ * @param list<array{name: string, time_in: string, time_out: string}> $attendanceRows
+ * @return list<array{key: string, label: string, value: string}>
+ */
+function document_ai_dad_build_display_fields(string $post, array $dates, array $attendanceRows): array
+{
+    $fields = [];
+
+    if ($post !== '') {
+        $fields[] = ['key' => 'post', 'label' => 'POST', 'value' => $post];
+    }
+
+    if ($dates !== []) {
+        $fields[] = ['key' => 'date', 'label' => 'DATE', 'value' => implode(' · ', $dates)];
+    }
+
+    $rowIndex = 0;
+    foreach ($attendanceRows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $rowIndex++;
+        $name = trim((string) ($row['name'] ?? ''));
+        $timeIn = trim((string) ($row['time_in'] ?? ''));
+        $timeOut = trim((string) ($row['time_out'] ?? ''));
+        if ($name === '' && $timeIn === '' && $timeOut === '') {
+            continue;
+        }
+        $suffix = count($attendanceRows) > 1 ? ' (' . $rowIndex . ')' : '';
+        if ($name !== '') {
+            $fields[] = ['key' => 'name_' . $rowIndex, 'label' => 'NAME' . $suffix, 'value' => $name];
+        }
+        if ($timeIn !== '') {
+            $fields[] = ['key' => 'time_in_' . $rowIndex, 'label' => 'TIME IN' . $suffix, 'value' => $timeIn];
+        }
+        if ($timeOut !== '') {
+            $fields[] = ['key' => 'time_out_' . $rowIndex, 'label' => 'TIME OUT' . $suffix, 'value' => $timeOut];
+        }
+    }
+
+    return $fields;
+}
+
+/**
+ * Normalize DAD structured OCR to match the attendance sheet layout.
+ *
+ * @param array<string, mixed> $structured
+ * @return array<string, mixed>
+ */
+function document_ai_enrich_dad_structured(array $structured): array
+{
+    if (($structured['template'] ?? '') !== 'daily_attendance') {
+        return $structured;
+    }
+
+    $formFields = is_array($structured['form_fields'] ?? null) ? $structured['form_fields'] : [];
+    $merged = document_ai_dad_merge_form_fields($formFields, [
+        'post' => (string) ($structured['post'] ?? ''),
+        'dates' => is_array($structured['dates'] ?? null) ? $structured['dates'] : [],
+        'attendance_rows' => is_array($structured['attendance_rows'] ?? null) ? $structured['attendance_rows'] : [],
+    ]);
+
+    $rows = document_ai_dad_rows_from_tables(
+        is_array($structured['tables'] ?? null) ? $structured['tables'] : [],
+        $merged['attendance_rows']
+    );
+
+    $dates = array_values(array_unique(array_filter(array_map(
+        static fn ($d): string => document_ai_sanitize_dad_date((string) $d),
+        $merged['dates']
+    ))));
+
+    $structured['post'] = document_ai_sanitize_dad_post($merged['post']);
+    $structured['dates'] = $dates;
+    $structured['attendance_rows'] = document_ai_dad_sanitize_rows($rows);
+    $structured['display_fields'] = document_ai_dad_build_display_fields(
+        $structured['post'],
+        $structured['dates'],
+        $structured['attendance_rows']
+    );
+
+    return $structured;
+}
+
+/**
+ * @param array<string, mixed> $structured
+ * @return list<array{key: string, label: string, value: string}>
+ */
+function document_ai_dad_display_fields(array $structured): array
+{
+    if (($structured['template'] ?? '') !== 'daily_attendance') {
+        return [];
+    }
+
+    $enriched = document_ai_enrich_dad_structured($structured);
+
+    return is_array($enriched['display_fields'] ?? null) ? $enriched['display_fields'] : [];
+}
+
+/**
  * @return array<string, mixed>
  */
 function document_ai_parse_dad_report(string $text): array
 {
-    $post = document_ai_match_after_label($text, ['POST:', 'Post:']);
+    $post = document_ai_extract_dad_post_from_text($text);
+    if ($post === '') {
+        $post = document_ai_sanitize_dad_post(document_ai_match_after_label($text, ['POST:', 'Post:', 'POST :', 'POST\t']));
+    }
+
     $dates = [];
-    if (preg_match_all('/\bDATE\s*:\s*([^\n]+)/iu', $text, $m)) {
+    if (preg_match_all('/\bDATE\s*:?\s*([^\n]+)/iu', $text, $m)) {
         $dates = array_values(array_filter(array_map('trim', $m[1])));
     }
 
+    $name = document_ai_sanitize_dad_name(document_ai_match_after_label($text, ['NAME:', 'Name:', 'NAME :']));
+    $timeIn = document_ai_sanitize_dad_time(document_ai_match_after_label($text, ['TIME IN:', 'TIME IN :', 'Time In:', 'TIME-IN:', 'TIME IN\t']));
+    $timeOut = document_ai_sanitize_dad_time(document_ai_match_after_label($text, ['TIME OUT:', 'TIME OUT :', 'Time Out:', 'TIME-OUT:', 'TIME OUT\t']));
+
     $attendance = [];
-    if (preg_match_all(
-        '/([A-Z][A-Z0-9\s\.\-\'",]+)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)/iu',
+    if ($name !== '' || $timeIn !== '' || $timeOut !== '') {
+        $attendance[] = [
+            'name' => $name,
+            'time_in' => $timeIn,
+            'time_out' => $timeOut,
+        ];
+    }
+
+    if ($attendance === [] && preg_match_all(
+        '/\bNAME\s*:?\s*([^\n]+?)\s+(\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?)\s+(\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?)/iu',
+        $text,
+        $inlineRows,
+        PREG_SET_ORDER
+    )) {
+        foreach ($inlineRows as $row) {
+            $attendance[] = [
+                'name' => document_ai_sanitize_dad_name(trim((string) $row[1])),
+                'time_in' => document_ai_sanitize_dad_time(trim((string) $row[2])),
+                'time_out' => document_ai_sanitize_dad_time(trim((string) $row[3])),
+            ];
+        }
+    }
+
+    if ($attendance === [] && preg_match_all(
+        '/([A-Za-z][A-Za-z0-9\s\.\-\'",]+)\s+(\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?)\s+(\d{1,2}(?::\d{2})?\s*(?:[AP]\.?M\.?)?)/iu',
         $text,
         $rows,
         PREG_SET_ORDER
     )) {
         foreach ($rows as $row) {
+            $candidate = trim((string) $row[1]);
+            if (strlen($candidate) < 4 || preg_match('/^(DATE|POST|NAME|TIME|DAILY|ATTENDANCE|DOCUMENT)/i', $candidate)) {
+                continue;
+            }
             $attendance[] = [
-                'name' => trim((string) $row[1]),
-                'time_in' => trim((string) $row[2]),
-                'time_out' => trim((string) $row[3]),
+                'name' => document_ai_sanitize_dad_name($candidate),
+                'time_in' => document_ai_sanitize_dad_time(trim((string) $row[2])),
+                'time_out' => document_ai_sanitize_dad_time(trim((string) $row[3])),
             ];
         }
     }
+
+    $post = document_ai_sanitize_dad_post($post);
+    $dates = array_values(array_filter(array_map(
+        static fn ($d): string => document_ai_sanitize_dad_date((string) $d),
+        $dates
+    )));
 
     return [
         'template' => 'daily_attendance',
         'post' => $post,
         'dates' => $dates,
-        'attendance_rows' => $attendance,
+        'attendance_rows' => document_ai_dad_sanitize_rows($attendance),
     ];
 }
 
@@ -432,32 +1275,31 @@ function document_ai_format_structured(array $structured, string $reportType, st
         $lines[] = 'Action taken';
         $lines[] = (string) ($structured['action_taken'] ?? '—');
     } elseif (($structured['template'] ?? '') === 'daily_attendance') {
+        $display = document_ai_dad_display_fields($structured);
         $lines[] = '';
-        $lines[] = 'Post: ' . ($structured['post'] ?? '—');
-        $dates = $structured['dates'] ?? [];
-        if (is_array($dates) && $dates !== []) {
-            $lines[] = 'Date(s): ' . implode(' · ', array_map('strval', $dates));
-        }
-        $rows = $structured['attendance_rows'] ?? [];
-        if (is_array($rows) && $rows !== []) {
-            $lines[] = '';
-            $lines[] = 'Attendance';
-            foreach ($rows as $row) {
-                if (!is_array($row)) {
+        if ($display !== []) {
+            foreach ($display as $field) {
+                $label = (string) ($field['label'] ?? '');
+                $value = (string) ($field['value'] ?? '');
+                if ($label === '' || $value === '') {
                     continue;
                 }
-                $lines[] = sprintf(
-                    '- %s | In: %s | Out: %s',
-                    (string) ($row['name'] ?? '—'),
-                    (string) ($row['time_in'] ?? '—'),
-                    (string) ($row['time_out'] ?? '—')
-                );
+                $lines[] = $label . ': ' . $value;
+            }
+        } else {
+            $lines[] = 'POST: ' . ($structured['post'] ?? '—');
+            $dates = $structured['dates'] ?? [];
+            if (is_array($dates) && $dates !== []) {
+                $lines[] = 'DATE: ' . implode(' · ', array_map('strval', $dates));
             }
         }
     }
 
     $formFields = $structured['form_fields'] ?? [];
-    if (is_array($formFields) && $formFields !== []) {
+    if (
+        is_array($formFields) && $formFields !== []
+        && ($structured['template'] ?? '') !== 'daily_attendance'
+    ) {
         $lines[] = '';
         $lines[] = 'Detected form fields';
         foreach ($formFields as $field) {

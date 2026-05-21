@@ -457,6 +457,9 @@ function guard_dad_map_row_for_admin(array $row): ?array
         'scan_url' => $media['scan_url'],
         'ocr_formatted' => $media['ocr_formatted'],
         'ocr_raw' => $media['ocr_raw'],
+        'ocr_structured' => $media['ocr_structured'],
+        'ocr_display_fields' => $media['ocr_display_fields'],
+        'has_ocr' => trim($media['ocr_formatted'] . $media['ocr_raw']) !== '',
         'history' => $history,
         '_source' => 'database',
     ];
@@ -613,7 +616,7 @@ function guard_dad_stream_scan(PDO $conn, int $dadId): void
  * Decrypt scan path and OCR text for admin display.
  *
  * @param array<string, mixed> $row
- * @return array{scan_url:string,ocr_formatted:string,ocr_raw:string}
+ * @return array{scan_url:string,ocr_formatted:string,ocr_raw:string,ocr_structured:array<string,mixed>}
  */
 function guard_dad_resolve_submission_media(array $row): array
 {
@@ -623,6 +626,7 @@ function guard_dad_resolve_submission_media(array $row): array
     $scanUrl = '';
     $ocrFormatted = '';
     $ocrRaw = '';
+    $ocrStructured = [];
     $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
 
     if ($dadId > 0 && $conn !== null && guard_dad_resolve_scan_absolute_path($conn, $dadId) !== null) {
@@ -640,11 +644,17 @@ function guard_dad_resolve_submission_media(array $row): array
                 $decoded = document_ai_decode_stored($stored);
                 $ocrFormatted = (string) ($decoded['formatted'] ?? '');
                 $ocrRaw = (string) ($decoded['raw'] ?? '');
+                $ocrStructured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
                 if ($ocrFormatted === '' && $ocrRaw !== '') {
                     $ocrFormatted = $ocrRaw;
                 }
             }
         }
+    }
+
+    if (($ocrStructured['template'] ?? '') === 'daily_attendance') {
+        $ocrStructured = document_ai_enrich_dad_structured($ocrStructured);
+        $ocrFormatted = document_ai_format_structured($ocrStructured, 'Daily Attendance Document', $ocrRaw);
     }
 
     $dgdId = (int) ($row['dgd_report_number'] ?? 0);
@@ -665,8 +675,13 @@ function guard_dad_resolve_submission_media(array $row): array
                         $decoded = document_ai_decode_stored($stored);
                         $ocrFormatted = (string) ($decoded['formatted'] ?? '');
                         $ocrRaw = (string) ($decoded['raw'] ?? '');
+                        $ocrStructured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
                         if ($ocrFormatted === '' && $ocrRaw !== '') {
                             $ocrFormatted = $ocrRaw;
+                        }
+                        if (($ocrStructured['template'] ?? '') === 'daily_attendance') {
+                            $ocrStructured = document_ai_enrich_dad_structured($ocrStructured);
+                            $ocrFormatted = document_ai_format_structured($ocrStructured, 'Daily Attendance Document', $ocrRaw);
                         }
                     }
                 }
@@ -678,7 +693,122 @@ function guard_dad_resolve_submission_media(array $row): array
         'scan_url' => $scanUrl,
         'ocr_formatted' => $ocrFormatted,
         'ocr_raw' => $ocrRaw,
+        'ocr_structured' => $ocrStructured,
+        'ocr_display_fields' => document_ai_dad_display_fields($ocrStructured),
     ];
+}
+
+/**
+ * Run Document AI on a DAD scan and persist encrypted OCR on the submission (and linked dgd row).
+ *
+ * @return array{ok:bool,error?:string,formatted?:string,raw?:string,structured?:array<string,mixed>}
+ */
+function guard_dad_run_document_ai(PDO $conn, int $dadId): array
+{
+    global $master_key, $cipher_algo;
+
+    if (!document_ai_is_configured()) {
+        return ['ok' => false, 'error' => 'Document AI is not configured. Add config/google-document-ai.json.'];
+    }
+
+    $row = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
+    if ($row === null) {
+        return ['ok' => false, 'error' => 'DAD record not found.'];
+    }
+
+    $absolutePath = guard_dad_resolve_scan_absolute_path($conn, $dadId);
+    if ($absolutePath === null) {
+        return ['ok' => false, 'error' => 'Attendance sheet image not found on the server.'];
+    }
+
+    $result = document_ai_process_report_scan($absolutePath, 'Daily Attendance Document');
+    if (!$result['ok']) {
+        return ['ok' => false, 'error' => (string) ($result['error'] ?? 'Document AI failed.')];
+    }
+
+    $payload = is_array($result['payload'] ?? null) ? $result['payload'] : [];
+    try {
+        $stored = document_ai_encode_stored($payload);
+    } catch (JsonException $e) {
+        return ['ok' => false, 'error' => 'Could not encode OCR output.'];
+    }
+
+    $ivB64 = (string) ($row['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        return ['ok' => false, 'error' => 'Encryption metadata missing for this record.'];
+    }
+
+    $aiCipher = openssl_encrypt($stored, (string) $cipher_algo, (string) $master_key, 0, $iv);
+    if ($aiCipher === false || $aiCipher === '') {
+        return ['ok' => false, 'error' => 'Could not secure OCR output.'];
+    }
+
+    if (!db_execute(
+        $conn,
+        'UPDATE guard_dad_submissions SET ai_extracted_cipher = ? WHERE dad_id = ? LIMIT 1',
+        'si',
+        [$aiCipher, $dadId]
+    )) {
+        return ['ok' => false, 'error' => 'OCR completed but could not be saved on the DAD record.'];
+    }
+
+    $dgdId = (int) ($row['dgd_report_number'] ?? 0);
+    if ($dgdId > 0) {
+        db_execute(
+            $conn,
+            'UPDATE dgd SET AI_Extracted_Text = ? WHERE Report_Number = ? LIMIT 1',
+            'si',
+            [$aiCipher, $dgdId]
+        );
+    }
+
+    $decoded = document_ai_decode_stored($stored);
+
+    $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
+    if (($structured['template'] ?? '') === 'daily_attendance') {
+        $structured = document_ai_enrich_dad_structured($structured);
+    }
+
+    return [
+        'ok' => true,
+        'formatted' => document_ai_format_structured($structured, 'Daily Attendance Document', (string) ($decoded['raw'] ?? '')),
+        'raw' => (string) ($decoded['raw'] ?? ''),
+        'structured' => $structured,
+        'display_fields' => document_ai_dad_display_fields($structured),
+    ];
+}
+
+/**
+ * @param array<string, mixed> $structured
+ */
+function guard_dad_ocr_structured_html(array $structured, string $formatted, string $raw): string
+{
+    $display = document_ai_dad_display_fields($structured);
+    if ($display !== []) {
+        $html = '<div class="reports-dad-ocr-form" aria-label="Extracted attendance sheet fields">';
+        foreach ($display as $field) {
+            $label = (string) ($field['label'] ?? '');
+            $value = (string) ($field['value'] ?? '');
+            if ($label === '' || $value === '') {
+                continue;
+            }
+            $html .= '<div class="reports-dad-ocr-form__row">';
+            $html .= '<span class="reports-dad-ocr-form__label">' . e($label) . '</span>';
+            $html .= '<span class="reports-dad-ocr-form__value">' . e($value) . '</span>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    $body = trim($formatted !== '' ? $formatted : $raw);
+    if ($body !== '') {
+        return '<pre class="reports-dad-media__ocr">' . e($body) . '</pre>';
+    }
+
+    return '<p class="reports-dad-media__hint">Document AI did not return readable text for this scan.</p>';
 }
 
 /**
@@ -688,27 +818,47 @@ function guard_dad_resolve_submission_media(array $row): array
  */
 function guard_dad_submission_media_html(array $record): string
 {
-    $html = '<div class="reports-dad-media">';
     $scanUrl = (string) ($record['scan_url'] ?? '');
+    $dadId = (int) ($record['dad_id'] ?? 0);
+    if ($scanUrl === '' && $dadId <= 0) {
+        return '';
+    }
+
+    $formatted = trim((string) ($record['ocr_formatted'] ?? ''));
+    $raw = trim((string) ($record['ocr_raw'] ?? ''));
+    $structured = is_array($record['ocr_structured'] ?? null) ? $record['ocr_structured'] : [];
+    $hasOcr = $formatted !== '' || $raw !== '';
+    $ocrBody = guard_dad_ocr_structured_html($structured, $formatted, $raw);
+
+    $html = '<div class="reports-dad-step1" data-dad-step1' . ($dadId > 0 ? ' data-dad-id="' . $dadId . '"' : '') . '>';
+    $html .= '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
+    $html .= '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
+    $html .= '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet"><i class="fa-solid fa-image" aria-hidden="true"></i> Sheet image</button>';
+    $html .= '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Extracted text</button>';
+    $html .= '</div>';
+    $html .= '<div class="reports-dad-step1__panels">';
+    $html .= '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';
     if ($scanUrl !== '') {
-        $html .= '<section class="reports-dad-media__section">';
-        $html .= '<h4 class="reports-dad-media__title"><i class="fa-solid fa-file-image" aria-hidden="true"></i> Attendance sheet (step 1)</h4>';
         $html .= '<a href="' . e($scanUrl) . '" target="_blank" rel="noopener noreferrer" class="reports-dad-media__link">';
         $html .= '<img class="reports-dad-media__scan" src="' . e($scanUrl) . '" alt="Uploaded attendance sheet">';
-        $html .= '</a></section>';
+        $html .= '</a>';
+    } else {
+        $html .= '<p class="reports-dad-media__hint">No scan image on file.</p>';
     }
-
-    $ocr = trim((string) ($record['ocr_formatted'] ?? $record['ocr_raw'] ?? ''));
-    if ($ocr !== '') {
-        $html .= '<section class="reports-dad-media__section">';
-        $html .= '<h4 class="reports-dad-media__title"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Extracted handwriting (Document AI)</h4>';
-        $html .= '<pre class="reports-dad-media__ocr">' . e($ocr) . '</pre>';
-        $html .= '</section>';
-    } elseif ($scanUrl !== '') {
-        $html .= '<p class="reports-dad-media__hint">No OCR text stored yet. Re-run Document AI from the scan if needed.</p>';
-    }
-
     $html .= '</div>';
+    $html .= '<div class="reports-dad-step1__panel" role="tabpanel" data-dad-panel="ocr" hidden>';
+    if ($hasOcr) {
+        $html .= $ocrBody;
+    } else {
+        $html .= '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
+        $html .= '<p class="reports-dad-media__hint">Handwriting will be read with Document AI when you open this tab.</p>';
+        if ($dadId > 0 && $scanUrl !== '') {
+            $html .= '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
+        }
+        $html .= '<p class="reports-dad-ocr-status" data-dad-ocr-status hidden></p>';
+        $html .= '</div>';
+    }
+    $html .= '</div></div></div>';
 
     return $html;
 }

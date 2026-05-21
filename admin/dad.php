@@ -166,7 +166,8 @@ $kpiIcons = [
         <div id="daily-detail-module"
              class="reports-module"
              data-csrf="<?= e_attr(csrf_token()) ?>"
-             data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>">
+             data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>"
+             data-ocr-url="<?= e_attr(app_url('admin/api/dad-ocr.php')) ?>">
             <section class="kpi-grid" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> flags in the registry">
                     <div class="kpi-stat">

@@ -431,30 +431,239 @@
             return html;
         }
 
+        function dadDisplayFields(structured, displayFieldsOverride) {
+            if (Array.isArray(displayFieldsOverride) && displayFieldsOverride.length) {
+                return displayFieldsOverride.filter((f) => f && String(f.value || '').trim() !== '');
+            }
+            if (!structured || typeof structured !== 'object') {
+                return [];
+            }
+            if (Array.isArray(structured.display_fields) && structured.display_fields.length) {
+                return structured.display_fields.filter((f) => f && String(f.value || '').trim() !== '');
+            }
+            const out = [];
+            const post = String(structured.post || '').trim();
+            if (post) {
+                out.push({ label: 'POST', value: post });
+            }
+            const dates = Array.isArray(structured.dates) ? structured.dates : [];
+            if (dates.length) {
+                out.push({ label: 'DATE', value: dates.join(' · ') });
+            }
+            const rows = Array.isArray(structured.attendance_rows) ? structured.attendance_rows : [];
+            rows.forEach((row, i) => {
+                if (!row || typeof row !== 'object') {
+                    return;
+                }
+                const suffix = rows.length > 1 ? ' (' + (i + 1) + ')' : '';
+                const name = String(row.name || '').trim();
+                const tin = String(row.time_in || '').trim();
+                const tout = String(row.time_out || '').trim();
+                if (name) {
+                    out.push({ label: 'NAME' + suffix, value: name });
+                }
+                if (tin) {
+                    out.push({ label: 'TIME IN' + suffix, value: tin });
+                }
+                if (tout) {
+                    out.push({ label: 'TIME OUT' + suffix, value: tout });
+                }
+            });
+            return out;
+        }
+
+        function ocrStructuredHtml(structured, formatted, raw, displayFieldsOverride) {
+            const fields = dadDisplayFields(structured, displayFieldsOverride);
+            if (fields.length) {
+                let html = '<div class="reports-dad-ocr-form" aria-label="Extracted attendance sheet fields">';
+                fields.forEach((field) => {
+                    html += '<div class="reports-dad-ocr-form__row">';
+                    html += '<span class="reports-dad-ocr-form__label">' + escapeHtml(field.label || '') + '</span>';
+                    html += '<span class="reports-dad-ocr-form__value">' + escapeHtml(field.value || '') + '</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+                return html;
+            }
+            const body = (formatted || raw || '').trim();
+            if (body) {
+                return '<pre class="reports-dad-media__ocr">' + escapeHtml(body) + '</pre>';
+            }
+            return '<p class="reports-dad-media__hint">Document AI did not return readable text for this scan.</p>';
+        }
+
         function mediaBlockHtml(p) {
             const scanUrl = p.scan_url || '';
-            const ocr = (p.ocr_formatted || p.ocr_raw || '').trim();
-            if (!scanUrl && !ocr) {
+            const dadId = p.dad_id != null ? Number(p.dad_id) : 0;
+            if (!scanUrl && !dadId) {
                 return '';
             }
-            let html = '<div class="reports-dad-media">';
+            const formatted = (p.ocr_formatted || '').trim();
+            const raw = (p.ocr_raw || '').trim();
+            const structured = p.ocr_structured && typeof p.ocr_structured === 'object' ? p.ocr_structured : {};
+            const hasOcr = formatted !== '' || raw !== '';
+            const ocrBody = ocrStructuredHtml(structured, formatted, raw, p.ocr_display_fields);
+
+            let html =
+                '<div class="reports-dad-step1" data-dad-step1' +
+                (dadId > 0 ? ' data-dad-id="' + escapeHtml(String(dadId)) + '"' : '') +
+                '>';
+            html += '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
+            html += '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
+            html +=
+                '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet"><i class="fa-solid fa-image" aria-hidden="true"></i> Sheet image</button>';
+            html +=
+                '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Extracted text</button>';
+            html += '</div><div class="reports-dad-step1__panels">';
+            html += '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';
             if (scanUrl) {
-                html +=
-                    '<section class="reports-dad-media__section"><h4 class="reports-dad-media__title">Attendance sheet (step 1)</h4>';
                 html +=
                     '<a href="' +
                     escapeHtml(scanUrl) +
-                    '" target="_blank" rel="noopener noreferrer"><img class="reports-dad-media__scan" src="' +
+                    '" target="_blank" rel="noopener noreferrer" class="reports-dad-media__link"><img class="reports-dad-media__scan" src="' +
                     escapeHtml(scanUrl) +
-                    '" alt="Uploaded attendance sheet"></a></section>';
-            }
-            if (ocr) {
-                html +=
-                    '<section class="reports-dad-media__section"><h4 class="reports-dad-media__title">Extracted handwriting (Document AI)</h4>';
-                html += '<pre class="reports-dad-media__ocr">' + escapeHtml(ocr) + '</pre></section>';
+                    '" alt="Uploaded attendance sheet"></a>';
+            } else {
+                html += '<p class="reports-dad-media__hint">No scan image on file.</p>';
             }
             html += '</div>';
+            html += '<div class="reports-dad-step1__panel" role="tabpanel" data-dad-panel="ocr" hidden>';
+            if (hasOcr) {
+                html += ocrBody;
+            } else {
+                html += '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
+                html +=
+                    '<p class="reports-dad-media__hint">Handwriting is read with Google Document AI. Open this tab to extract text from the sheet.</p>';
+                if (dadId > 0 && scanUrl) {
+                    html +=
+                        '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
+                }
+                html += '<p class="reports-dad-ocr-status" data-dad-ocr-status hidden></p></div>';
+            }
+            html += '</div></div></div>';
             return html;
+        }
+
+        function setDadStep1Tab(step1Root, tabKey) {
+            if (!step1Root) {
+                return;
+            }
+            step1Root.querySelectorAll('[data-dad-tab]').forEach((btn) => {
+                const active = btn.getAttribute('data-dad-tab') === tabKey;
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            step1Root.querySelectorAll('[data-dad-panel]').forEach((panel) => {
+                const active = panel.getAttribute('data-dad-panel') === tabKey;
+                panel.classList.toggle('is-active', active);
+                panel.hidden = !active;
+            });
+        }
+
+        let dadOcrBusy = false;
+
+        function runDadOcr(record, step1Root) {
+            const dadId = record.dad_id != null ? Number(record.dad_id) : 0;
+            const ocrUrl = root.dataset.ocrUrl || '';
+            const csrf = root.dataset.csrf || '';
+            if (!dadId || !ocrUrl || dadOcrBusy) {
+                return Promise.resolve(null);
+            }
+
+            const statusEl = step1Root?.querySelector('[data-dad-ocr-status]');
+            const ocrPanel = step1Root?.querySelector('[data-dad-panel="ocr"]');
+            dadOcrBusy = true;
+            if (statusEl) {
+                statusEl.hidden = false;
+                statusEl.className = 'reports-dad-ocr-status is-busy';
+                statusEl.textContent = 'Reading handwriting with Document AI…';
+            }
+
+            const fd = new FormData();
+            fd.append('dad_id', String(dadId));
+            if (csrf) {
+                fd.append('_csrf', csrf);
+            }
+
+            return fetch(ocrUrl, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                    'X-CSRF-Token': csrf,
+                },
+            })
+                .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    dadOcrBusy = false;
+                    if (!ok || !data.ok) {
+                        if (statusEl) {
+                            statusEl.className = 'reports-dad-ocr-status is-error';
+                            statusEl.textContent = data.error || 'OCR failed.';
+                        }
+                        return null;
+                    }
+                    record.ocr_formatted = data.formatted || '';
+                    record.ocr_raw = data.raw || '';
+                    record.ocr_structured = data.structured || {};
+                    record.ocr_display_fields = data.display_fields || [];
+                    record.has_ocr = true;
+                    if (record.id) {
+                        recordsById[record.id] = record;
+                    }
+                    if (ocrPanel) {
+                        ocrPanel.innerHTML = ocrStructuredHtml(
+                            record.ocr_structured,
+                            record.ocr_formatted,
+                            record.ocr_raw,
+                            record.ocr_display_fields
+                        );
+                    }
+                    if (statusEl) {
+                        statusEl.hidden = true;
+                    }
+                    return record;
+                })
+                .catch(() => {
+                    dadOcrBusy = false;
+                    if (statusEl) {
+                        statusEl.className = 'reports-dad-ocr-status is-error';
+                        statusEl.textContent = 'Could not reach Document AI. Check credentials and try again.';
+                    }
+                    return null;
+                });
+        }
+
+        function bindDadStep1Tabs(container, record) {
+            const step1 = container?.querySelector('[data-dad-step1]');
+            if (!step1) {
+                return;
+            }
+
+            step1.addEventListener('click', (e) => {
+                const tabBtn = e.target.closest('[data-dad-tab]');
+                if (tabBtn && step1.contains(tabBtn)) {
+                    e.preventDefault();
+                    const key = tabBtn.getAttribute('data-dad-tab') || 'sheet';
+                    setDadStep1Tab(step1, key);
+                    if (
+                        key === 'ocr' &&
+                        record &&
+                        !(record.ocr_formatted || record.ocr_raw || '').trim() &&
+                        record.scan_url
+                    ) {
+                        runDadOcr(record, step1);
+                    }
+                    return;
+                }
+                const runBtn = e.target.closest('[data-dad-ocr-run]');
+                if (runBtn && step1.contains(runBtn)) {
+                    e.preventDefault();
+                    runDadOcr(record, step1);
+                }
+            });
         }
 
         function renderViewDetails(p) {
@@ -502,6 +711,7 @@
             html += escapeHtml(p.summary || '—');
             html += '</p></div>';
             viewDetails.innerHTML = html;
+            bindDadStep1Tabs(viewDetails, p);
         }
 
         function renderHistory(history) {

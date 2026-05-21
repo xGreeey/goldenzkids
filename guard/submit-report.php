@@ -18,7 +18,7 @@ guard_layout_head('Submit Report');
         <div class="guard-section-stack">
         <header class="page-header">
             <h1 class="page-title">Submit report</h1>
-            <p class="page-subtitle">Three-step submission: scan your filled report, attach evidences, then submit for admin review.</p>
+            <p class="page-subtitle">Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.</p>
         </header>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>

@@ -635,19 +635,29 @@ function guard_hub_scripts(): void
             }
             var fd = new FormData();
             fd.append('report_type', reportType);
-            fd.append('report_scan', reportFile);
+            var scanName = reportFile.name || ('report-scan-' + Date.now() + '.jpg');
+            fd.append('report_scan', reportFile, scanName);
             evidences.forEach(function (ev, i) {
-                fd.append('evidence[]', ev.file);
-                fd.append('evidence_meta[]', ev.meta);
+                var evName = ev.file.name || ('evidence-' + i + '.jpg');
+                fd.append('evidence[]', ev.file, evName);
+                fd.append('evidence_meta[]', ev.meta || '');
             });
-            var token = qs('input[name="csrf_token"]', form);
-            if (token) fd.append('csrf_token', token.value);
+            var csrfInput = qs('input[name="_csrf"]', form);
+            var csrfValue = csrfInput ? csrfInput.value : '';
+            if (csrfValue) {
+                fd.append('_csrf', csrfValue);
+            }
+
+            var fetchHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
+            if (csrfValue) {
+                fetchHeaders['X-CSRF-Token'] = csrfValue;
+            }
 
             fetch(form.getAttribute('action') || 'api/report-submit.php', {
                 method: 'POST',
                 body: fd,
                 credentials: 'same-origin',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: fetchHeaders
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {

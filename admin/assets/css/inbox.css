@@ -46,6 +46,18 @@ body.light-mode .panel--inbox .panel-title {
     color: var(--app-ink-deep);
 }
 
+body:not(.light-mode) .panel--inbox,
+body:not(.light-mode) .messaging-board {
+    background: var(--app-card-bg);
+    border-color: var(--app-border-on-dark);
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-board__title,
+body:not(.light-mode) .panel--inbox .panel-title {
+    color: var(--app-ink-on-dark);
+}
+
 .notif-list { display: flex; flex-direction: column; gap: 12px; }
 .notif-card {
     background: var(--bg-panel);

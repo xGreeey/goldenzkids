@@ -595,3 +595,99 @@
     white-space: normal;
     line-height: 1.35;
 }
+
+/* Dark theme — match admin shell panels (body without .light-mode) */
+body:not(.light-mode) .messaging-board {
+    color: var(--app-ink-on-dark);
+    border-color: var(--app-border-on-dark);
+}
+
+body:not(.light-mode) .messaging-board__title,
+body:not(.light-mode) .messaging-create-panel__title,
+body:not(.light-mode) .inbox-section-title,
+body:not(.light-mode) .messaging-thread__header strong {
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-board__subtitle,
+body:not(.light-mode) .messaging-board__notice,
+body:not(.light-mode) .messaging-board__empty,
+body:not(.light-mode) .messaging-board__placeholder,
+body:not(.light-mode) .messaging-board__section-title,
+body:not(.light-mode) .messaging-contact__id,
+body:not(.light-mode) .messaging-thread__meta,
+body:not(.light-mode) .messaging-bubble__time,
+body:not(.light-mode) .messaging-bubble__sender,
+body:not(.light-mode) .messaging-create-panel__desc,
+body:not(.light-mode) .messaging-create-group__label,
+body:not(.light-mode) .messaging-member-option__id {
+    color: var(--app-ink-muted-on-dark);
+}
+
+body:not(.light-mode) .messaging-contact {
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-contact:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+body:not(.light-mode) .messaging-contact.is-active {
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent);
+}
+
+body:not(.light-mode) .messaging-bubble {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--app-border-on-dark);
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-bubble--mine {
+    background: var(--app-accent-soft);
+    border-color: var(--app-accent);
+}
+
+body:not(.light-mode) .messaging-thread__action {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: var(--app-border-on-dark);
+    color: var(--app-ink-muted-on-dark);
+}
+
+body:not(.light-mode) .messaging-thread__action:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--app-accent);
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-thread__action--danger {
+    border-color: rgba(248, 113, 113, 0.45);
+    color: #fca5a5;
+}
+
+body:not(.light-mode) .messaging-thread__action--danger:hover {
+    background: rgba(198, 40, 40, 0.2);
+    border-color: #f87171;
+    color: #fecaca;
+}
+
+body:not(.light-mode) .messaging-compose__input,
+body:not(.light-mode) .messaging-create-group__input {
+    color: var(--app-ink-on-dark);
+    background: rgba(0, 0, 0, 0.2);
+    border-color: var(--app-border-on-dark);
+}
+
+body:not(.light-mode) .messaging-compose__input::placeholder,
+body:not(.light-mode) .messaging-create-group__input::placeholder {
+    color: var(--app-ink-soft-on-dark);
+}
+
+body:not(.light-mode) .messaging-create-group__members {
+    background: rgba(0, 0, 0, 0.15);
+    border-color: var(--app-border-on-dark);
+}
+
+body:not(.light-mode) .messaging-member-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+}

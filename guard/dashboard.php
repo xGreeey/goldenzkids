@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
+require_once __DIR__ . '/../includes/guard_ui_icons.php';
 
 auth_require_permission('guard.dashboard.view');
 
@@ -65,136 +66,68 @@ if ($totalQuery) {
     $totalReports = (int) ($totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
-$recentMemos = [];
-$memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.created_at, mr.is_read
-            FROM memo_recipients mr
-            INNER JOIN memos m ON m.Memo_ID = mr.Memo_ID
-            WHERE mr.Company_ID = ?
-            ORDER BY m.created_at DESC
-            LIMIT 5';
-$memoResult = db_query($conn, $memoSql, 's', [$companyId]);
-if ($memoResult) {
-    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
-        $recentMemos[] = $r;
-    }
-}
-
 $guardNavActive = 'dashboard';
-guard_layout_head('Head Guard Dashboard');
+guard_layout_head('Dashboard');
 ?>
-        <div class="sa-dashboard">
-            <header class="page-header sa-dashboard__hero">
-                <h1 class="page-title">Head Guard Dashboard</h1>
-                <p class="page-subtitle">Your post assignment, secured memos, and daily guard report activity at a glance.</p>
-            </header>
-
-            <section class="sa-dashboard__kpis" aria-labelledby="guard-dashboard-kpi-heading">
-                <h2 id="guard-dashboard-kpi-heading" class="sa-sr-only">Key metrics</h2>
-                <div class="stat-grid sa-stat-grid">
-                    <article class="stat-card">
-                        <div class="stat-icon stat-icon--blue" aria-hidden="true">
-                            <i class="fa-solid fa-location-dot"></i>
+        <div class="guard-dashboard">
+            <section class="guard-ui-block" aria-labelledby="guard-kpi-heading">
+                <h2 id="guard-kpi-heading" class="guard-ui-block__heading">
+                    <?= guard_ui_icon_badge('grid', 16) ?>
+                    <span>Key metrics</span>
+                </h2>
+                <div class="guard-ui-metrics">
+                    <article class="guard-ui-metric-card">
+                        <div class="guard-ui-metric-card__head">
+                            <span class="guard-ui-metric-card__label">Post assigned</span>
+                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('map-pin', 18) ?></span>
                         </div>
-                        <div class="stat-body">
-                            <h3 class="stat-label">Post assigned</h3>
-                            <p class="stat-value stat-value--text"><?= e($postAssigned) ?></p>
-                        </div>
+                        <p class="guard-ui-metric-card__value guard-ui-metric-card__value--text"><?= e($postAssigned) ?></p>
                     </article>
-                    <article class="stat-card">
-                        <div class="stat-icon stat-icon--gold" aria-hidden="true">
-                            <i class="fa-solid fa-envelope"></i>
+                    <article class="guard-ui-metric-card">
+                        <div class="guard-ui-metric-card__head">
+                            <span class="guard-ui-metric-card__label">Unread memos</span>
+                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('bell', 18) ?></span>
                         </div>
-                        <div class="stat-body">
-                            <h3 class="stat-label">Unread memos</h3>
-                            <p class="stat-value"><?= e((string) $unreadMemos) ?></p>
-                        </div>
+                        <p class="guard-ui-metric-card__value"><?= e((string) $unreadMemos) ?></p>
                     </article>
-                    <article class="stat-card">
-                        <div class="stat-icon stat-icon--green" aria-hidden="true">
-                            <i class="fa-solid fa-file-circle-check"></i>
+                    <article class="guard-ui-metric-card">
+                        <div class="guard-ui-metric-card__head">
+                            <span class="guard-ui-metric-card__label">Reports today</span>
+                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('clipboard', 18) ?></span>
                         </div>
-                        <div class="stat-body">
-                            <h3 class="stat-label">Reports today</h3>
-                            <p class="stat-value"><?= e((string) $reportsToday) ?></p>
-                        </div>
+                        <p class="guard-ui-metric-card__value"><?= e((string) $reportsToday) ?></p>
                     </article>
-                    <article class="stat-card">
-                        <div class="stat-icon stat-icon--warn" aria-hidden="true">
-                            <i class="fa-solid fa-clock"></i>
+                    <article class="guard-ui-metric-card">
+                        <div class="guard-ui-metric-card__head">
+                            <span class="guard-ui-metric-card__label">Awaiting review</span>
+                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('clock', 18) ?></span>
                         </div>
-                        <div class="stat-body">
-                            <h3 class="stat-label">Awaiting review</h3>
-                            <p class="stat-value"><?= e((string) $pendingReports) ?></p>
-                            <p class="stat-hint">
-                                <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
-                                <?= e((string) $totalReports) ?> total submitted
-                            </p>
-                        </div>
+                        <p class="guard-ui-metric-card__value"><?= e((string) $pendingReports) ?></p>
+                        <p class="guard-ui-metric-card__hint"><?= e((string) $totalReports) ?> total submitted</p>
                     </article>
                 </div>
             </section>
 
-            <section class="card-panel sa-panel sa-panel--toolbar" aria-labelledby="guard-dashboard-quick-heading">
-                <div class="sa-panel__head">
-                    <h2 id="guard-dashboard-quick-heading" class="panel-title sa-panel__title">Quick actions</h2>
-                </div>
-                <nav class="sa-quick-actions" aria-label="Shortcuts">
-                    <a href="inbox.php" class="sa-quick-actions__link">
-                        <span class="sa-quick-actions__icon" aria-hidden="true"><i class="fa-solid fa-inbox"></i></span>
-                        <span class="sa-quick-actions__label">Open inbox</span>
-                        <i class="sa-quick-actions__chev fa-solid fa-chevron-right" aria-hidden="true"></i>
+            <section class="guard-ui-block guard-ui-block--actions" aria-labelledby="guard-quick-heading">
+                <h2 id="guard-quick-heading" class="guard-ui-block__heading">
+                    <?= guard_ui_icon_badge('bolt', 16) ?>
+                    <span>Quick actions</span>
+                </h2>
+                <nav class="guard-ui-actions" aria-label="Shortcuts">
+                    <a href="submit-report.php" class="guard-ui-action-card">
+                        <span class="guard-ui-action-card__icon"><?= guard_ui_icon('plus-circle', 24) ?></span>
+                        <span class="guard-ui-action-card__label">Submit report</span>
                     </a>
-                    <a href="reports.php" class="sa-quick-actions__link">
-                        <span class="sa-quick-actions__icon" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></span>
-                        <span class="sa-quick-actions__label">View my reports</span>
-                        <i class="sa-quick-actions__chev fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    <a href="inbox.php" class="guard-ui-action-card">
+                        <span class="guard-ui-action-card__icon"><?= guard_ui_icon('inbox', 24) ?></span>
+                        <span class="guard-ui-action-card__label">Inbox &amp; tracking</span>
+                    </a>
+                    <a href="corner.php" class="guard-ui-action-card">
+                        <span class="guard-ui-action-card__icon"><?= guard_ui_icon('shield', 24) ?></span>
+                        <span class="guard-ui-action-card__label">Guard corner</span>
                     </a>
                 </nav>
             </section>
-
-            <section class="card-panel sa-panel" aria-labelledby="guard-dashboard-memos-heading">
-                <h2 id="guard-dashboard-memos-heading" class="panel-title">Recent memos</h2>
-                <?php if ($recentMemos === []): ?>
-                    <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No memos in your inbox yet.</p>
-                <?php else: ?>
-                    <div class="data-table-wrap sa-table-wrap">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Received</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recentMemos as $memo): ?>
-                                    <tr>
-                                        <td><?= e((string) ($memo['Category'] ?? '—')) ?></td>
-                                        <td class="mono"><?= e((string) ($memo['created_at'] ?? '—')) ?></td>
-                                        <td>
-                                            <?php if ((int) ($memo['is_read'] ?? 0) === 1): ?>
-                                                <span class="badge badge--admin">Read</span>
-                                            <?php else: ?>
-                                                <span class="badge badge--guard">New</span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="sa-dashboard__footer-cta">
-                        <a href="inbox.php" class="btn-ghost"><i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i> View all memos</a>
-                    </p>
-                <?php endif; ?>
-            </section>
         </div>
-        <style>
-            .stat-value--text {
-                font-size: clamp(1rem, 2vw, 1.25rem);
-                line-height: 1.3;
-                word-break: break-word;
-            }
-        </style>
 <?php
 guard_layout_end();

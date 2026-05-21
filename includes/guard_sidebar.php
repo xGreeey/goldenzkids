@@ -10,17 +10,21 @@ $adminProfile = admin_sidebar_profile();
     </div>
 
     <nav class="sidebar-nav" aria-label="Guard workspace">
-        <a href="dashboard.php" class="sidebar-link<?= $guardNavActive === 'dashboard' ? ' active' : '' ?>"<?= $guardNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Field dashboard') ?>>
+        <a href="dashboard.php" class="sidebar-link<?= $guardNavActive === 'dashboard' ? ' active' : '' ?>"<?= $guardNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Overview') ?>>
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos and notifications') ?>>
+        <a href="submit-report.php" class="sidebar-link<?= $guardNavActive === 'submit' ? ' active' : '' ?>"<?= $guardNavActive === 'submit' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Submit daily report') ?>>
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
+            Submit report
+        </a>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos and report tracking') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
         </a>
-        <a href="reports.php" class="sidebar-link<?= $guardNavActive === 'reports' ? ' active' : '' ?>"<?= $guardNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard reports') ?>>
-            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
-            My reports
+        <a href="corner.php" class="sidebar-link<?= $guardNavActive === 'corner' ? ' active' : '' ?>"<?= $guardNavActive === 'corner' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Guard corner') ?>>
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+            Guard corner
         </a>
     </nav>
 
@@ -36,10 +40,10 @@ $adminProfile = admin_sidebar_profile();
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>
                 <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
+                    <a href="submit-report.php" class="sidebar-footer-icon" aria-label="Submit report"<?= ui_tooltip('Submit report', 'bottom') ?>>
                         <?= admin_sidebar_icon('audit') ?>
                     </a>
-                    <a href="reports.php" class="sidebar-footer-icon" aria-label="My reports"<?= ui_tooltip('My reports', 'bottom') ?>>
+                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>
                     <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">

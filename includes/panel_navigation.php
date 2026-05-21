@@ -48,10 +48,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var loadGeneration = 0;
     var abortController = null;
 
-    var stage = main.querySelector('.app-main__stage');
+    var stage = main.querySelector('[data-guard-panel-root]')
+        || main.querySelector('.guard-app__scroll')
+        || main.querySelector('.app-main__stage');
     if (!stage) {
         stage = document.createElement('div');
-        stage.className = 'app-main__stage';
+        stage.className = document.body.classList.contains('guard-portal')
+            ? 'guard-app__scroll'
+            : 'app-main__stage';
+        if (document.body.classList.contains('guard-portal')) {
+            stage.setAttribute('data-guard-panel-root', '');
+        }
         var nodes = [];
         while (main.firstChild) {
             nodes.push(main.removeChild(main.firstChild));
@@ -144,6 +151,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (target) {
             setActiveSidebarLink(target);
         }
+        document.querySelectorAll('.guard-app__drawer-link[href]').forEach(function (a) {
+            var on = filenameFromHref(a.getAttribute('href') || '') === file;
+            a.classList.toggle('is-active', on);
+            if (on) {
+                a.setAttribute('aria-current', 'page');
+            } else {
+                a.removeAttribute('aria-current');
+            }
+        });
     }
 
     function lockMainHeight() {
@@ -187,15 +203,64 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function flattenMainStage(targetStage) {
+        if (!targetStage) {
+            return;
+        }
+        var nested = targetStage.querySelector(':scope > [data-guard-panel-root], :scope > .guard-app__scroll, :scope > .app-main__stage');
+        while (nested) {
+            targetStage.className = nested.className;
+            if (nested.hasAttribute('data-guard-panel-root')) {
+                targetStage.setAttribute('data-guard-panel-root', '');
+            } else {
+                targetStage.removeAttribute('data-guard-panel-root');
+            }
+            targetStage.innerHTML = nested.innerHTML;
+            nested = targetStage.querySelector(':scope > [data-guard-panel-root], :scope > .guard-app__scroll, :scope > .app-main__stage');
+        }
+    }
+
+    function importMainStageContent(newMain, targetStage) {
+        var newStage = newMain.querySelector(':scope > [data-guard-panel-root]')
+            || newMain.querySelector(':scope > .guard-app__scroll')
+            || newMain.querySelector(':scope > .app-main__stage')
+            || newMain.querySelector('[data-guard-panel-root]')
+            || newMain.querySelector('.guard-app__scroll')
+            || newMain.querySelector('.app-main__stage');
+        targetStage.innerHTML = '';
+        if (newStage) {
+            targetStage.className = newStage.className || (document.body.classList.contains('guard-portal') ? 'guard-app__scroll' : 'app-main__stage');
+            if (newStage.hasAttribute('data-guard-panel-root')) {
+                targetStage.setAttribute('data-guard-panel-root', '');
+            } else {
+                targetStage.removeAttribute('data-guard-panel-root');
+            }
+            Array.prototype.forEach.call(newStage.childNodes, function (node) {
+                targetStage.appendChild(document.importNode(node, true));
+            });
+            return;
+        }
+        Array.prototype.forEach.call(newMain.children, function (child) {
+            if (child.id === 'createAccountModal') {
+                return;
+            }
+            targetStage.appendChild(document.importNode(child, true));
+        });
+    }
+
     function runPanelPageInit(doc) {
         if (typeof window.initAdminInboxPage === 'function'
             && (doc.getElementById('alert-feed') || doc.getElementById('memoForm')
                 || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
         }
-        if (typeof window.initMessagingBoard === 'function'
-            && (doc.getElementById('messaging-board') || document.getElementById('messaging-board'))) {
-            window.initMessagingBoard();
+        if (typeof window.guardInitPortal === 'function'
+            && document.body.classList.contains('guard-portal')) {
+            flattenMainStage(stage);
+            window.guardInitPortal(stage);
+        }
+        if (typeof window.initGuardApp === 'function') {
+            window.initGuardApp();
         }
     }
 
@@ -209,13 +274,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.body.classList.remove('app-modal-open');
 
-        stage.innerHTML = '';
-        Array.prototype.forEach.call(newMain.children, function (child) {
-            if (child.id === 'createAccountModal') {
-                return;
-            }
-            stage.appendChild(document.importNode(child, true));
-        });
+        importMainStageContent(newMain, stage);
+        flattenMainStage(stage);
 
         syncPanelBodyOverlays(doc);
 
@@ -244,6 +304,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (!options.skipPush) {
             history.pushState({ panelNav: true, url: absUrl }, '', absUrl);
+        }
+        if (document.body.classList.contains('guard-portal')
+            && typeof window.persistGuardPortalLocation === 'function') {
+            window.persistGuardPortalLocation(absUrl);
         }
         window.scrollTo(0, 0);
         if (!options.skipActive) {
@@ -312,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!isPanelNavUrl(absUrl)) {
             return;
         }
-        if (link.classList.contains('active') && !href.includes('?')) {
+        if (link.classList.contains('active') && link.classList.contains('sidebar-link') && !href.includes('?')) {
             event.preventDefault();
             return;
         }
@@ -504,9 +568,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (document.body.classList.contains('guard-portal')) {
+        flattenMainStage(stage);
+    }
+
+    setActiveFromUrl(window.location.href);
+
     if (!history.state || !history.state.panelNav) {
         history.replaceState({ panelNav: true, url: window.location.href }, '', window.location.href);
     }
+
+    if (document.body.classList.contains('guard-portal')
+        && typeof window.persistGuardPortalLocation === 'function') {
+        window.persistGuardPortalLocation(window.location.href);
+    }
+
+    window.loadGuardPanel = function (url, opts) {
+        return loadPanel(url, opts || {});
+    };
 });
 </script>
     <?php

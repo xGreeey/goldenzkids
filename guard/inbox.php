@@ -61,6 +61,8 @@ $messagingGroupMeta = null;
 $messagingCanCreateGroups = false;
 $messagingHeadGuardOptions = [];
 $messagingGroupPostUrl = 'send-group-message.php';
+$messagingThreadApi = 'messaging-thread.php';
+$messagingActionUrl = 'messaging-action.php';
 $messagingShowDirect = internal_messaging_can_use_direct(auth_user_role());
 $groupsAvailable = false;
 

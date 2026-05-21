@@ -78,6 +78,9 @@ function messaging_ajax_build_direct_payload(
             'recipient_id' => $peerId,
             'return_peer' => $peerId,
         ],
+        'actions' => [
+            'clear_history' => true,
+        ],
     ];
 }
 
@@ -87,6 +90,7 @@ function messaging_ajax_build_direct_payload(
 function messaging_ajax_build_group_payload(
     mysqli $conn,
     string $viewerId,
+    int $viewerRole,
     int $groupId,
     string $sendUrl
 ): array {
@@ -122,6 +126,11 @@ function messaging_ajax_build_group_payload(
         'compose' => [
             'action' => $sendUrl,
             'group_id' => $groupId,
+        ],
+        'actions' => [
+            'clear_history' => true,
+            'leave_group' => true,
+            'delete_group' => group_messaging_can_delete_group($conn, $groupId, $viewerId, $viewerRole),
         ],
     ];
 }

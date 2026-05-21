@@ -26,6 +26,7 @@ if (!function_exists('message_groups_table_exists')) {
  * @var bool $groupsAvailable
  * @var bool $messagingShowCreatePanel
  * @var string $messagingThreadApi
+ * @var string $messagingActionUrl
  */
 $messagingContacts = $messagingContacts ?? [];
 $messagingViewerId = $messagingViewerId ?? '';
@@ -47,6 +48,7 @@ $messagingShowDirect = $messagingShowDirect ?? internal_messaging_can_use_direct
 $groupsAvailable = $groupsAvailable ?? (isset($conn) && $conn instanceof mysqli && message_groups_table_exists($conn));
 $messagingShowCreatePanel = $messagingShowCreatePanel ?? false;
 $messagingThreadApi = $messagingThreadApi ?? 'messaging-thread.php';
+$messagingActionUrl = $messagingActionUrl ?? 'messaging-action.php';
 
 $messagingPeerLabel = '';
 if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
@@ -81,7 +83,9 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
          data-csrf="<?= e(csrf_token()) ?>"
          data-initial-peer="<?= $messagingMode === 'direct' && $messagingActivePeer ? e($messagingActivePeer) : '' ?>"
          data-initial-group="<?= $messagingMode === 'group' && $messagingActiveGroupId ? (int) $messagingActiveGroupId : '' ?>"
-         data-initial-create="<?= $messagingShowCreatePanel ? '1' : '0' ?>">
+         data-initial-create="<?= $messagingShowCreatePanel ? '1' : '0' ?>"
+         data-create-group-url="<?= e($messagingCreateGroupUrl) ?>"
+         data-action-url="<?= e($messagingActionUrl) ?>">
     <div class="messaging-board__head">
         <div class="messaging-board__head-row">
             <h2 id="messaging-board-heading" class="messaging-board__title">
@@ -271,7 +275,7 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
     </div>
 
     <?php if ($messagingCanCreateGroups): ?>
-    <template id="createGroupPanel">
+    <template id="messagingCreateGroupTemplate">
         <?php require __DIR__ . '/messaging_board_create_panel.php'; ?>
     </template>
     <?php endif; ?>

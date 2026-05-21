@@ -86,10 +86,16 @@ function send_security_headers(): void
 }
 
 /**
- * Safe redirect with alert (avoids injecting raw user input into JS).
+ * Redirect with a flash message shown in the in-app notification modal.
  */
-function redirect_with_alert(string $message, string $redirectUrl): void
+function redirect_with_alert(string $message, string $redirectUrl, ?string $type = null): void
 {
+    if (function_exists('flash_set')) {
+        flash_set($type ?? flash_guess_type($message), $message);
+        header('Location: ' . $redirectUrl);
+        exit();
+    }
+
     $msg = json_encode($message, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
     $url = json_encode($redirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
     echo '<script>alert(' . $msg . ');window.location.href=' . $url . ';</script>';

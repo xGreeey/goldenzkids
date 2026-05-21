@@ -280,3 +280,30 @@ function internal_messaging_can_use_direct(int $viewerRole): bool
 {
     return internal_messaging_allowed_peer_roles($viewerRole) !== [];
 }
+
+/** Remove all direct messages between two users (both sides). */
+function internal_messaging_delete_thread(mysqli $conn, string $viewerId, int $viewerRole, string $peerId): bool
+{
+    if (!internal_messages_table_exists($conn) || $viewerId === '' || $peerId === '') {
+        return false;
+    }
+
+    if (!internal_messaging_validate_peer_for_viewer($conn, $peerId, $viewerRole)) {
+        return false;
+    }
+
+    $stmt = $conn->prepare(
+        'DELETE FROM internal_messages
+         WHERE (sender_company_id = ? AND recipient_company_id = ?)
+            OR (sender_company_id = ? AND recipient_company_id = ?)'
+    );
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('ssss', $viewerId, $peerId, $peerId, $viewerId);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    return $ok;
+}

@@ -288,46 +288,46 @@ function admin_incident_guard_workflow_step_overrides(): array
 {
     return [
         'theft / loss prevention' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (CCTV, witnesses, loss-prevention records)',
-            'Guard sends evidence from post',
+            'Guard files report',
+            'Admin reviews report',
+            'Request CCTV / witnesses',
+            'Guard submits evidence',
         ],
         'fire alarm activation' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (evacuation log, alarm cause)',
-            'Guard sends photos of extinguished site confirming the fire is out',
+            'Guard files report',
+            'Admin reviews report',
+            'Request alarm / evacuation log',
+            'Guard confirms all-clear',
         ],
         'severe weather / flood hazard' => [
-            'Field guard sends initial weather warning and post status report to admin',
-            'Admin receives report, checks local advisories, and instructs guard to secure perimeter',
-            'Admin asks for evidence that loose items are secured and vulnerable areas barricaded',
-            'Guard sends photos of secured areas and confirms they are in safe shelter',
+            'Guard files weather report',
+            'Admin reviews advisories',
+            'Request secured-site photos',
+            'Guard confirms shelter status',
         ],
         'client site — trespassing' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (patrol log, photos, witness statements)',
-            'Guard sends evidence of trespass / unauthorized persons on site',
+            'Guard files report',
+            'Admin reviews report',
+            'Request patrol log / photos',
+            'Guard submits trespass evidence',
         ],
         'policy breach — unauthorized access' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (access logs, CCTV, badge records)',
-            'Guard sends evidence of unauthorized entry or access breach',
+            'Guard files report',
+            'Admin reviews report',
+            'Request access logs / CCTV',
+            'Guard submits breach evidence',
         ],
         'vandalism' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (photos of damage, patrol segment)',
-            'Guard sends evidence of vandalism and perimeter checks',
+            'Guard files report',
+            'Admin reviews report',
+            'Request damage photos',
+            'Guard submits evidence',
         ],
         'medical emergency' => [
-            'Field guard sends report to admin',
-            'Admin receives report from field guard — may approve or reject; may ask for clarification',
-            'Admin asks for evidence from post (EMS timeline, first-aid log)',
-            'Guard sends evidence and client/EMS reference when available',
+            'Guard files report',
+            'Admin reviews report',
+            'Request EMS / first-aid log',
+            'Guard submits follow-up proof',
         ],
     ];
 }
@@ -346,10 +346,10 @@ function admin_incident_guard_workflow_four_steps(array $row): array
     }
 
     return [
-        'Field guard sends report to admin',
-        'Admin receives report from field guard — may approve, reject, or ask for clarification',
-        'Admin asks for evidence from post (photos, patrol log, statements)',
-        'Guard sends evidence and any follow-up required to close the case',
+        'Guard files report',
+        'Admin reviews report',
+        'Admin requests evidence',
+        'Guard submits evidence',
     ];
 }
 
@@ -368,9 +368,10 @@ function admin_incident_guard_workflow_table_html(): string
     $html = '<div class="reports-workflow-table-wrap" tabindex="0" aria-label="Incident workflow by type">';
     $html .= '<table class="reports-workflow-table">';
     $html .= '<thead><tr>';
-    $html .= '<th scope="col" class="reports-workflow-col-incident">Incident report</th>';
-    for ($n = 1; $n <= 4; $n++) {
-        $html .= '<th scope="col" class="reports-workflow-col-step">Step ' . $n . '</th>';
+    $stepLabels = ['1 · File', '2 · Review', '3 · Evidence', '4 · Close'];
+    $html .= '<th scope="col" class="reports-workflow-col-incident">Incident</th>';
+    foreach ($stepLabels as $label) {
+        $html .= '<th scope="col" class="reports-workflow-col-step">' . e($label) . '</th>';
     }
     $html .= '</tr></thead><tbody id="guide-workflow-tbody">';
 
@@ -406,6 +407,25 @@ function admin_incident_guard_workflow_table_html(): string
 }
 
 /**
+ * Short section titles for the incident-report guard guide modal.
+ */
+function admin_incident_guide_compact_section_title(string $id, string $fallback): string
+{
+    return match ($id) {
+        'status-basis' => 'Status rules',
+        'severity-thresholds' => 'Severity SLAs',
+        'missing-handling' => 'Incomplete reports',
+        'repeat-case-status' => 'Status quick ref',
+        'workflow' => 'Workflow summary',
+        'case-progression' => 'Case stages',
+        'if-it-happens-again' => 'Same guard again',
+        'offense-escalation' => 'Offense count',
+        'recurring-escalation' => 'Same post again',
+        default => $fallback,
+    };
+}
+
+/**
  * Full operations guide body: incident workflow table + system progression & registry reference.
  */
 function admin_incident_guard_operations_guide_html(): string
@@ -426,47 +446,46 @@ function admin_incident_guard_operations_guide_html(): string
         'case-progression',
     ];
 
-    $html = '<nav class="reports-guide-jump" aria-label="Jump to guide section">';
-    $html .= '<a class="reports-guide-jump__link" href="#guide-block-incidents">By incident type</a>';
-    $html .= '<a class="reports-guide-jump__link" href="#guide-block-system">Case progression</a>';
-    $html .= '<a class="reports-guide-jump__link" href="#guide-block-registry">Registry status</a>';
-    $html .= '<a class="reports-guide-jump__link" href="#guide-block-recurrence">If it happens again</a>';
+    $html = '<nav class="reports-guide-nav-strip" aria-label="Guide sections">';
+    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-incidents">Workflow</a>';
+    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-system">Progression</a>';
+    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-registry">Status</a>';
+    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-recurrence">Repeat</a>';
     $html .= '</nav>';
 
     $html .= '<div class="reports-guide-document">';
 
-    $html .= '<div class="reports-guide-block" id="guide-block-incidents" data-guide-block="incidents">';
-    $html .= '<h2 class="reports-guide-block__title">Workflow by incident type</h2>';
-    $html .= '<p class="reports-guide-block__lead">What the <strong>field guard</strong> and <strong>admin</strong> do for each incident — '
-        . 'four steps from filing through evidence. Grouped by <strong>External</strong> (client site) and <strong>On post</strong>.</p>';
+    $html .= admin_incident_guard_guide_sheet_open('guide-block-incidents', 'incidents', 'Workflow');
     $html .= admin_incident_guard_workflow_table_html();
-    $html .= '</div>';
+    $html .= admin_incident_guard_guide_sheet_close();
 
-    $html .= '<div class="reports-guide-block" id="guide-block-system" data-guide-block="system">';
-    $html .= '<h2 class="reports-guide-block__title">How the system progresses a case</h2>';
-    $html .= '<p class="reports-guide-block__lead">Every report follows the same path in the registry — from first filing to '
-        . '<strong>' . e(admin_incident_status_workflow_lexicon()['closed']) . '</strong> or '
-        . '<strong>' . e(admin_incident_status_workflow_lexicon()['not_accepted']) . '</strong>. '
-        . 'The summary below matches the four-step table above.</p>';
-    $html .= admin_incident_guard_guide_preamble_html();
-    $html .= admin_incident_guidelines_sections_html($systemIds);
-    $html .= '</div>';
+    $html .= admin_incident_guard_guide_sheet_open('guide-block-system', 'system', 'Progression');
+    $html .= admin_incident_guidelines_sections_html($systemIds, null, true);
+    $html .= admin_incident_guard_guide_sheet_close();
 
-    $html .= '<div class="reports-guide-block" id="guide-block-registry" data-guide-block="registry">';
-    $html .= '<h2 class="reports-guide-block__title">Registry status &amp; handling</h2>';
-    $html .= '<p class="reports-guide-block__lead">How admin sets status on the Incident Reports registry and when to pause or close a case.</p>';
-    $html .= admin_incident_guidelines_sections_html($registryIds);
-    $html .= '</div>';
+    $html .= admin_incident_guard_guide_sheet_open('guide-block-registry', 'registry', 'Status');
+    $html .= admin_incident_guidelines_sections_html($registryIds, null, true);
+    $html .= admin_incident_guard_guide_sheet_close();
 
-    $html .= '<div class="reports-guide-block" id="guide-block-recurrence" data-guide-block="recurrence">';
-    $html .= '<h2 class="reports-guide-block__title">Repeat incidents &amp; escalation</h2>';
-    $html .= '<p class="reports-guide-block__lead">When the same guard or the same post has another incident — stronger action and longer case handling.</p>';
-    $html .= admin_incident_guidelines_sections_html($recurrenceIds);
-    $html .= '</div>';
+    $html .= admin_incident_guard_guide_sheet_open('guide-block-recurrence', 'recurrence', 'Repeat');
+    $html .= admin_incident_guidelines_sections_html($recurrenceIds, null, true);
+    $html .= admin_incident_guard_guide_sheet_close();
 
     $html .= '</div>';
 
     return $html;
+}
+
+function admin_incident_guard_guide_sheet_open(string $id, string $block, string $title): string
+{
+    return '<section class="reports-guide-sheet" id="' . e($id) . '" data-guide-block="' . e($block) . '">'
+        . '<h3 class="reports-modal-form__section-title reports-guide-sheet__title">' . e($title) . '</h3>'
+        . '<div class="reports-guide-sheet__body">';
+}
+
+function admin_incident_guard_guide_sheet_close(): string
+{
+    return '</div></section>';
 }
 
 /**
@@ -760,7 +779,7 @@ function admin_incident_guide_section_search_blob(array $section): string
 /**
  * @param list<string> $sectionIds Empty = all sections
  */
-function admin_incident_guidelines_sections_html(array $sectionIds = [], ?array $sections = null): string
+function admin_incident_guidelines_sections_html(array $sectionIds = [], ?array $sections = null, bool $compact = false): string
 {
     $html = '';
     foreach ($sections ?? admin_incident_guidelines_sections() as $section) {
@@ -768,11 +787,15 @@ function admin_incident_guidelines_sections_html(array $sectionIds = [], ?array 
             continue;
         }
 
+        $sectionId = (string) $section['id'];
+        $title = $compact
+            ? admin_incident_guide_compact_section_title($sectionId, (string) $section['title'])
+            : (string) $section['title'];
         $searchBlob = admin_incident_guide_section_search_blob($section);
-        $html .= '<section class="reports-guide-section" id="guide-' . e((string) $section['id']) . '" data-guide-section-id="'
-            . e((string) $section['id']) . '" data-guide-search="' . e($searchBlob) . '">';
-        $html .= '<h3 class="reports-guide-section__title">' . e((string) $section['title']) . '</h3>';
-        if (($section['intro'] ?? '') !== '') {
+        $html .= '<section class="reports-guide-section' . ($compact ? ' reports-guide-section--compact' : '') . '" id="guide-' . e($sectionId) . '" data-guide-section-id="'
+            . e($sectionId) . '" data-guide-search="' . e($searchBlob) . '">';
+        $html .= '<h4 class="reports-guide-section__title">' . e($title) . '</h4>';
+        if (!$compact && ($section['intro'] ?? '') !== '') {
             $html .= '<p class="reports-guide-section__intro">' . e((string) $section['intro']) . '</p>';
         }
         $html .= '<div class="reports-guide-table-wrap"><table class="reports-guide-table">';

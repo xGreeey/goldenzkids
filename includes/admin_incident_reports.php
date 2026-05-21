@@ -850,98 +850,82 @@ function admin_incident_category_badge_html(array $report): string
 }
 
 /**
- * @param array<string, mixed> $report
+ * @return array{date: string, time: string}
  */
-function admin_incident_modal_head_guard_compact_html(array $report): string
+function admin_incident_history_datetime_parts(string $at): array
 {
-    $name = trim((string) ($report['head_guard_name'] ?? $report['submitter_name'] ?? ''));
-    $username = trim((string) ($report['head_guard_id'] ?? $report['submitter_id'] ?? ''));
-
-    if ($name === '' && $username === '') {
-        return '—';
+    $at = trim($at);
+    if ($at === '') {
+        return ['date' => '—', 'time' => ''];
     }
 
-    $html = '<span class="reports-detail-hg reports-detail-hg--stacked">';
-    if ($name !== '') {
-        $html .= '<span class="reports-detail-hg__name">' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '</span>';
+    if (preg_match('/^(.+?),\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*)$/', $at, $m)) {
+        return ['date' => trim($m[1]), 'time' => trim($m[2])];
     }
-    if ($username !== '') {
-        $html .= '<span class="reports-detail-hg__id mono">' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</span>';
-    }
-    $html .= '</span>';
 
-    return $html;
+    return ['date' => $at, 'time' => ''];
 }
 
-function admin_incident_detail_group_title(string $label): string
+function admin_incident_person_involved_label(array $report): string
 {
-    return '<h4 class="reports-detail-group__title">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h4>';
+    $person = trim((string) ($report['person_involved'] ?? $report['guard_involved'] ?? ''));
+
+    return $person !== '' ? $person : '—';
 }
 
-function admin_incident_detail_separator_html(): string
+function admin_incident_modal_cell_text(string $value): string
 {
-    return '<hr class="reports-detail-separator" aria-hidden="true">';
+    $value = trim($value);
+
+    return $value !== '' ? htmlspecialchars($value, ENT_QUOTES, 'UTF-8') : '—';
+}
+
+function admin_incident_modal_sheet_field_html(string $label, string $value, string $modifier = ''): string
+{
+    $trimmed = trim($value);
+    $mod = $modifier !== '' ? ' reports-detail-sheet__field--' . $modifier : '';
+    $empty = $trimmed === '' ? ' is-empty' : '';
+
+    return '<div class="reports-detail-sheet__field' . $mod . $empty . '">'
+        . '<span class="reports-detail-sheet__label">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>'
+        . '<span class="reports-detail-sheet__value">' . admin_incident_modal_cell_text($trimmed) . '</span>'
+        . '</div>';
 }
 
 /**
- * Incident narrative — what happened and field notes (separate from registry metadata).
+ * Report summary — text-first grid (wireframe layout, readable spacing).
  *
- * @param array<string, mixed> $report
- */
-function admin_incident_modal_narrative_html(array $report): string
-{
-    $incidentType = trim((string) ($report['incident_type'] ?? ''));
-    $summary = trim((string) ($report['summary'] ?? ''));
-    $about = $incidentType !== '' ? htmlspecialchars($incidentType, ENT_QUOTES, 'UTF-8') : '—';
-    $notes = $summary !== '' ? htmlspecialchars($summary, ENT_QUOTES, 'UTF-8') : '—';
-    $notesClass = $summary === '' ? ' reports-detail-notes--empty' : '';
-
-    return '<div class="reports-detail-group reports-detail-group--narrative" role="group" aria-label="Incident description">'
-        . admin_incident_detail_group_title('Incident')
-        . '<dl class="reports-detail-grid reports-detail-grid--modal reports-detail-grid--narrative">'
-        . '<div class="reports-detail-item reports-detail-item--about">'
-        . '<dt>What happened</dt><dd class="reports-detail-about">' . $about . '</dd></div>'
-        . '<div class="reports-detail-item reports-detail-item--notes">'
-        . '<dt>Report notes</dt><dd class="reports-detail-notes' . $notesClass . '">' . $notes . '</dd></div>'
-        . '</dl></div>';
-}
-
-/**
  * @param array<string, mixed> $report
  */
 function admin_incident_modal_details_html(array $report): string
 {
-    $submitted = (string) ($report['submitted_display'] ?? '—');
-    $updated = (string) ($report['updated_display'] ?? '—');
     $post = trim((string) ($report['site'] ?? ''));
+    $headGuard = trim((string) ($report['head_guard_name'] ?? $report['submitter_name'] ?? ''));
+    $headGuardId = trim((string) ($report['head_guard_id'] ?? $report['submitter_id'] ?? ''));
+    if ($headGuard !== '' && $headGuardId !== '') {
+        $headGuard .= ' (' . $headGuardId . ')';
+    } elseif ($headGuard === '' && $headGuardId !== '') {
+        $headGuard = $headGuardId;
+    }
 
-    $gridClass = 'reports-detail-grid reports-detail-grid--modal reports-detail-grid--compact';
+    $incident = trim((string) ($report['incident_type'] ?? ''));
+    $description = trim((string) ($report['summary'] ?? ''));
+    $severity = trim((string) ($report['severity'] ?? 'Medium'));
+    $person = admin_incident_person_involved_label($report);
 
-    $overview =
-        '<div class="reports-detail-item reports-detail-item--chip">'
-        . '<dt>Report scope</dt><dd>' . admin_incident_category_badge_html($report) . '</dd></div>'
-        . '<div class="reports-detail-item reports-detail-item--chip">'
-        . '<dt>Severity</dt><dd>' . admin_incident_severity_badge_html($report) . '</dd></div>'
-        . '<div class="reports-detail-item reports-detail-item--when">'
-        . '<dt>Submitted</dt><dd class="mono">' . htmlspecialchars($submitted, ENT_QUOTES, 'UTF-8') . '</dd></div>'
-        . '<div class="reports-detail-item reports-detail-item--when">'
-        . '<dt>Updated</dt><dd class="mono">' . htmlspecialchars($updated, ENT_QUOTES, 'UTF-8') . '</dd></div>';
-
-    $assignment =
-        '<div class="reports-detail-item reports-detail-item--hg">'
-        . '<dt>Head guard</dt><dd>' . admin_incident_modal_head_guard_compact_html($report) . '</dd></div>'
-        . '<div class="reports-detail-item reports-detail-item--post">'
-        . '<dt>Post</dt><dd class="reports-detail-post">' . htmlspecialchars($post !== '' ? $post : '—', ENT_QUOTES, 'UTF-8') . '</dd></div>';
-
-    return '<div class="reports-detail-group reports-detail-group--overview" role="group" aria-label="Classification and dates">'
-        . admin_incident_detail_group_title('Overview')
-        . '<dl class="' . $gridClass . '">' . $overview . '</dl></div>'
-        . admin_incident_detail_separator_html()
-        . '<div class="reports-detail-group reports-detail-group--assignment" role="group" aria-label="Assignment">'
-        . admin_incident_detail_group_title('Assignment')
-        . '<dl class="' . $gridClass . '">' . $assignment . '</dl></div>'
-        . admin_incident_detail_separator_html()
-        . admin_incident_modal_narrative_html($report);
+    return '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
+        . '<section class="reports-detail-sheet__section" aria-label="Assignment">'
+        . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">'
+        . admin_incident_modal_sheet_field_html('Post', $post)
+        . admin_incident_modal_sheet_field_html('Head guard', $headGuard)
+        . admin_incident_modal_sheet_field_html('Guard', $person)
+        . '</div></section>'
+        . '<section class="reports-detail-sheet__section" aria-label="Incident">'
+        . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">'
+        . admin_incident_modal_sheet_field_html('Incident', $incident, 'incident')
+        . admin_incident_modal_sheet_field_html('Description', $description, 'description')
+        . admin_incident_modal_sheet_field_html('Severity', $severity, 'severity')
+        . '</div></section></div>';
 }
 
 function admin_incident_status_badge_html(array $report): string
@@ -995,205 +979,15 @@ function admin_incident_action_icon(string $kind): string
     return '<span class="reports-action-btn__icon">' . $svg . '</span>';
 }
 
-/**
- * Step status for Helios-style stepper list (history sidebar).
- */
-function admin_incident_history_step_status(int $index, int $total, string $reportStatus): string
-{
-    if ($total <= 0) {
-        return 'incomplete';
-    }
-    if ($index < $total - 1) {
-        return 'complete';
-    }
-    $closed = in_array(
-        $reportStatus,
-        [ADMIN_INCIDENT_STATUS_ACCOMPLISHED, ADMIN_INCIDENT_STATUS_DENIED],
-        true
-    );
-
-    return $closed ? 'complete' : 'progress';
-}
-
-function admin_incident_history_event_icon(string $event): string
-{
-    $lower = strtolower($event);
-    if (str_contains($lower, 'submitted')) {
-        return 'fa-file-lines';
-    }
-    if (str_contains($lower, 'assigned')) {
-        return 'fa-user-check';
-    }
-    if (str_contains($lower, 'status')) {
-        return 'fa-flag';
-    }
-
-    return 'fa-clock-rotate-left';
-}
-
-function admin_incident_history_step_phase_label(int $index, int $total): string
-{
-    if ($total <= 1) {
-        return 'Latest update';
-    }
-    if ($index === 0) {
-        return 'Initial filing';
-    }
-    if ($index === $total - 1) {
-        return 'Latest update';
-    }
-
-    return 'Follow-up';
-}
-
-/** Plain-language purpose of each history step (shown above the event title). */
-function admin_incident_history_step_intent_label(int $index, int $total): string
-{
-    if ($total <= 1) {
-        return 'This is the latest record on file for this incident.';
-    }
-    if ($index === 0) {
-        return 'Head guard submitted the incident to operations.';
-    }
-    if ($index === $total - 1) {
-        return 'Most recent operations update — current point in the audit trail.';
-    }
-
-    return 'Operations recorded a follow-up action on this report.';
-}
-
-function admin_incident_history_step_badge_label(int $index, int $total, string $stepStatus): string
-{
-    if ($stepStatus === 'progress' || $index === $total - 1) {
-        return 'Current';
-    }
-
-    return 'Completed';
-}
-
-function admin_incident_history_step_connector_html(): string
-{
-    return '<span class="reports-compact-step__connector" aria-hidden="true">'
-        . '<span class="reports-compact-step__connector-line"></span></span>';
-}
-
-/**
- * Branded chrome: accent bar, header, progress rail opener.
- */
-function admin_incident_history_wizard_chrome_html(int $total, int $currentStep): string
-{
-    $stepLabel = $total === 1 ? '1 step' : $total . ' steps';
-    $progressPct = $total > 0 ? (int) round((($currentStep + 1) / $total) * 100) : 100;
-
-    return '<div class="reports-ops-wizard__brand-accent" aria-hidden="true"></div>'
-        . '<header class="reports-ops-wizard__header">'
-        . '<div class="reports-ops-wizard__header-main">'
-        . '<span class="reports-ops-wizard__brand-tag">'
-        . '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Golden Z Kids · Operations</span>'
-        . '<p class="reports-ops-wizard__header-title">Incident activity trail</p>'
-        . '</div>'
-        . '<div class="reports-ops-wizard__header-meta">'
-        . '<span class="reports-ops-wizard__meta-pill">' . htmlspecialchars($stepLabel, ENT_QUOTES, 'UTF-8') . '</span>'
-        . '<span class="reports-ops-wizard__meta-direction">'
-        . 'Oldest <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i> Newest'
-        . '</span>'
-        . '</div>'
-        . '</header>'
-        . '<div class="reports-ops-wizard__stepper">'
-        . '<div class="reports-ops-wizard__progress" aria-hidden="true">'
-        . '<div class="reports-ops-wizard__progress-track"></div>'
-        . '<div class="reports-ops-wizard__progress-fill" style="width:' . $progressPct . '%"></div>'
-        . '</div>';
-}
-
-function admin_incident_history_step_note_html(string $note): string
-{
-    if ($note !== '') {
-        return '<p class="reports-timeline-detail__note-text">' . htmlspecialchars($note, ENT_QUOTES, 'UTF-8') . '</p>';
-    }
-
-    return '<p class="reports-timeline-detail__note-text reports-timeline-detail__note-text--muted">No additional notes for this step.</p>';
-}
-
-function admin_incident_history_step_detail_html(
-    string $panelId,
-    string $tabId,
-    string $note
-): string {
-    return '<section id="' . htmlspecialchars($panelId, ENT_QUOTES, 'UTF-8')
-        . '" class="reports-timeline-detail" role="tabpanel" tabindex="-1" aria-labelledby="'
-        . htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8')
-        . '" hidden>'
-        . '<div class="reports-timeline-detail__note-inner">'
-        . admin_incident_history_step_note_html($note)
-        . '</div></section>';
-}
-
-function admin_incident_history_content_shell_html(
-    string $intent,
-    string $event,
-    string $phase,
-    string $at,
-    string $badgeLabel,
-    string $badgeClass,
-    string $noteHtml
-): string {
-    return '<div class="reports-ops-wizard__detail">'
-        . '<div class="reports-ops-wizard__detail-head">'
-        . '<p class="reports-ops-wizard__intent" data-history-intent>'
-        . '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>'
-        . '<span>' . htmlspecialchars($intent, ENT_QUOTES, 'UTF-8') . '</span>'
-        . '</p>'
-        . '<h4 class="reports-ops-wizard__content-title" data-history-content-title>'
-        . htmlspecialchars($event, ENT_QUOTES, 'UTF-8')
-        . '</h4>'
-        . '</div>'
-        . '<div class="reports-ops-step-facts" data-history-facts>'
-        . '<div class="reports-ops-fact reports-ops-fact--phase">'
-        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>'
-        . '<div class="reports-ops-fact__body">'
-        . '<span class="reports-ops-fact__label">Step</span>'
-        . '<span class="reports-ops-fact__value" data-history-phase>'
-        . htmlspecialchars($phase, ENT_QUOTES, 'UTF-8')
-        . '</span></div></div>'
-        . '<div class="reports-ops-fact reports-ops-fact--when">'
-        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-clock"></i></span>'
-        . '<div class="reports-ops-fact__body">'
-        . '<span class="reports-ops-fact__label">Recorded</span>'
-        . '<span class="reports-ops-fact__value mono" data-history-when>'
-        . htmlspecialchars($at !== '' ? $at : '—', ENT_QUOTES, 'UTF-8')
-        . '</span></div></div>'
-        . '<div class="reports-ops-fact reports-ops-fact--status">'
-        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-flag-checkered"></i></span>'
-        . '<div class="reports-ops-fact__body">'
-        . '<span class="reports-ops-fact__label">Outcome</span>'
-        . '<span class="reports-ops-fact__value">'
-        . '<span class="reports-timeline-detail__status reports-timeline-detail__status--'
-        . htmlspecialchars($badgeClass, ENT_QUOTES, 'UTF-8')
-        . '" data-history-status>'
-        . htmlspecialchars($badgeLabel, ENT_QUOTES, 'UTF-8')
-        . '</span></span></div></div>'
-        . '</div>'
-        . '<div class="reports-ops-notes-block">'
-        . '<p class="reports-ops-notes-block__label">'
-        . '<i class="fa-solid fa-file-lines" aria-hidden="true"></i> What was recorded'
-        . '</p>'
-        . '<div class="reports-ops-notes" data-history-notes>'
-        . $noteHtml
-        . '</div></div>'
-        . '</div>'
-        . '<div class="reports-timeline__detail-area reports-timeline__detail-area--sr" aria-hidden="true">';
-}
-
-/** Modal copy — operations history strip (audit trail for a single incident). */
+/** Modal copy — operation flow (audit trail for a single incident). */
 function admin_incident_timeline_section_title(): string
 {
-    return 'Operations history';
+    return 'Operation flow';
 }
 
 function admin_incident_timeline_section_description(): string
 {
-    return 'Steps run oldest to newest. Select a step to see what happened and any operations notes.';
+    return '';
 }
 
 function admin_incident_timeline_empty_message(): string
@@ -1201,119 +995,63 @@ function admin_incident_timeline_empty_message(): string
     return 'No operations history yet. Entries are added when a report is submitted or updated by operations.';
 }
 
-function admin_incident_compact_step_marker_html(int $stepNum, string $stepStatus): string
-{
-    if ($stepStatus === 'complete') {
-        return '<span class="reports-compact-step__marker reports-compact-step__marker--complete" aria-hidden="true">'
-            . '<svg class="reports-compact-step__check" viewBox="0 0 24 24" focusable="false">'
-            . '<path fill="currentColor" d="M9.55 16.2 5.35 12l-1.4 1.4 5.6 5.6 12.05-12.05-1.4-1.4-10.65 10.65z"/>'
-            . '</svg></span>';
-    }
-
-    return '<span class="reports-compact-step__marker reports-compact-step__marker--progress" aria-hidden="true">'
-        . '<span class="reports-compact-step__num">' . $stepNum . '</span></span>';
-}
-
 /**
- * Compact horizontal stepper + detail panel for operations history.
+ * Operation flow table (oldest → newest).
  *
  * @param list<array<string, mixed>> $history
+ * @param array<string, mixed> $report
  */
-function admin_incident_history_stepper_html(array $history, string $reportStatus): string
+function admin_incident_history_stepper_html(array $history, array $report): string
 {
     if ($history === []) {
-        return '<p class="reports-timeline__empty">' . htmlspecialchars(
+        return '<p class="reports-op-flow__empty">' . htmlspecialchars(
             admin_incident_timeline_empty_message(),
             ENT_QUOTES,
             'UTF-8'
         ) . '</p>';
     }
 
-    $total = count($history);
-    $currentStep = max(0, $total - 1);
-    $trackParts = [];
-    $panels = [];
+    $rows = [];
 
     foreach ($history as $index => $entry) {
-        $stepStatus = admin_incident_history_step_status($index, $total, $reportStatus);
-        $isCurrent = $index === $currentStep;
-        if ($isCurrent) {
-            $stepStatus = 'progress';
-        } elseif ($index < $currentStep) {
-            $stepStatus = 'complete';
-        }
-
-        $event = (string) ($entry['event'] ?? 'Update');
-        $at = (string) ($entry['at'] ?? '');
+        $event = trim((string) ($entry['event'] ?? 'Update'));
         $note = trim((string) ($entry['note'] ?? ''));
+        $parts = admin_incident_history_datetime_parts((string) ($entry['at'] ?? ''));
         $stepNum = $index + 1;
-        $panelId = 'reports-history-step-' . $stepNum;
-        $tabId = $panelId . '-tab';
-        $phase = admin_incident_history_step_phase_label($index, $total);
-        $intent = admin_incident_history_step_intent_label($index, $total);
-        $badge = admin_incident_history_step_badge_label($index, $total, $stepStatus);
-        $badgeClass = $stepStatus === 'progress' ? 'current' : 'completed';
-        $ariaLabel = $phase . ': ' . $event . ($at !== '' ? ' — ' . $at : '');
+        $title = 'Step ' . $stepNum . ' — ' . $event;
+        $description = $note !== '' ? $note : '—';
+        $action = $event;
 
-        $trackParts[] = '<div class="reports-timeline__item">'
-            . '<button type="button" class="reports-compact-step reports-compact-step--'
-            . htmlspecialchars($stepStatus, ENT_QUOTES, 'UTF-8')
-            . ($isCurrent ? ' is-active' : '')
-            . '" role="tab" id="' . htmlspecialchars($tabId, ENT_QUOTES, 'UTF-8')
-            . '" aria-controls="' . htmlspecialchars($panelId, ENT_QUOTES, 'UTF-8')
-            . '" aria-label="' . htmlspecialchars($ariaLabel, ENT_QUOTES, 'UTF-8')
-            . '" title="' . htmlspecialchars($event, ENT_QUOTES, 'UTF-8')
-            . '" aria-selected="' . ($isCurrent ? 'true' : 'false') . '" tabindex="'
-            . ($isCurrent ? '0' : '-1') . '" data-step-index="' . $index
-            . '" data-event-title="' . htmlspecialchars($event, ENT_QUOTES, 'UTF-8')
-            . '" data-step-intent="' . htmlspecialchars($intent, ENT_QUOTES, 'UTF-8')
-            . '" data-step-phase="' . htmlspecialchars($phase, ENT_QUOTES, 'UTF-8')
-            . '" data-step-at="' . htmlspecialchars($at, ENT_QUOTES, 'UTF-8')
-            . '" data-step-badge="' . htmlspecialchars($badge, ENT_QUOTES, 'UTF-8')
-            . '" data-step-badge-class="' . htmlspecialchars($badgeClass, ENT_QUOTES, 'UTF-8')
-            . '">'
-            . admin_incident_compact_step_marker_html($stepNum, $stepStatus)
-            . '<span class="reports-compact-step__label reports-compact-step__label--'
-            . htmlspecialchars($stepStatus, ENT_QUOTES, 'UTF-8')
-            . ($isCurrent ? ' is-active' : '')
-            . '">' . htmlspecialchars($phase, ENT_QUOTES, 'UTF-8') . '</span>'
-            . '</button></div>';
-
-        if ($index < $total - 1) {
-            $trackParts[] = admin_incident_history_step_connector_html();
-        }
-
-        $panels[] = admin_incident_history_step_detail_html($panelId, $tabId, $note);
+        $rows[] = '<tr class="reports-op-flow__row">'
+            . '<td class="reports-op-flow__when">'
+            . '<span class="reports-op-flow__date">' . htmlspecialchars($parts['date'], ENT_QUOTES, 'UTF-8') . '</span>'
+            . '<span class="reports-op-flow__time">' . htmlspecialchars($parts['time'], ENT_QUOTES, 'UTF-8') . '</span>'
+            . '</td>'
+            . '<td class="reports-op-flow__rule" aria-hidden="true"></td>'
+            . '<td class="reports-op-flow__step">'
+            . '<span class="reports-op-flow__step-title">' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</span>'
+            . '<span class="reports-op-flow__step-desc">' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '</span>'
+            . '</td>'
+            . '<td class="reports-op-flow__action">' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8') . '</td>'
+            . '</tr>';
     }
 
-    $current = $history[$currentStep];
-    $currentEvent = (string) ($current['event'] ?? 'Operations update');
-    $currentAt = (string) ($current['at'] ?? '');
-    $currentNote = trim((string) ($current['note'] ?? ''));
-    $currentPhase = admin_incident_history_step_phase_label($currentStep, $total);
-    $currentIntent = admin_incident_history_step_intent_label($currentStep, $total);
-    $currentBadge = admin_incident_history_step_badge_label($currentStep, $total, 'progress');
-    $currentBadgeClass = 'current';
+    $statusLabel = (string) ($report['status_label'] ?? admin_incident_status_label((string) ($report['status'] ?? '')));
+    $rows[] = '<tr class="reports-op-flow__row reports-op-flow__row--status">'
+        . '<td class="reports-op-flow__when"><span class="reports-op-flow__date">—</span></td>'
+        . '<td class="reports-op-flow__rule" aria-hidden="true"></td>'
+        . '<td class="reports-op-flow__status" colspan="2">'
+        . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8')
+        . '</td></tr>';
 
-    return '<div class="reports-process-timeline reports-ops-wizard" data-process-timeline data-current-step="'
-        . $currentStep
-        . '" data-total-steps="' . $total . '">'
-        . admin_incident_history_wizard_chrome_html($total, $currentStep)
-        . '<div class="reports-timeline__scroll" role="region" aria-label="Timeline steps" tabindex="0">'
-        . '<div class="reports-timeline__track reports-timeline__track--compact" role="tablist">'
-        . implode('', $trackParts)
-        . '</div></div></div>'
-        . admin_incident_history_content_shell_html(
-            $currentIntent,
-            $currentEvent,
-            $currentPhase,
-            $currentAt,
-            $currentBadge,
-            $currentBadgeClass,
-            admin_incident_history_step_note_html($currentNote)
-        )
-        . '<div class="reports-timeline__panels">' . implode('', $panels) . '</div>'
-        . '</div></div>';
+    $header = '<thead><tr class="reports-op-flow__head">'
+        . '<th scope="col" class="reports-op-flow__col-when">Recorded</th>'
+        . '<th scope="col" class="reports-op-flow__col-rule" aria-hidden="true"></th>'
+        . '<th scope="col" class="reports-op-flow__col-step">Step</th>'
+        . '<th scope="col" class="reports-op-flow__col-action">Action</th>'
+        . '</tr></thead>';
+
+    return '<table class="reports-op-flow__table">' . $header . '<tbody>' . implode('', $rows) . '</tbody></table>';
 }
 
 /**

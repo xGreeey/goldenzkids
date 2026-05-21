@@ -421,421 +421,133 @@
         applyFilters();
     }
 
-    const CLOSED_STATUSES = ['accomplished', 'denied'];
-
-    function historyStepStatus(index, total, reportStatus) {
-        if (total <= 0) return 'incomplete';
-        if (index < total - 1) return 'complete';
-        return CLOSED_STATUSES.includes(reportStatus) ? 'complete' : 'progress';
-    }
-
-    function historyEventIcon(event) {
-        const lower = String(event || '').toLowerCase();
-        if (lower.includes('submitted')) return 'fa-file-lines';
-        if (lower.includes('assigned')) return 'fa-user-check';
-        if (lower.includes('status')) return 'fa-flag';
-        return 'fa-clock-rotate-left';
-    }
-
-    function historyStepPhaseLabel(index, total) {
-        if (total <= 1) return 'Latest update';
-        if (index === 0) return 'Initial filing';
-        if (index === total - 1) return 'Latest update';
-        return 'Follow-up';
-    }
-
-    function historyStepIntentLabel(index, total) {
-        if (total <= 1) return 'This is the latest record on file for this incident.';
-        if (index === 0) return 'Head guard submitted the incident to operations.';
-        if (index === total - 1) {
-            return 'Most recent operations update — current point in the audit trail.';
+    function historyDatetimeParts(at) {
+        const raw = String(at || '').trim();
+        if (!raw) {
+            return { date: '—', time: '' };
         }
-        return 'Operations recorded a follow-up action on this report.';
+        const m = raw.match(/^(.+?),\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*$/);
+        if (m) {
+            return { date: m[1].trim(), time: m[2].trim() };
+        }
+        return { date: raw, time: '' };
     }
 
-    function historyStepBadgeLabel(index, total, stepStatus) {
-        if (stepStatus === 'progress' || index === total - 1) return 'Current';
-        return 'Completed';
+    function cellText(value) {
+        const v = String(value ?? '').trim();
+        return escapeHtml(v !== '' ? v : '—');
     }
 
-    function buildTimelineNoteHtml(note) {
-        return note
-            ? '<p class="reports-timeline-detail__note-text">' + escapeHtml(note) + '</p>'
-            : '<p class="reports-timeline-detail__note-text reports-timeline-detail__note-text--muted">No additional notes for this step.</p>';
-    }
-
-    function buildTimelineDetailPanel(panelId, tabId, note) {
-        return (
-            '<section id="' +
-            escapeHtml(panelId) +
-            '" class="reports-timeline-detail" role="tabpanel" tabindex="-1" aria-labelledby="' +
-            escapeHtml(tabId) +
-            '" hidden>' +
-            '<div class="reports-timeline-detail__note-inner">' +
-            buildTimelineNoteHtml(note) +
-            '</div></section>'
-        );
-    }
-
-    function historyWizardChromeHtml(total, currentStep) {
-        const stepLabel = total === 1 ? '1 step' : total + ' steps';
-        const progressPct = total > 0 ? Math.round(((currentStep + 1) / total) * 100) : 100;
+    function sheetField(label, value, modifier) {
+        const trimmed = String(value ?? '').trim();
+        const mod = modifier ? ' reports-detail-sheet__field--' + modifier : '';
+        const empty = trimmed === '' ? ' is-empty' : '';
 
         return (
-            '<div class="reports-ops-wizard__brand-accent" aria-hidden="true"></div>' +
-            '<header class="reports-ops-wizard__header">' +
-            '<div class="reports-ops-wizard__header-main">' +
-            '<span class="reports-ops-wizard__brand-tag">' +
-            '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Golden Z Kids · Operations</span>' +
-            '<p class="reports-ops-wizard__header-title">Incident activity trail</p>' +
-            '</div>' +
-            '<div class="reports-ops-wizard__header-meta">' +
-            '<span class="reports-ops-wizard__meta-pill">' +
-            escapeHtml(stepLabel) +
+            '<div class="reports-detail-sheet__field' +
+            mod +
+            empty +
+            '">' +
+            '<span class="reports-detail-sheet__label">' +
+            escapeHtml(label) +
             '</span>' +
-            '<span class="reports-ops-wizard__meta-direction">' +
-            'Oldest <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i> Newest' +
-            '</span></div></header>' +
-            '<div class="reports-ops-wizard__stepper">' +
-            '<div class="reports-ops-wizard__progress" aria-hidden="true">' +
-            '<div class="reports-ops-wizard__progress-track"></div>' +
-            '<div class="reports-ops-wizard__progress-fill" style="width:' +
-            progressPct +
-            '%"></div></div>'
+            '<span class="reports-detail-sheet__value">' +
+            cellText(trimmed) +
+            '</span></div>'
         );
     }
 
-    function historyContentShellHtml(intent, event, phase, at, badgeLabel, badgeClass, noteHtml) {
+    function buildModalDetailsHtml(p) {
+        let headGuard = String(p.head_guard_name || p.submitter_name || '').trim();
+        const headGuardId = String(p.head_guard_id || p.submitter_id || '').trim();
+        if (headGuard && headGuardId) {
+            headGuard += ' (' + headGuardId + ')';
+        } else if (!headGuard && headGuardId) {
+            headGuard = headGuardId;
+        }
+
+        const person = String(p.person_involved || p.guard_involved || '').trim();
+
         return (
-            '<div class="reports-ops-wizard__detail">' +
-            '<div class="reports-ops-wizard__detail-head">' +
-            '<p class="reports-ops-wizard__intent" data-history-intent>' +
-            '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>' +
-            '<span>' +
-            escapeHtml(intent) +
-            '</span></p>' +
-            '<h4 class="reports-ops-wizard__content-title" data-history-content-title>' +
-            escapeHtml(event) +
-            '</h4></div>' +
-            '<div class="reports-ops-step-facts" data-history-facts>' +
-            '<div class="reports-ops-fact reports-ops-fact--phase">' +
-            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>' +
-            '<div class="reports-ops-fact__body">' +
-            '<span class="reports-ops-fact__label">Step</span>' +
-            '<span class="reports-ops-fact__value" data-history-phase>' +
-            escapeHtml(phase) +
-            '</span></div></div>' +
-            '<div class="reports-ops-fact reports-ops-fact--when">' +
-            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-clock"></i></span>' +
-            '<div class="reports-ops-fact__body">' +
-            '<span class="reports-ops-fact__label">Recorded</span>' +
-            '<span class="reports-ops-fact__value mono" data-history-when>' +
-            escapeHtml(at || '—') +
-            '</span></div></div>' +
-            '<div class="reports-ops-fact reports-ops-fact--status">' +
-            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-flag-checkered"></i></span>' +
-            '<div class="reports-ops-fact__body">' +
-            '<span class="reports-ops-fact__label">Outcome</span>' +
-            '<span class="reports-ops-fact__value">' +
-            '<span class="reports-timeline-detail__status reports-timeline-detail__status--' +
-            escapeHtml(badgeClass) +
-            '" data-history-status>' +
-            escapeHtml(badgeLabel) +
-            '</span></span></div></div></div>' +
-            '<div class="reports-ops-notes-block">' +
-            '<p class="reports-ops-notes-block__label">' +
-            '<i class="fa-solid fa-file-lines" aria-hidden="true"></i> What was recorded</p>' +
-            '<div class="reports-ops-notes" data-history-notes>' +
-            noteHtml +
-            '</div></div></div>' +
-            '<div class="reports-timeline__detail-area reports-timeline__detail-area--sr" aria-hidden="true">'
+            '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
+            '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
+            '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
+            sheetField('Post', p.site) +
+            sheetField('Head guard', headGuard) +
+            sheetField('Guard', person) +
+            '</div></section>' +
+            '<section class="reports-detail-sheet__section" aria-label="Incident">' +
+            '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
+            sheetField('Incident', p.incident_type, 'incident') +
+            sheetField('Description', p.summary, 'description') +
+            sheetField('Severity', p.severity, 'severity') +
+            '</div></section></div>'
         );
     }
 
-    function syncHistoryContent(wrapper, btn, panel) {
-        const intentEl = wrapper.querySelector('[data-history-intent]');
-        const titleEl = wrapper.querySelector('[data-history-content-title]');
-        const phaseEl = wrapper.querySelector('[data-history-phase]');
-        const whenEl = wrapper.querySelector('[data-history-when]');
-        const statusEl = wrapper.querySelector('[data-history-status]');
-        const notesEl = wrapper.querySelector('[data-history-notes]');
-
-        if (intentEl) {
-            const intentText = btn.dataset.stepIntent || '';
-            const intentSpan = intentEl.querySelector('span');
-            if (intentSpan) {
-                intentSpan.textContent = intentText;
-            } else {
-                intentEl.textContent = intentText;
-            }
-        }
-        if (titleEl) {
-            titleEl.textContent = btn.dataset.eventTitle || 'Operations update';
-        }
-        if (phaseEl) {
-            phaseEl.textContent = btn.dataset.stepPhase || '';
-        }
-        if (whenEl) {
-            whenEl.textContent = btn.dataset.stepAt || '—';
-        }
-        if (statusEl) {
-            const badgeClass = btn.dataset.stepBadgeClass || 'completed';
-            const badge = btn.dataset.stepBadge || 'Completed';
-            statusEl.className =
-                'reports-timeline-detail__status reports-timeline-detail__status--' + badgeClass;
-            statusEl.textContent = badge;
-        }
-        if (notesEl && panel) {
-            const inner = panel.querySelector('.reports-timeline-detail__note-inner');
-            notesEl.innerHTML = inner ? inner.innerHTML : buildTimelineNoteHtml('');
-        }
-    }
-
-    function compactStepMarkerHtml(stepNum, stepStatus) {
-        if (stepStatus === 'complete') {
+    function buildOperationFlowHtml(history, p) {
+        if (!Array.isArray(history) || history.length === 0) {
             return (
-                '<span class="reports-compact-step__marker reports-compact-step__marker--complete" aria-hidden="true">' +
-                '<svg class="reports-compact-step__check" viewBox="0 0 24 24" focusable="false">' +
-                '<path fill="currentColor" d="M9.55 16.2 5.35 12l-1.4 1.4 5.6 5.6 12.05-12.05-1.4-1.4-10.65 10.65z"/>' +
-                '</svg></span>'
+                '<p class="reports-op-flow__empty">No operations history yet. Entries are added when a report is submitted or updated by operations.</p>'
             );
         }
-        return (
-            '<span class="reports-compact-step__marker reports-compact-step__marker--progress" aria-hidden="true">' +
-            '<span class="reports-compact-step__num">' +
-            stepNum +
-            '</span></span>'
-        );
-    }
 
-    function updateCompactStepButton(btn, index, total, status, isCurrent) {
-        const stepNum = index + 1;
+        let rows = '';
+        history.forEach((entry, index) => {
+            const event = String(entry.event || 'Update').trim();
+            const note = String(entry.note || '').trim();
+            const parts = historyDatetimeParts(entry.at);
+            const stepNum = index + 1;
+            const title = 'Step ' + stepNum + ' — ' + event;
+            const description = note !== '' ? note : '—';
 
-        btn.className =
-            'reports-compact-step reports-compact-step--' + status + (isCurrent ? ' is-active' : '');
-        btn.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
-        btn.tabIndex = isCurrent ? 0 : -1;
-
-        const marker = btn.querySelector('.reports-compact-step__marker');
-        if (marker) {
-            marker.outerHTML = compactStepMarkerHtml(stepNum, status);
-        }
-
-        const labelEl = btn.querySelector('.reports-compact-step__label');
-        if (labelEl) {
-            labelEl.className =
-                'reports-compact-step__label reports-compact-step__label--' +
-                status +
-                (isCurrent ? ' is-active' : '');
-        }
-    }
-
-    function buildTimelineStepItem(entry, index, total, reportStatus, currentStep) {
-        let stepStatus = historyStepStatus(index, total, reportStatus);
-        const isCurrent = index === currentStep;
-        if (isCurrent) {
-            stepStatus = 'progress';
-        } else if (index < currentStep) {
-            stepStatus = 'complete';
-        }
-
-        const event = entry.event || 'Update';
-        const at = entry.at || '';
-        const note = (entry.note || '').trim();
-        const stepNum = index + 1;
-        const panelId = 'reports-history-step-' + stepNum;
-        const tabId = panelId + '-tab';
-        const phase = historyStepPhaseLabel(index, total);
-        const intent = historyStepIntentLabel(index, total);
-        const badge = historyStepBadgeLabel(index, total, stepStatus);
-        const badgeClass = stepStatus === 'progress' ? 'current' : 'completed';
-        const ariaLabel = phase + ': ' + event + (at ? ' — ' + at : '');
-
-        const card =
-            '<div class="reports-timeline__item">' +
-            '<button type="button" class="reports-compact-step reports-compact-step--' +
-            escapeHtml(stepStatus) +
-            (isCurrent ? ' is-active' : '') +
-            '" role="tab" id="' +
-            escapeHtml(tabId) +
-            '" aria-controls="' +
-            escapeHtml(panelId) +
-            '" aria-label="' +
-            escapeHtml(ariaLabel) +
-            '" title="' +
-            escapeHtml(event) +
-            '" aria-selected="' +
-            (isCurrent ? 'true' : 'false') +
-            '" tabindex="' +
-            (isCurrent ? '0' : '-1') +
-            '" data-step-index="' +
-            index +
-            '" data-event-title="' +
-            escapeHtml(event) +
-            '" data-step-intent="' +
-            escapeHtml(intent) +
-            '" data-step-phase="' +
-            escapeHtml(phase) +
-            '" data-step-at="' +
-            escapeHtml(at) +
-            '" data-step-badge="' +
-            escapeHtml(badge) +
-            '" data-step-badge-class="' +
-            escapeHtml(badgeClass) +
-            '">' +
-            compactStepMarkerHtml(stepNum, stepStatus) +
-            '<span class="reports-compact-step__label reports-compact-step__label--' +
-            escapeHtml(stepStatus) +
-            (isCurrent ? ' is-active' : '') +
-            '">' +
-            escapeHtml(phase) +
-            '</span></button></div>';
-
-        const connector =
-            index < total - 1
-                ? '<span class="reports-compact-step__connector" aria-hidden="true"><span class="reports-compact-step__connector-line"></span></span>'
-                : '';
-
-        const panel = buildTimelineDetailPanel(panelId, tabId, note);
-
-        return { card, connector, panel };
-    }
-
-    function initProcessTimeline(host) {
-        const root = host || stepperHost;
-        if (!root) return;
-
-        const wrapper = root.querySelector('[data-process-timeline]');
-        if (!wrapper) return;
-
-        const buttons = Array.from(wrapper.querySelectorAll('.reports-compact-step'));
-        const panels = Array.from(wrapper.querySelectorAll('.reports-timeline-detail'));
-        const total = buttons.length;
-        if (!total) return;
-
-        let current = parseInt(wrapper.dataset.currentStep, 10);
-        if (Number.isNaN(current) || current < 0 || current >= total) {
-            current = Math.max(0, total - 1);
-        }
-
-        function stepStatusForIndex(index) {
-            if (index < current) return 'complete';
-            if (index === current) return 'progress';
-            return 'complete';
-        }
-
-        function setStep(index, focusTab) {
-            if (index < 0 || index >= total) return;
-            current = index;
-            wrapper.dataset.currentStep = String(current);
-
-            const progressFill = wrapper.querySelector('.reports-ops-wizard__progress-fill');
-            if (progressFill && total > 0) {
-                progressFill.style.width = Math.round(((current + 1) / total) * 100) + '%';
-            }
-
-            buttons.forEach((btn, i) => {
-                const status = stepStatusForIndex(i);
-                const isCurrent = i === current;
-                const badgeClass = status === 'progress' ? 'current' : 'completed';
-                const badge = historyStepBadgeLabel(i, total, status);
-
-                updateCompactStepButton(btn, i, total, status, isCurrent);
-
-                btn.dataset.stepBadge = badge;
-                btn.dataset.stepBadgeClass = badgeClass;
-
-                if (panels[i]) {
-                    panels[i].hidden = true;
-                    panels[i].tabIndex = -1;
-                }
-            });
-
-            if (buttons[current]) {
-                syncHistoryContent(wrapper, buttons[current], panels[current]);
-            }
-
-            if (focusTab && buttons[current]) {
-                buttons[current].focus();
-            }
-        }
-
-        buttons.forEach((btn, i) => {
-            btn.addEventListener('click', () => setStep(i, false));
+            rows +=
+                '<tr class="reports-op-flow__row">' +
+                '<td class="reports-op-flow__when">' +
+                '<span class="reports-op-flow__date">' +
+                escapeHtml(parts.date) +
+                '</span>' +
+                '<span class="reports-op-flow__time">' +
+                escapeHtml(parts.time) +
+                '</span></td>' +
+                '<td class="reports-op-flow__rule" aria-hidden="true"></td>' +
+                '<td class="reports-op-flow__step">' +
+                '<span class="reports-op-flow__step-title">' +
+                escapeHtml(title) +
+                '</span>' +
+                '<span class="reports-op-flow__step-desc">' +
+                escapeHtml(description) +
+                '</span></td>' +
+                '<td class="reports-op-flow__action">' +
+                escapeHtml(event) +
+                '</td></tr>';
         });
 
-        wrapper.addEventListener('keydown', (e) => {
-            const onTab = e.target.closest('.reports-compact-step');
-            if (!onTab) return;
+        const statusLabel = String(p.status_label || p.status || '—');
+        rows +=
+            '<tr class="reports-op-flow__row reports-op-flow__row--status">' +
+            '<td class="reports-op-flow__when"><span class="reports-op-flow__date">—</span></td>' +
+            '<td class="reports-op-flow__rule" aria-hidden="true"></td>' +
+            '<td class="reports-op-flow__status" colspan="2">' +
+            escapeHtml(statusLabel) +
+            '</td></tr>';
 
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                setStep(current > 0 ? current - 1 : total - 1, true);
-            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                setStep(current < total - 1 ? current + 1 : 0, true);
-            } else if (e.key === 'Home') {
-                e.preventDefault();
-                setStep(0, true);
-            } else if (e.key === 'End') {
-                e.preventDefault();
-                setStep(total - 1, true);
-            }
-        });
+        const header =
+            '<thead><tr class="reports-op-flow__head">' +
+            '<th scope="col" class="reports-op-flow__col-when">Recorded</th>' +
+            '<th scope="col" class="reports-op-flow__col-rule" aria-hidden="true"></th>' +
+            '<th scope="col" class="reports-op-flow__col-step">Step</th>' +
+            '<th scope="col" class="reports-op-flow__col-action">Action</th>' +
+            '</tr></thead>';
 
-        setStep(current, false);
+        return '<table class="reports-op-flow__table">' + header + '<tbody>' + rows + '</tbody></table>';
     }
 
-    function renderHistoryStepper(history, reportStatus) {
-        if (!stepperHost) return;
-        if (!Array.isArray(history) || history.length === 0) {
-            stepperHost.innerHTML =
-                '<p class="reports-timeline__empty">No operations history yet. Entries are added when a report is submitted or updated by operations.</p>';
+    function renderHistoryStepper(history, p) {
+        if (!stepperHost) {
             return;
         }
-        const status = reportStatus || 'ongoing';
-        const total = history.length;
-        const currentStep = Math.max(0, total - 1);
-
-        const built = history.map((entry, index) =>
-            buildTimelineStepItem(entry, index, total, status, currentStep)
-        );
-
-        const trackHtml = built
-            .map((b, i) => b.card + (i < built.length - 1 ? b.connector : ''))
-            .join('');
-        const currentEntry = history[currentStep] || {};
-        const currentEvent = currentEntry.event || 'Operations update';
-        const currentAt = currentEntry.at || '';
-        const currentNote = (currentEntry.note || '').trim();
-        const currentPhase = historyStepPhaseLabel(currentStep, total);
-        const currentIntent = historyStepIntentLabel(currentStep, total);
-
-        stepperHost.innerHTML =
-            '<div class="reports-process-timeline reports-ops-wizard" data-process-timeline data-current-step="' +
-            currentStep +
-            '" data-total-steps="' +
-            total +
-            '">' +
-            historyWizardChromeHtml(total, currentStep) +
-            '<div class="reports-timeline__scroll" role="region" aria-label="Timeline steps" tabindex="0">' +
-            '<div class="reports-timeline__track reports-timeline__track--compact" role="tablist">' +
-            trackHtml +
-            '</div></div></div>' +
-            historyContentShellHtml(
-                currentIntent,
-                currentEvent,
-                currentPhase,
-                currentAt,
-                historyStepBadgeLabel(currentStep, total, 'progress'),
-                'current',
-                buildTimelineNoteHtml(currentNote)
-            ) +
-            '<div class="reports-timeline__panels">' +
-            built.map((b) => b.panel).join('') +
-            '</div></div></div>';
-
-        initProcessTimeline(stepperHost);
+        stepperHost.innerHTML = buildOperationFlowHtml(history, p || {});
     }
 
     function buildPrintHtml(p) {
@@ -963,63 +675,10 @@
     }
 
     function renderViewDetails(p) {
-        if (!viewDetails || !p) return;
-        const gridClass = 'reports-detail-grid reports-detail-grid--modal reports-detail-grid--compact';
-        const overview =
-            '<div class="reports-detail-item reports-detail-item--chip"><dt>Report scope</dt><dd>' +
-            categoryBadgeHtml(p) +
-            '</dd></div>' +
-            '<div class="reports-detail-item reports-detail-item--chip"><dt>Severity</dt><dd>' +
-            severityBadgeHtml(p.severity) +
-            '</dd></div>' +
-            '<div class="reports-detail-item reports-detail-item--when"><dt>Submitted</dt><dd class="mono">' +
-            escapeHtml(p.submitted_display || '—') +
-            '</dd></div>' +
-            '<div class="reports-detail-item reports-detail-item--when"><dt>Updated</dt><dd class="mono">' +
-            escapeHtml(p.updated_display || '—') +
-            '</dd></div>';
-        const assignment =
-            '<div class="reports-detail-item reports-detail-item--hg"><dt>Head guard</dt><dd>' +
-            modalHeadGuardCompactHtml(p) +
-            '</dd></div>' +
-            '<div class="reports-detail-item reports-detail-item--post"><dt>Post</dt><dd class="reports-detail-post">' +
-            escapeHtml(String(p.site || '').trim() || '—') +
-            '</dd></div>';
-        const incidentType = String(p.incident_type || '').trim();
-        const summary = String(p.summary || '').trim();
-        const narrative =
-            '<div class="reports-detail-group reports-detail-group--narrative" role="group" aria-label="Incident description">' +
-            '<h4 class="reports-detail-group__title">Incident</h4>' +
-            '<dl class="reports-detail-grid reports-detail-grid--modal reports-detail-grid--narrative">' +
-            '<div class="reports-detail-item reports-detail-item--about"><dt>What happened</dt>' +
-            '<dd class="reports-detail-about">' +
-            escapeHtml(incidentType || '—') +
-            '</dd></div>' +
-            '<div class="reports-detail-item reports-detail-item--notes"><dt>Report notes</dt>' +
-            '<dd class="reports-detail-notes' +
-            (summary ? '' : ' reports-detail-notes--empty') +
-            '">' +
-            escapeHtml(summary || '—') +
-            '</dd></div></dl></div>';
-
-        viewDetails.innerHTML =
-            '<div class="reports-detail-group reports-detail-group--overview" role="group" aria-label="Classification and dates">' +
-            '<h4 class="reports-detail-group__title">Overview</h4>' +
-            '<dl class="' +
-            gridClass +
-            '">' +
-            overview +
-            '</dl></div>' +
-            '<hr class="reports-detail-separator" aria-hidden="true">' +
-            '<div class="reports-detail-group reports-detail-group--assignment" role="group" aria-label="Assignment">' +
-            '<h4 class="reports-detail-group__title">Assignment</h4>' +
-            '<dl class="' +
-            gridClass +
-            '">' +
-            assignment +
-            '</dl></div>' +
-            '<hr class="reports-detail-separator" aria-hidden="true">' +
-            narrative;
+        if (!viewDetails || !p) {
+            return;
+        }
+        viewDetails.innerHTML = buildModalDetailsHtml(p);
     }
 
     const editPlaceholder = document.getElementById('modal-edit-placeholder');
@@ -1175,7 +834,7 @@
         }
 
         renderViewDetails(p);
-        renderHistoryStepper(p.history, p.status);
+        renderHistoryStepper(p.history, p);
         populateEditForm(p);
 
         if (modalGotoEdit) modalGotoEdit.hidden = false;
@@ -1428,7 +1087,6 @@
             r.el.classList.toggle('is-selected', r.id === currentIncidentId);
         });
         setModalMode(currentMode);
-        initProcessTimeline(stepperHost);
     }
     }
 

@@ -20,7 +20,7 @@ Roles are stored as a **number on `users`** (no `roles` table after migration 00
 
 | Value | Role | Portal |
 |------:|------|--------|
-| **0** | Security guard | `guard/*` |
+| **0** | Head guard | `guard/*` |
 | **1** | Administrator | `admin/*` |
 | **2** | Super admin | `superadmin/*` (accounts, audit) + `admin/*` |
 
@@ -52,7 +52,7 @@ c:\xampp\php\php.exe database\scripts\create_user.php ABC-2001-0099 654321 1 gua
 c:\xampp\php\php.exe database\scripts\create_user.php ABC-2001-0001 654321 superadmin
 ```
 
-Arguments: `company_id` `password` `role` `[email]` — role is `0`, `1`, `2` or `guard`, `admin`, `superadmin`
+Arguments: `company_id` `password` `role` `[email]` — role is `0`, `1`, `2` or `headguard`, `admin`, `superadmin`
 
 ## Hash a password manually
 

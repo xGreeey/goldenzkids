@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Role 0 is the security guard portal (guard/*). No data migration required.
+ * Role 0 = head guard (guard/*). No data migration — do not promote role 0 to admin.
  */
 return static function (mysqli $conn): void {
     $role = $conn->query("SHOW COLUMNS FROM users LIKE 'role'");
@@ -12,5 +12,5 @@ return static function (mysqli $conn): void {
         return;
     }
 
-    echo "  [skip] Role 0 retained for security guard portal accounts.\n";
+    echo "  [skip] Role 0 = head guard; portal at guard/*.\n";
 };

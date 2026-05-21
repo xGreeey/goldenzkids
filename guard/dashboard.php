@@ -80,11 +80,11 @@ if ($memoResult) {
 }
 
 $guardNavActive = 'dashboard';
-guard_layout_head('Guard Dashboard');
+guard_layout_head('Head Guard Dashboard');
 ?>
         <div class="sa-dashboard">
             <header class="page-header sa-dashboard__hero">
-                <h1 class="page-title">Guard Dashboard</h1>
+                <h1 class="page-title">Head Guard Dashboard</h1>
                 <p class="page-subtitle">Your post assignment, secured memos, and daily guard report activity at a glance.</p>
             </header>
 

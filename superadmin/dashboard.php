@@ -107,7 +107,7 @@ $superadminMobileTitle = 'System Dashboard';
                                     <path d="m8.5 12.5 2.2 2.2 4.8-5.2"></path>
                                 </svg>
                                 <?= e((string) $userCounts['active']) ?> active ·
-                                <?= e((string) $userCounts['guard']) ?> guards
+                                <?= e((string) $userCounts['guard']) ?> head guards
                             </p>
                         </div>
                     </article>

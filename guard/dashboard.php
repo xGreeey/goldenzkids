@@ -9,19 +9,6 @@ auth_require_permission('guard.dashboard.view');
 
 $companyId = (string) $_SESSION['company_id'];
 
-$postAssigned = '—';
-$profile = db_query(
-    $conn,
-    'SELECT Post_Assigned, First_Name, Last_Name FROM guards WHERE Company_ID = ? LIMIT 1',
-    's',
-    [$companyId]
-);
-$row = $profile ? $profile->fetch(PDO::FETCH_ASSOC) : false;
-if ($row) {
-    $post = trim((string) ($row['Post_Assigned'] ?? ''));
-    $postAssigned = $post !== '' ? $post : '—';
-}
-
 $unreadMemos = 0;
 $unreadQuery = db_query(
     $conn,
@@ -33,29 +20,7 @@ if ($unreadQuery) {
     $unreadMemos = (int) ($unreadQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
-$reportsToday = 0;
-$todayQuery = db_query(
-    $conn,
-    'SELECT COUNT(*) AS total FROM dgd WHERE Company_ID = ? AND DATE(Time_of_Report) = CURDATE()',
-    's',
-    [$companyId]
-);
-if ($todayQuery) {
-    $reportsToday = (int) ($todayQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
-}
-
-$pendingReports = 0;
-$pendingQuery = db_query(
-    $conn,
-    "SELECT COUNT(*) AS total FROM dgd WHERE Company_ID = ? AND Status = 'Pending'",
-    's',
-    [$companyId]
-);
-if ($pendingQuery) {
-    $pendingReports = (int) ($pendingQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
-}
-
-$totalReports = 0;
+$reportsSubmitted = 0;
 $totalQuery = db_query(
     $conn,
     'SELECT COUNT(*) AS total FROM dgd WHERE Company_ID = ?',
@@ -63,7 +28,7 @@ $totalQuery = db_query(
     [$companyId]
 );
 if ($totalQuery) {
-    $totalReports = (int) ($totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+    $reportsSubmitted = (int) ($totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
 $guardNavActive = 'dashboard';
@@ -78,13 +43,6 @@ guard_layout_head('Dashboard');
                 <div class="guard-ui-metrics">
                     <article class="guard-ui-metric-card">
                         <div class="guard-ui-metric-card__head">
-                            <span class="guard-ui-metric-card__label">Post assigned</span>
-                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('map-pin', 18) ?></span>
-                        </div>
-                        <p class="guard-ui-metric-card__value guard-ui-metric-card__value--text"><?= e($postAssigned) ?></p>
-                    </article>
-                    <article class="guard-ui-metric-card">
-                        <div class="guard-ui-metric-card__head">
                             <span class="guard-ui-metric-card__label">Unread memos</span>
                             <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('bell', 18) ?></span>
                         </div>
@@ -92,18 +50,10 @@ guard_layout_head('Dashboard');
                     </article>
                     <article class="guard-ui-metric-card">
                         <div class="guard-ui-metric-card__head">
-                            <span class="guard-ui-metric-card__label">Reports today</span>
+                            <span class="guard-ui-metric-card__label">Reports submitted</span>
                             <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('clipboard', 18) ?></span>
                         </div>
-                        <p class="guard-ui-metric-card__value"><?= e((string) $reportsToday) ?></p>
-                    </article>
-                    <article class="guard-ui-metric-card">
-                        <div class="guard-ui-metric-card__head">
-                            <span class="guard-ui-metric-card__label">Awaiting review</span>
-                            <span class="guard-ui-metric-card__icon"><?= guard_ui_icon('clock', 18) ?></span>
-                        </div>
-                        <p class="guard-ui-metric-card__value"><?= e((string) $pendingReports) ?></p>
-                        <p class="guard-ui-metric-card__hint"><?= e((string) $totalReports) ?> total submitted</p>
+                        <p class="guard-ui-metric-card__value"><?= e((string) $reportsSubmitted) ?></p>
                     </article>
                 </div>
             </section>

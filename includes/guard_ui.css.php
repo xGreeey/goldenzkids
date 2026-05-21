@@ -498,18 +498,6 @@ function guard_ui_styles(): void
             letter-spacing: -0.02em;
         }
 
-        body.guard-portal .guard-ui-metric-card__value--text {
-            font-size: 1.25rem;
-            word-break: break-word;
-        }
-
-        body.guard-portal .guard-ui-metric-card__hint {
-            margin: 0;
-            font-size: 0.625rem;
-            color: var(--guard-ui-faint);
-            line-height: 1.3;
-        }
-
         /* Quick action command grid */
         body.guard-portal .guard-ui-actions {
             display: grid;

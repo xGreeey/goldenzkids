@@ -76,11 +76,10 @@ guard_layout_head('Inbox');
         <section class="guard-hub-panel<?= $inboxTab === 'memos' ? ' is-active' : '' ?>" data-guard-hub-panel="memos" role="tabpanel">
             <section class="guard-card" aria-labelledby="guard-inbox-memos-heading">
                 <div class="guard-card__head">
-                    <span class="guard-card__icon" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
                     <h2 id="guard-inbox-memos-heading" class="panel-title">Memos</h2>
                 </div>
                 <?php if ($memos === []): ?>
-                    <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No memos have been sent to you yet.</p>
+                    <p class="empty-state">No memos have been sent to you yet.</p>
                 <?php else: ?>
                     <ul class="guard-memo-list">
                         <?php foreach ($memos as $memo): ?>
@@ -119,7 +118,6 @@ guard_layout_head('Inbox');
         <section class="guard-hub-panel<?= $inboxTab === 'reports' ? ' is-active' : '' ?>" data-guard-hub-panel="reports" role="tabpanel">
             <section class="guard-card" aria-labelledby="guard-inbox-reports-heading">
                 <div class="guard-card__head">
-                    <span class="guard-card__icon" aria-hidden="true"><i class="fa-solid fa-clipboard-list"></i></span>
                     <h2 id="guard-inbox-reports-heading" class="panel-title">Report tracking</h2>
                     <a href="submit-report.php" class="btn-primary">
                         <i class="fa-solid fa-plus" aria-hidden="true"></i> New report
@@ -130,7 +128,7 @@ guard_layout_head('Inbox');
                     Status matches the admin dashboard. Refresh to see updates.
                 </p>
                 <?php if ($reports === []): ?>
-                    <p class="empty-state"><i class="fa-solid fa-folder-open" aria-hidden="true"></i>No reports submitted yet.</p>
+                    <p class="empty-state">No reports submitted yet.</p>
                 <?php else: ?>
                     <ul class="guard-report-list">
                         <?php foreach ($reports as $report): ?>

@@ -150,6 +150,26 @@ function guard_hub_styles(): void
             display: none;
         }
 
+        /* Inbox / hub stack — compact headers and empty states without icons */
+        body.guard-portal .guard-section-stack .guard-card__icon {
+            display: none;
+        }
+
+        body.guard-portal .guard-section-stack .guard-card__head {
+            margin: -2px 0 10px;
+            padding-bottom: 8px;
+        }
+
+        body.guard-portal .guard-section-stack .empty-state {
+            display: block;
+            text-align: left;
+            padding: 12px 14px;
+        }
+
+        body.guard-portal .guard-section-stack .empty-state i {
+            display: none;
+        }
+
         /* Responsive page grids */
         body.guard-portal .guard-page-grid {
             display: grid;

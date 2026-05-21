@@ -251,7 +251,13 @@ function guard_hub_scripts(): void
         function startCamera() {
             if (!navigator.mediaDevices || !video) return;
             stopCamera();
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    aspectRatio: { ideal: 0.75 }
+                },
+                audio: false
+            })
                 .then(function (s) {
                     stream = s;
                     video.srcObject = s;

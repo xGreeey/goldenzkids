@@ -10,6 +10,12 @@ function guard_ui_styles(): void
     $loaded = true;
     ?>
         /* Guard enterprise UI — mobile 390px, desktop max 440px centered canvas */
+        html:has(body.guard-portal),
+        body.guard-portal {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body.guard-portal {
             --guard-ui-primary: #0f172a;
             --guard-ui-secondary: #475569;
@@ -39,7 +45,9 @@ function guard_ui_styles(): void
             max-width: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            min-height: 100dvh;
+            height: 100dvh;
+            max-height: 100dvh;
+            min-height: 0;
             background: var(--guard-ui-gradient);
             box-sizing: border-box;
             overflow: hidden;
@@ -47,11 +55,11 @@ function guard_ui_styles(): void
             color: var(--guard-ui-primary);
         }
 
-        /* Sticky enterprise header */
+        /* Fixed header — only .guard-app__scroll scrolls */
         body.guard-portal .guard-app__topbar {
-            position: sticky;
-            top: 0;
+            position: relative;
             z-index: 50;
+            flex: 0 0 auto;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -119,7 +127,7 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__main {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             display: flex;
             flex-direction: column;
             min-height: 0;
@@ -132,10 +140,13 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__scroll {
-            flex: 1 1 auto;
+            flex: 1 1 0;
+            width: 100%;
             min-height: 0;
+            height: 100%;
             overflow-x: hidden;
             overflow-y: auto;
+            overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
             padding: var(--guard-ui-pad);
             padding-bottom: max(var(--guard-ui-pad), env(safe-area-inset-bottom, 0px));

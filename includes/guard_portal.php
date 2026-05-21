@@ -109,12 +109,38 @@ function guard_portal_status_badge_class(string $status): string
     };
 }
 
-/** Post assigned to the logged-in guard (from guards.Post_Assigned). */
+/** Post assigned to the logged-in head guard (callout assignment, then guards roster). */
 function guard_portal_assigned_post(PDO $conn, string $companyId): string
 {
     if ($companyId === '') {
         return '';
     }
+
+    if (
+        db_table_exists($conn, 'callout_posts')
+        && db_table_exists($conn, 'callout_head_guards')
+        && db_table_exists($conn, 'callout_post_assignments')
+    ) {
+        $callout = db_fetch_one(
+            $conn,
+            'SELECT p.post_name
+             FROM callout_post_assignments a
+             INNER JOIN callout_posts p ON p.post_id = a.post_id AND p.is_active = 1
+             INNER JOIN callout_head_guards hg ON hg.head_guard_id = a.head_guard_id AND hg.is_active = 1
+             WHERE hg.company_id = ? AND a.is_active = 1
+             ORDER BY a.assigned_at DESC
+             LIMIT 1',
+            's',
+            [$companyId]
+        );
+        if ($callout !== null) {
+            $name = trim((string) ($callout['post_name'] ?? ''));
+            if ($name !== '') {
+                return $name;
+            }
+        }
+    }
+
     $row = db_fetch_one(
         $conn,
         'SELECT Post_Assigned FROM guards WHERE Company_ID = ? LIMIT 1',

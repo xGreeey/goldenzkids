@@ -30,6 +30,10 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
             Duty detail
         </a>
+        <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
+            <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+            Head guard posts
+        </a>
     </nav>
 
     <div class="sidebar-footer">

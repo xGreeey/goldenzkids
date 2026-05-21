@@ -1,95 +1,68 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/admin_incident_status.php';
+require_once __DIR__ . '/admin_incident_guidelines.php';
+
 const ADMIN_INCIDENT_SESSION_KEY = 'admin_incident_reports_store';
 
-/** Active operations review — default for new head-guard submissions. */
-const ADMIN_INCIDENT_STATUS_ONGOING = 'ongoing';
-/** Paused pending external input, evidence, or client action. */
-const ADMIN_INCIDENT_STATUS_ON_HOLD = 'on_hold';
-/** Closed — incident resolved and archived. */
-const ADMIN_INCIDENT_STATUS_ACCOMPLISHED = 'accomplished';
-/** Closed — rejected, withdrawn, duplicate, or cancelled. */
-const ADMIN_INCIDENT_STATUS_DENIED = 'denied';
+/** Incident at the guard's assigned duty post or within post jurisdiction. */
+const ADMIN_INCIDENT_CATEGORY_PER_POST = 'per_post';
+/** Incident outside assigned post — client site, public area, or off-post assignment. */
+const ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST = 'outside_post';
 
 /**
- * Canonical incident workflow statuses (slug => definition).
- *
- * @return array<string, array{label:string, tab:string, kpi:string, description:string, closed:bool}>
+ * @return array<string, array{label: string, description: string}>
  */
-function admin_incident_status_definitions(): array
+function admin_incident_category_definitions(): array
 {
     return [
-        ADMIN_INCIDENT_STATUS_ONGOING => [
-            'label' => 'Ongoing',
-            'tab' => 'Ongoing',
-            'kpi' => 'Ongoing',
-            'description' => 'Active review — investigation or follow-up in progress.',
-            'closed' => false,
+        ADMIN_INCIDENT_CATEGORY_PER_POST => [
+            'label' => 'On post',
+            'description' => 'Guard on assigned duty post — patrol, access control, and post SOP within jurisdiction.',
         ],
-        ADMIN_INCIDENT_STATUS_ON_HOLD => [
-            'label' => 'On Hold',
-            'tab' => 'On Hold',
-            'kpi' => 'On Hold',
-            'description' => 'Paused — awaiting information, client action, or scheduled follow-up.',
-            'closed' => false,
-        ],
-        ADMIN_INCIDENT_STATUS_ACCOMPLISHED => [
-            'label' => 'Accomplished',
-            'tab' => 'Accomplished',
-            'kpi' => 'Accomplished',
-            'description' => 'Closed — incident resolved; record archived.',
-            'closed' => true,
-        ],
-        ADMIN_INCIDENT_STATUS_DENIED => [
-            'label' => 'Denied',
-            'tab' => 'Denied',
-            'kpi' => 'Denied',
-            'description' => 'Closed — not accepted, duplicate filing, or cancelled by submitter.',
-            'closed' => true,
+        ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST => [
+            'label' => 'Off post',
+            'description' => 'Guard at client site, perimeter, or off-post assignment — not the guard’s regular duty post.',
         ],
     ];
 }
 
-/** @return list<string> */
-function admin_incident_status_slugs(): array
-{
-    return array_keys(admin_incident_status_definitions());
-}
-
 /** @return array<string, string> */
-function admin_incident_status_options(): array
+function admin_incident_category_options(): array
 {
     $options = [];
-    foreach (admin_incident_status_definitions() as $slug => $def) {
+    foreach (admin_incident_category_definitions() as $slug => $def) {
         $options[$slug] = $def['label'];
     }
 
     return $options;
 }
 
-function admin_incident_status_label(string $status): string
+function admin_incident_category_normalize(string $category): string
 {
-    $defs = admin_incident_status_definitions();
+    $category = strtolower(trim($category));
+    if (in_array($category, ['external', 'outside_post', 'outside'], true)) {
+        return ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST;
+    }
 
-    return $defs[$status]['label'] ?? $defs[ADMIN_INCIDENT_STATUS_ONGOING]['label'];
-}
-
-function admin_incident_status_description(string $status): string
-{
-    $defs = admin_incident_status_definitions();
-
-    return $defs[$status]['description'] ?? $defs[ADMIN_INCIDENT_STATUS_ONGOING]['description'];
-}
-
-function admin_incident_status_is_valid(string $status): bool
-{
-    return array_key_exists($status, admin_incident_status_definitions());
+    return ADMIN_INCIDENT_CATEGORY_PER_POST;
 }
 
 function admin_incident_category_label(string $category): string
 {
-    return $category === 'external' ? 'External' : 'Internal';
+    $slug = admin_incident_category_normalize($category);
+    $defs = admin_incident_category_definitions();
+
+    return $defs[$slug]['label'] ?? $defs[ADMIN_INCIDENT_CATEGORY_PER_POST]['label'];
+}
+
+function admin_incident_category_description(string $category): string
+{
+    $slug = admin_incident_category_normalize($category);
+    $defs = admin_incident_category_definitions();
+
+    return $defs[$slug]['description'] ?? $defs[ADMIN_INCIDENT_CATEGORY_PER_POST]['description'];
 }
 
 function admin_incident_submitter_role_label(): string
@@ -231,7 +204,7 @@ function admin_incident_seed_templates(): array
         [
             'id' => 'inc-001',
             'ref' => 'INC-2026-0142',
-            'category' => 'internal',
+            'category' => 'per_post',
             'incident_type' => 'Policy breach — unauthorized access',
             'site' => 'Golden Z-5 Main Office',
             'submitted_at' => '2026-05-20',
@@ -241,13 +214,13 @@ function admin_incident_seed_templates(): array
             'history' => [
                 ['at' => '20 May 2026, 09:14', 'event' => 'Submitted by head guard', 'note' => 'Initial incident filed from field portal.'],
                 ['at' => '20 May 2026, 10:02', 'event' => 'Assigned to operations', 'note' => 'Routed to admin queue for investigation.'],
-                ['at' => '20 May 2026, 14:30', 'event' => 'Status: Ongoing', 'note' => 'Interview with duty supervisor scheduled.'],
+                ['at' => '20 May 2026, 14:30', 'event' => 'Status: Open', 'note' => 'Interview with duty supervisor scheduled.'],
             ],
         ],
         [
             'id' => 'inc-002',
             'ref' => 'INC-2026-0138',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Client site — trespassing',
             'site' => 'Ayala Mall Cebu — North Wing',
             'submitted_at' => '2026-05-19',
@@ -262,7 +235,7 @@ function admin_incident_seed_templates(): array
         [
             'id' => 'inc-003',
             'ref' => 'INC-2026-0131',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Theft / loss prevention',
             'site' => 'SM Seaside — Annex Retail',
             'submitted_at' => '2026-05-17',
@@ -271,14 +244,14 @@ function admin_incident_seed_templates(): array
             'summary' => 'Shoplifting attempt intercepted; suspect turned over to mall police. Case closed per client instruction.',
             'history' => [
                 ['at' => '17 May 2026, 16:20', 'event' => 'Submitted by head guard', 'note' => ''],
-                ['at' => '18 May 2026, 11:00', 'event' => 'Status: Ongoing', 'note' => 'Evidence packet compiled.'],
-                ['at' => '19 May 2026, 09:45', 'event' => 'Status: Accomplished', 'note' => 'Client signed closure memo; archived.'],
+                ['at' => '18 May 2026, 11:00', 'event' => 'Status: Open', 'note' => 'Evidence packet compiled.'],
+                ['at' => '19 May 2026, 09:45', 'event' => 'Status: Case closed', 'note' => 'Client signed closure memo; archived.'],
             ],
         ],
         [
             'id' => 'inc-004',
             'ref' => 'INC-2026-0124',
-            'category' => 'internal',
+            'category' => 'per_post',
             'incident_type' => 'Equipment failure — radio network',
             'site' => 'HQ Communications Room',
             'submitted_at' => '2026-05-15',
@@ -287,13 +260,13 @@ function admin_incident_seed_templates(): array
             'summary' => 'Wide-area repeater offline during shift change; IT restored backup channel within 2 hours.',
             'history' => [
                 ['at' => '15 May 2026, 07:55', 'event' => 'Submitted by head guard', 'note' => 'Automatic escalation to IT.'],
-                ['at' => '15 May 2026, 10:12', 'event' => 'Status: Accomplished', 'note' => 'Service restored; post-incident checklist completed.'],
+                ['at' => '15 May 2026, 10:12', 'event' => 'Status: Case closed', 'note' => 'Service restored; post-incident checklist completed.'],
             ],
         ],
         [
             'id' => 'inc-005',
             'ref' => 'INC-2026-0119',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Medical emergency',
             'site' => 'Landers Superstore Banilad',
             'submitted_at' => '2026-05-12',
@@ -302,13 +275,13 @@ function admin_incident_seed_templates(): array
             'summary' => 'Duplicate filing of an event already logged by client EMS; closed as redundant.',
             'history' => [
                 ['at' => '12 May 2026, 13:08', 'event' => 'Submitted by head guard', 'note' => ''],
-                ['at' => '12 May 2026, 15:40', 'event' => 'Status: Denied', 'note' => 'Ops: duplicate of INC-2026-0117. No further action.'],
+                ['at' => '12 May 2026, 15:40', 'event' => 'Status: Closed — not accepted', 'note' => 'Ops: duplicate of INC-2026-0117. No further action.'],
             ],
         ],
         [
             'id' => 'inc-006',
             'ref' => 'INC-2026-0112',
-            'category' => 'internal',
+            'category' => 'per_post',
             'incident_type' => 'Workplace injury — minor',
             'site' => 'Training Facility — Lapu-Lapu',
             'submitted_at' => '2026-05-10',
@@ -317,13 +290,13 @@ function admin_incident_seed_templates(): array
             'summary' => 'Trainee sprained ankle during drill; first aid applied. HR documentation in progress.',
             'history' => [
                 ['at' => '10 May 2026, 11:33', 'event' => 'Submitted by head guard', 'note' => 'Medical officer notified on-site.'],
-                ['at' => '11 May 2026, 08:20', 'event' => 'Status: Ongoing', 'note' => 'Awaiting clinic report scan.'],
+                ['at' => '11 May 2026, 08:20', 'event' => 'Status: Open', 'note' => 'Awaiting clinic report scan.'],
             ],
         ],
         [
             'id' => 'inc-007',
             'ref' => 'INC-2026-0105',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Vandalism',
             'site' => 'University of San Carlos — Gate 2',
             'submitted_at' => '2026-05-08',
@@ -338,7 +311,7 @@ function admin_incident_seed_templates(): array
         [
             'id' => 'inc-008',
             'ref' => 'INC-2026-0098',
-            'category' => 'internal',
+            'category' => 'per_post',
             'incident_type' => 'Attendance / shift dispute',
             'site' => 'Operations Dispatch',
             'submitted_at' => '2026-05-05',
@@ -353,7 +326,7 @@ function admin_incident_seed_templates(): array
         [
             'id' => 'inc-009',
             'ref' => 'INC-2026-0091',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Fire alarm activation',
             'site' => 'Quest Hotel Mactan — Lobby',
             'submitted_at' => '2026-05-03',
@@ -362,13 +335,13 @@ function admin_incident_seed_templates(): array
             'summary' => 'False alarm triggered by kitchen smoke; building evacuated 12 minutes; all-clear issued.',
             'history' => [
                 ['at' => '3 May 2026, 14:02', 'event' => 'Submitted by head guard', 'note' => 'Coordinated with hotel engineering.'],
-                ['at' => '3 May 2026, 15:30', 'event' => 'Status: Accomplished', 'note' => 'Incident report filed with hotel GM.'],
+                ['at' => '3 May 2026, 15:30', 'event' => 'Status: Case closed', 'note' => 'Incident report filed with hotel GM.'],
             ],
         ],
         [
             'id' => 'inc-010',
             'ref' => 'INC-2026-0084',
-            'category' => 'external',
+            'category' => 'outside_post',
             'incident_type' => 'Traffic / parking incident',
             'site' => 'Cebu IT Park — Tower 1',
             'submitted_at' => '2026-04-28',
@@ -377,7 +350,7 @@ function admin_incident_seed_templates(): array
             'summary' => 'Vehicle collision in basement parking; guard mediated exchange of details. Insurance follow-up open.',
             'history' => [
                 ['at' => '28 Apr 2026, 08:17', 'event' => 'Submitted by head guard', 'note' => 'Dashcam footage uploaded.'],
-                ['at' => '29 Apr 2026, 10:00', 'event' => 'Status: Ongoing', 'note' => 'Legal reviewing tenant statements.'],
+                ['at' => '29 Apr 2026, 10:00', 'event' => 'Status: Open', 'note' => 'Legal reviewing tenant statements.'],
             ],
         ],
     ];
@@ -414,10 +387,7 @@ function admin_incident_normalize(array $row): array
     if (!admin_incident_status_is_valid($status)) {
         $status = ADMIN_INCIDENT_STATUS_ONGOING;
     }
-    $category = (string) ($row['category'] ?? 'internal');
-    if ($category !== 'external') {
-        $category = 'internal';
-    }
+    $category = admin_incident_category_normalize((string) ($row['category'] ?? ADMIN_INCIDENT_CATEGORY_PER_POST));
 
     $row['status'] = $status;
     $row['status_label'] = admin_incident_status_label($status);
@@ -700,10 +670,7 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
     $oldSeverity = (string) ($found['severity'] ?? 'Medium');
     $oldSummary = (string) $found['summary'];
 
-    $category = (string) ($input['category'] ?? $oldCategory);
-    if ($category !== 'external') {
-        $category = 'internal';
-    }
+    $category = admin_incident_category_normalize((string) ($input['category'] ?? $oldCategory));
 
     $status = (string) ($input['status'] ?? $oldStatus);
     if (!admin_incident_status_is_valid($status)) {
@@ -848,10 +815,7 @@ function admin_incident_head_guard_cell_html(array $report): string
  */
 function admin_incident_category_badge_html(array $report): string
 {
-    $slug = (string) ($report['category'] ?? 'internal');
-    if ($slug !== 'external') {
-        $slug = 'internal';
-    }
+    $slug = admin_incident_category_normalize((string) ($report['category'] ?? ADMIN_INCIDENT_CATEGORY_PER_POST));
     $label = (string) ($report['category_label'] ?? admin_incident_category_label($slug));
 
     return '<span class="reports-badge reports-badge--' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">'
@@ -929,7 +893,7 @@ function admin_incident_modal_details_html(array $report): string
 
     $overview =
         '<div class="reports-detail-item reports-detail-item--chip">'
-        . '<dt>Category</dt><dd>' . admin_incident_category_badge_html($report) . '</dd></div>'
+        . '<dt>Report scope</dt><dd>' . admin_incident_category_badge_html($report) . '</dd></div>'
         . '<div class="reports-detail-item reports-detail-item--chip">'
         . '<dt>Severity</dt><dd>' . admin_incident_severity_badge_html($report) . '</dd></div>'
         . '<div class="reports-detail-item reports-detail-item--when">'
@@ -1084,7 +1048,36 @@ function admin_incident_history_step_badge_label(int $index, int $total, string 
 function admin_incident_history_step_connector_html(): string
 {
     return '<span class="reports-compact-step__connector" aria-hidden="true">'
-        . '<i class="fa-solid fa-chevron-right"></i></span>';
+        . '<span class="reports-compact-step__connector-line"></span></span>';
+}
+
+/**
+ * Branded chrome: accent bar, header, progress rail opener.
+ */
+function admin_incident_history_wizard_chrome_html(int $total, int $currentStep): string
+{
+    $stepLabel = $total === 1 ? '1 step' : $total . ' steps';
+    $progressPct = $total > 0 ? (int) round((($currentStep + 1) / $total) * 100) : 100;
+
+    return '<div class="reports-ops-wizard__brand-accent" aria-hidden="true"></div>'
+        . '<header class="reports-ops-wizard__header">'
+        . '<div class="reports-ops-wizard__header-main">'
+        . '<span class="reports-ops-wizard__brand-tag">'
+        . '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Golden Z Kids · Operations</span>'
+        . '<p class="reports-ops-wizard__header-title">Incident activity trail</p>'
+        . '</div>'
+        . '<div class="reports-ops-wizard__header-meta">'
+        . '<span class="reports-ops-wizard__meta-pill">' . htmlspecialchars($stepLabel, ENT_QUOTES, 'UTF-8') . '</span>'
+        . '<span class="reports-ops-wizard__meta-direction">'
+        . 'Oldest <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i> Newest'
+        . '</span>'
+        . '</div>'
+        . '</header>'
+        . '<div class="reports-ops-wizard__stepper">'
+        . '<div class="reports-ops-wizard__progress" aria-hidden="true">'
+        . '<div class="reports-ops-wizard__progress-track"></div>'
+        . '<div class="reports-ops-wizard__progress-fill" style="width:' . $progressPct . '%"></div>'
+        . '</div>';
 }
 
 function admin_incident_history_step_note_html(string $note): string
@@ -1119,37 +1112,50 @@ function admin_incident_history_content_shell_html(
     string $badgeClass,
     string $noteHtml
 ): string {
-    return '<div class="reports-ops-wizard__content">'
+    return '<div class="reports-ops-wizard__detail">'
+        . '<div class="reports-ops-wizard__detail-head">'
         . '<p class="reports-ops-wizard__intent" data-history-intent>'
-        . htmlspecialchars($intent, ENT_QUOTES, 'UTF-8')
+        . '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>'
+        . '<span>' . htmlspecialchars($intent, ENT_QUOTES, 'UTF-8') . '</span>'
         . '</p>'
         . '<h4 class="reports-ops-wizard__content-title" data-history-content-title>'
         . htmlspecialchars($event, ENT_QUOTES, 'UTF-8')
         . '</h4>'
+        . '</div>'
         . '<div class="reports-ops-step-facts" data-history-facts>'
-        . '<span class="reports-ops-fact reports-ops-fact--phase">'
+        . '<div class="reports-ops-fact reports-ops-fact--phase">'
+        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>'
+        . '<div class="reports-ops-fact__body">'
         . '<span class="reports-ops-fact__label">Step</span>'
         . '<span class="reports-ops-fact__value" data-history-phase>'
         . htmlspecialchars($phase, ENT_QUOTES, 'UTF-8')
-        . '</span></span>'
-        . '<span class="reports-ops-fact reports-ops-fact--when">'
+        . '</span></div></div>'
+        . '<div class="reports-ops-fact reports-ops-fact--when">'
+        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-clock"></i></span>'
+        . '<div class="reports-ops-fact__body">'
         . '<span class="reports-ops-fact__label">Recorded</span>'
         . '<span class="reports-ops-fact__value mono" data-history-when>'
         . htmlspecialchars($at !== '' ? $at : '—', ENT_QUOTES, 'UTF-8')
-        . '</span></span>'
-        . '<span class="reports-ops-fact reports-ops-fact--status">'
+        . '</span></div></div>'
+        . '<div class="reports-ops-fact reports-ops-fact--status">'
+        . '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-flag-checkered"></i></span>'
+        . '<div class="reports-ops-fact__body">'
         . '<span class="reports-ops-fact__label">Outcome</span>'
         . '<span class="reports-ops-fact__value">'
         . '<span class="reports-timeline-detail__status reports-timeline-detail__status--'
         . htmlspecialchars($badgeClass, ENT_QUOTES, 'UTF-8')
         . '" data-history-status>'
         . htmlspecialchars($badgeLabel, ENT_QUOTES, 'UTF-8')
-        . '</span></span></span></div>'
+        . '</span></span></div></div>'
+        . '</div>'
         . '<div class="reports-ops-notes-block">'
-        . '<p class="reports-ops-notes-block__label">What was recorded</p>'
+        . '<p class="reports-ops-notes-block__label">'
+        . '<i class="fa-solid fa-file-lines" aria-hidden="true"></i> What was recorded'
+        . '</p>'
         . '<div class="reports-ops-notes" data-history-notes>'
         . $noteHtml
         . '</div></div>'
+        . '</div>'
         . '<div class="reports-timeline__detail-area reports-timeline__detail-area--sr" aria-hidden="true">';
 }
 
@@ -1265,9 +1271,8 @@ function admin_incident_history_stepper_html(array $history, string $reportStatu
 
     return '<div class="reports-process-timeline reports-ops-wizard" data-process-timeline data-current-step="'
         . $currentStep
-        . '">'
-        . '<p class="reports-ops-wizard__trail-hint">Oldest <i class="fa-solid fa-arrow-right" aria-hidden="true"></i> newest</p>'
-        . '<div class="reports-ops-wizard__stepper">'
+        . '" data-total-steps="' . $total . '">'
+        . admin_incident_history_wizard_chrome_html($total, $currentStep)
         . '<div class="reports-timeline__scroll" role="region" aria-label="Timeline steps" tabindex="0">'
         . '<div class="reports-timeline__track reports-timeline__track--compact" role="tablist">'
         . implode('', $trackParts)
@@ -1282,7 +1287,7 @@ function admin_incident_history_stepper_html(array $history, string $reportStatu
             admin_incident_history_step_note_html($currentNote)
         )
         . '<div class="reports-timeline__panels">' . implode('', $panels) . '</div>'
-        . '</div></div></div>';
+        . '</div></div>';
 }
 
 /**
@@ -1339,149 +1344,3 @@ function admin_incident_export_csv(array $reports, ?string $filenameStem = null)
     exit;
 }
 
-/**
- * Reference guide: incident type → recommended sanction / ops steps when a report is filed or closed.
- *
- * @return list<array{
- *   incident_type: string,
- *   category: string,
- *   category_label: string,
- *   severity: string,
- *   steps: list<string>
- * }>
- */
-function admin_incident_sanctions_reference(): array
-{
-    return [
-        [
-            'incident_type' => 'Policy breach — unauthorized access',
-            'category' => 'internal',
-            'category_label' => 'Internal',
-            'severity' => 'High',
-            'steps' => [
-                'Preserve CCTV, access logs, and witness statements within 1 hour.',
-                'Notify operations manager; assign investigator same business day.',
-                'Interview involved guard(s); verbal warning if protocol lapse confirmed.',
-                'Written reprimand + mandatory re-training if unauthorized access substantiated.',
-                'Close as Accomplished only with signed ops memo and archived evidence.',
-            ],
-        ],
-        [
-            'incident_type' => 'Client site — trespassing',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'Medium',
-            'steps' => [
-                'Secure perimeter; coordinate with client security and document persons involved.',
-                'File initial report; set status Ongoing while patrol statements are collected.',
-                'Request client incident form / blotter reference before escalation.',
-                'No guard sanction unless negligence (e.g. open gate); then coaching memo first.',
-                'On hold until client statement; accomplish or deny per client instruction.',
-            ],
-        ],
-        [
-            'incident_type' => 'Theft / loss prevention',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'High',
-            'steps' => [
-                'Detain only per client policy; otherwise observe and report immediately.',
-                'Preserve evidence (CCTV, receipts, witness names); notify ops and client LP.',
-                'Document guard actions against use-of-force and detention SOP.',
-                'Commendation or coaching based on adherence to client LP protocol.',
-                'Accomplished when suspect turnover / client closure memo is on file.',
-            ],
-        ],
-        [
-            'incident_type' => 'Equipment failure — radio network',
-            'category' => 'internal',
-            'category_label' => 'Internal',
-            'severity' => 'Low',
-            'steps' => [
-                'Log outage time, affected posts, and backup channel activated.',
-                'Notify IT / comms lead; no personnel sanction for equipment fault.',
-                'Head guard confirms roster checked-in via alternate comms.',
-                'Post-incident checklist within 24 hours; training refresh if repeated at same post.',
-                'Accomplished when service restored and IT ticket closed.',
-            ],
-        ],
-        [
-            'incident_type' => 'Medical emergency',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'High',
-            'steps' => [
-                'First aid / EMS per post medical plan; do not delay report for investigation.',
-                'Notify ops, client contact, and document timeline of guard response.',
-                'No disciplinary sanction unless failure to call EMS or abandon post.',
-                'Coaching or reprimand only after ops review of SOP compliance.',
-                'Deny duplicate filings; accomplish when client/EMS report number attached.',
-            ],
-        ],
-        [
-            'incident_type' => 'Workplace injury — minor',
-            'category' => 'internal',
-            'category_label' => 'Internal',
-            'severity' => 'Medium',
-            'steps' => [
-                'First aid on site; refer to clinic if needed; preserve incident scene photos.',
-                'Notify HR and operations; guard completes injury narrative same shift.',
-                'Supervisor review for PPE / drill compliance; coaching if lapse found.',
-                'Written warning only if willful safety rule violation is documented.',
-                'Ongoing until clinic/HR forms scanned; then Accomplished.',
-            ],
-        ],
-        [
-            'incident_type' => 'Vandalism',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'Medium',
-            'steps' => [
-                'Photograph damage; notify client security and police if client requires.',
-                'Preserve patrol log segment covering the window of occurrence.',
-                'Assess guard visibility / lighting rounds; coaching if patrol gap proven.',
-                'Written reprimand only for proven neglect of scheduled perimeter check.',
-                'On hold for client blotter; accomplish when repair PO or case number filed.',
-            ],
-        ],
-        [
-            'incident_type' => 'Attendance / shift dispute',
-            'category' => 'internal',
-            'category_label' => 'Internal',
-            'severity' => 'Low',
-            'steps' => [
-                'Pull timekeeping / dispatch records before any personnel action.',
-                'Interview head guard and affected guard separately; document statements.',
-                'Verbal clarification if scheduling error; no sanction.',
-                'Written warning for unexcused absence only after HR confirms roster breach.',
-                'Deny or withdraw if submitter retracts; ops note required.',
-            ],
-        ],
-        [
-            'incident_type' => 'Fire alarm activation',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'Medium',
-            'steps' => [
-                'Execute client evacuation SOP; account for posts and visitors per checklist.',
-                'Notify ops and client engineering; log alarm cause when known.',
-                'No guard sanction for false alarm unless failure to respond or abandon post.',
-                'Debrief and refresher on fire panel basics if client requests.',
-                'Accomplished after all-clear and client sign-off on incident summary.',
-            ],
-        ],
-        [
-            'incident_type' => 'Traffic / parking incident',
-            'category' => 'external',
-            'category_label' => 'External',
-            'severity' => 'Low',
-            'steps' => [
-                'Secure scene; exchange details only as client policy allows; call police if injury.',
-                'Document vehicles, witnesses, and guard mediation steps without admitting fault.',
-                'No sanction unless guard instigated confrontation or left post unattended.',
-                'Coaching on parking SOP and incident form completion if paperwork incomplete.',
-                'Ongoing while insurance/legal reviews; accomplish when client closure received.',
-            ],
-        ],
-    ];
-}

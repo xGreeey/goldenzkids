@@ -88,6 +88,9 @@ $statusTabFromQuery = trim((string) ($_GET['status'] ?? ''));
 $validStatusTabs = ['all', ...admin_incident_status_slugs()];
 $initialStatusTab = in_array($statusTabFromQuery, $validStatusTabs, true) ? $statusTabFromQuery : '';
 $sanctionsReference = admin_incident_sanctions_reference();
+$workflowTypeCount = count($sanctionsReference);
+$guideReferenceSectionCount = admin_incident_guard_operations_guide_section_count();
+$guideSearchItemCount = $workflowTypeCount + $guideReferenceSectionCount;
 $adminNavActive = 'reports';
 
 /**
@@ -139,22 +142,39 @@ function admin_reports_row_attrs(array $report): string
     <main class="app-main">
             <header class="page-header page-header--inline">
                 <h1 class="page-title">Incident Reports</h1>
-                <p class="page-subtitle">Monitor and archive head-guard incident submissions — internal and external, with full status history.</p>
+                <p class="page-subtitle">Monitor and archive security guard incident reports — on-post duty, client sites, and guard conduct — with full status history.</p>
         </header>
 
             <div id="reports-module" class="reports-module">
-                <div class="reports-kpi-grid" aria-label="Report summary">
-                    <article class="reports-kpi">
-                        <div class="reports-kpi__value" data-kpi="all"><?= (int) $statusCounts['all'] ?></div>
-                        <p class="reports-kpi__label">Total</p>
+                <?php
+                $reportKpiIcons = [
+                    'all' => 'fa-clipboard-list',
+                    'ongoing' => 'fa-folder-open',
+                    'on_hold' => 'fa-clock',
+                    'accomplished' => 'fa-circle-check',
+                    'denied' => 'fa-ban',
+                ];
+                ?>
+                <section class="kpi-grid" aria-label="Report summary">
+                    <article class="kpi-card kpi-card--total" title="All incident reports in the registry">
+                        <div class="kpi-stat">
+                            <i class="fa-solid <?= e($reportKpiIcons['all']) ?> kpi-icon" aria-hidden="true"></i>
+                            <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
+                        </div>
+                        <p class="kpi-label">Total reports</p>
                     </article>
-                    <?php foreach ($statusDefinitions as $slug => $def): ?>
-                    <article class="reports-kpi reports-kpi--<?= e($slug) ?>">
-                        <div class="reports-kpi__value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></div>
-                        <p class="reports-kpi__label"><?= e($def['kpi']) ?></p>
+                    <?php foreach ($statusDefinitions as $slug => $def):
+                        $icon = $reportKpiIcons[$slug] ?? 'fa-file-lines';
+                        ?>
+                    <article class="kpi-card kpi-card--<?= e($slug) ?>" title="<?= e((string) $def['description']) ?>">
+                        <div class="kpi-stat">
+                            <i class="fa-solid <?= e($icon) ?> kpi-icon" aria-hidden="true"></i>
+                            <span class="kpi-value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></span>
+                        </div>
+                        <p class="kpi-label"><?= e((string) $def['kpi']) ?></p>
                     </article>
                     <?php endforeach; ?>
-                </div>
+                </section>
 
                 <section class="reports-panel" aria-label="Incident reports registry">
                     <div class="reports-panel__filters">
@@ -165,11 +185,12 @@ function admin_reports_row_attrs(array $report): string
                                     <input type="search" id="reports-search" placeholder="Reference, head guard, post, summary…" autocomplete="off">
                                 </div>
                                 <div class="form-field reports-field--category">
-                                    <label for="reports-category">Category</label>
+                                    <label for="reports-category">Report scope</label>
                                     <select id="reports-category">
-                                        <option value="all">All categories</option>
-                                        <option value="internal">Internal</option>
-                                        <option value="external">External</option>
+                                        <option value="all">All scopes</option>
+                                        <?php foreach (admin_incident_category_options() as $slug => $label): ?>
+                                        <option value="<?= e($slug) ?>"><?= e($label) ?></option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="form-field reports-field--date">
@@ -191,9 +212,9 @@ function admin_reports_row_attrs(array $report): string
                                         <i class="fa-solid fa-file-export reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
-                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Incident types and recommended sanction steps">
-                                        <i class="fa-solid fa-scale-balanced reports-btn__icon" aria-hidden="true"></i>
-                                        <span class="reports-btn__text">Sanctions guide</span>
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Operations guide — workflow, case progression, registry status">
+                                        <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
+                                        <span class="reports-btn__text">Guard guide</span>
                                     </button>
                                 </div>
                             </div>
@@ -221,73 +242,89 @@ function admin_reports_row_attrs(array $report): string
                     </nav>
 
                     <div class="reports-panel__body">
-                        <div class="reports-table-wrap" role="region" aria-label="Incident reports table" tabindex="0">
-                            <table class="reports-table">
-                                <colgroup>
-                                    <col class="reports-col-ref">
-                                    <col class="reports-col-cat">
-                                    <col class="reports-col-incident">
-                                    <col class="reports-col-severity">
-                                    <col class="reports-col-hg">
-                                    <col class="reports-col-submitted">
-                                    <col class="reports-col-updated">
-                                    <col class="reports-col-status">
-                                    <col class="reports-col-actions">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="reports-col-ref" aria-sort="none">
-                                            <button type="button" class="reports-sort" data-sort-key="ref">
-                                                <span class="reports-sort__label">Reference</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-cat" aria-sort="none">
-                                            <button type="button" class="reports-sort reports-sort--center" data-sort-key="category">
-                                                <span class="reports-sort__label">Category</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-incident" aria-sort="none">
-                                            <button type="button" class="reports-sort" data-sort-key="incident">
-                                                <span class="reports-sort__label">Incident</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-severity" aria-sort="none">
-                                            <button type="button" class="reports-sort reports-sort--center" data-sort-key="severity">
-                                                <span class="reports-sort__label">Severity</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-hg" aria-sort="none">
-                                            <button type="button" class="reports-sort" data-sort-key="headGuard">
-                                                <span class="reports-sort__label">Head guard</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-submitted" aria-sort="descending">
-                                            <button type="button" class="reports-sort is-active" data-sort-key="submitted" title="Submitted — sorted descending (newest first)" aria-label="Submitted, sorted descending">
-                                                <span class="reports-sort__label">Submitted</span>
-                                                <span class="reports-sort__icon reports-sort__icon--desc" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-updated" aria-sort="none">
-                                            <button type="button" class="reports-sort" data-sort-key="updated">
-                                                <span class="reports-sort__label">Updated</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-status" aria-sort="none">
-                                            <button type="button" class="reports-sort reports-sort--center" data-sort-key="status">
-                                                <span class="reports-sort__label">Status</span>
-                                                <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="reports-col-actions">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="reports-tbody">
+                        <div class="reports-registry" role="region" aria-label="Incident reports table">
+                            <div class="reports-table-head-wrap" id="reports-table-head-wrap">
+                                <table class="reports-table reports-table--head">
+                                    <colgroup>
+                                        <col class="reports-col-ref">
+                                        <col class="reports-col-cat">
+                                        <col class="reports-col-incident">
+                                        <col class="reports-col-severity">
+                                        <col class="reports-col-hg">
+                                        <col class="reports-col-submitted">
+                                        <col class="reports-col-updated">
+                                        <col class="reports-col-status">
+                                        <col class="reports-col-actions">
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" class="reports-col-ref" aria-sort="none">
+                                                <button type="button" class="reports-sort" data-sort-key="ref">
+                                                    <span class="reports-sort__label">Reference</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-cat" aria-sort="none">
+                                                <button type="button" class="reports-sort reports-sort--center" data-sort-key="category">
+                                                    <span class="reports-sort__label">Scope</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-incident" aria-sort="none">
+                                                <button type="button" class="reports-sort" data-sort-key="incident">
+                                                    <span class="reports-sort__label">Incident</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-severity" aria-sort="none">
+                                                <button type="button" class="reports-sort reports-sort--center" data-sort-key="severity">
+                                                    <span class="reports-sort__label">Severity</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-hg" aria-sort="none">
+                                                <button type="button" class="reports-sort" data-sort-key="headGuard">
+                                                    <span class="reports-sort__label">Head guard</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-submitted" aria-sort="descending">
+                                                <button type="button" class="reports-sort is-active" data-sort-key="submitted" title="Submitted — sorted descending (newest first)" aria-label="Submitted, sorted descending">
+                                                    <span class="reports-sort__label">Submitted</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--desc" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-updated" aria-sort="none">
+                                                <button type="button" class="reports-sort" data-sort-key="updated">
+                                                    <span class="reports-sort__label">Updated</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-status" aria-sort="none">
+                                                <button type="button" class="reports-sort reports-sort--center" data-sort-key="status">
+                                                    <span class="reports-sort__label">Status</span>
+                                                    <span class="reports-sort__icon reports-sort__icon--idle" aria-hidden="true"></span>
+                                                </button>
+                                            </th>
+                                            <th scope="col" class="reports-col-actions">Actions</th>
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </div>
+                            <div class="reports-table-body-wrap" id="reports-table-body-wrap" tabindex="0">
+                                <table class="reports-table reports-table--body">
+                                    <colgroup>
+                                        <col class="reports-col-ref">
+                                        <col class="reports-col-cat">
+                                        <col class="reports-col-incident">
+                                        <col class="reports-col-severity">
+                                        <col class="reports-col-hg">
+                                        <col class="reports-col-submitted">
+                                        <col class="reports-col-updated">
+                                        <col class="reports-col-status">
+                                        <col class="reports-col-actions">
+                                    </colgroup>
+                                    <tbody id="reports-tbody">
                                     <?php foreach ($incidentReports as $report): ?>
                                     <tr <?= admin_reports_row_attrs($report) ?>>
                                         <td class="reports-col-ref"><span class="reports-ref mono"><?= e((string) $report['ref']) ?></span></td>
@@ -346,9 +383,10 @@ function admin_reports_row_attrs(array $report): string
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
-                                </tbody>
-                            </table>
-        </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
                         <div id="reports-empty" class="reports-empty" role="status" aria-live="polite">
                             <div class="reports-empty__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></div>
@@ -425,13 +463,14 @@ function admin_reports_row_attrs(array $report): string
                                                 <option value="<?= e($val) ?>" title="<?= e($def['description']) ?>"><?= e($def['label']) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-                                            <p id="edit-status-hint" class="reports-field-hint">Ongoing / On hold = open · Accomplished / Denied = closed</p>
+                                            <p id="edit-status-hint" class="reports-field-hint"><?= e(admin_incident_status_edit_hint()) ?></p>
                                         </div>
                                         <div class="reports-form-field">
-                                            <label for="edit-category">Category</label>
+                                            <label for="edit-category">Report scope</label>
                                             <select id="edit-category" name="category" required>
-                                                <option value="internal">Internal</option>
-                                                <option value="external">External</option>
+                                                <?php foreach (admin_incident_category_options() as $slug => $label): ?>
+                                                <option value="<?= e($slug) ?>" title="<?= e(admin_incident_category_description($slug)) ?>"><?= e($label) ?></option>
+                                                <?php endforeach; ?>
                                             </select>
                                         </div>
                                     </div>
@@ -521,66 +560,46 @@ function admin_reports_row_attrs(array $report): string
 
 <div id="reports-sanctions-overlay" class="reports-modal-overlay reports-sanctions-overlay"
      role="presentation" aria-hidden="true">
-    <div class="reports-modal reports-sanctions-modal" id="reports-sanctions-modal" role="dialog"
-         aria-modal="true" aria-labelledby="sanctions-modal-title">
-        <header class="reports-modal__head">
-            <div class="reports-modal__head-text">
-                <p class="reports-modal__eyebrow">Operations reference</p>
-                <h2 id="sanctions-modal-title" class="reports-modal__title">Incident sanctions guide</h2>
-                <p class="reports-modal__meta">Recommended steps when a report of this type is filed or closed — align with registry entries.</p>
+    <div class="reports-modal reports-sanctions-modal reports-guide--simple" id="reports-sanctions-modal" role="dialog"
+         aria-modal="true" aria-labelledby="sanctions-modal-title" aria-describedby="sanctions-modal-desc">
+        <header class="reports-modal__header">
+            <div class="reports-modal__identity">
+                <span class="reports-modal__eyebrow">Security operations</span>
+                <div class="reports-modal__title-row">
+                    <h2 id="sanctions-modal-title" class="reports-modal__ref">Security guard operations guide</h2>
+                </div>
+                <p id="sanctions-modal-desc" class="reports-modal__lead">
+                    Incident workflow by type, how cases progress in the registry, status rules, and what happens when incidents repeat — one scrollable reference.
+                </p>
             </div>
-            <button type="button" class="reports-modal__close" id="reports-sanctions-close" aria-label="Close">&times;</button>
+            <button type="button" class="reports-modal__close" id="reports-sanctions-close" aria-label="Close operations guide">&times;</button>
         </header>
-        <div class="reports-sanctions__body">
-            <div class="reports-sanctions__toolbar">
-                <label for="sanctions-search" class="visually-hidden">Filter incident types</label>
-                <input type="search" id="sanctions-search" class="reports-sanctions__search"
-                       placeholder="Search incident type or category…" autocomplete="off">
+
+        <div class="reports-modal__content">
+            <div class="reports-sanctions-modal__toolbar">
+                <div class="reports-guide-filters" id="reports-guide-filters" data-guide-filters-mode="search">
+                    <label for="guide-filter-search" class="reports-guide-filters__search-label">Search</label>
+                    <input type="search" id="guide-filter-search" class="reports-guide-filters__search-input"
+                           placeholder="Search incident, step, status, or escalation…" autocomplete="off"
+                           aria-describedby="guide-filter-count">
+                    <button type="button" class="reports-btn reports-btn--secondary reports-btn--sm" id="guide-filter-reset">Reset</button>
+                    <p id="guide-filter-count" class="reports-guide-filters__count" aria-live="polite">
+                        <span id="guide-filter-count-visible"><?= (int) $guideSearchItemCount ?></span>
+                        <span id="guide-filter-count-suffix"> topics</span>
+                    </p>
+                </div>
             </div>
-            <div class="reports-sanctions-table-wrap">
-                <table class="reports-sanctions-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Incident type</th>
-                            <th scope="col">Category</th>
-                            <th scope="col">Severity</th>
-                            <th scope="col">Sanction / ops steps</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sanctions-tbody">
-                        <?php foreach ($sanctionsReference as $row): ?>
-                        <tr class="reports-sanctions-row"
-                            data-search="<?= e(strtolower(
-                                (string) $row['incident_type'] . ' '
-                                . (string) $row['category_label'] . ' '
-                                . (string) $row['severity']
-                            )) ?>">
-                            <td class="reports-sanctions-col-type">
-                                <span class="reports-sanctions-type"><?= e((string) $row['incident_type']) ?></span>
-                            </td>
-                            <td class="reports-sanctions-col-cat">
-                                <span class="reports-badge reports-badge--<?= e((string) $row['category']) ?>">
-                                    <?= e((string) $row['category_label']) ?>
-                                </span>
-                            </td>
-                            <td class="reports-sanctions-col-sev">
-                                <span class="reports-sanctions-severity reports-sanctions-severity--<?= e(strtolower((string) $row['severity'])) ?>">
-                                    <?= e((string) $row['severity']) ?>
-                                </span>
-                            </td>
-                            <td class="reports-sanctions-col-steps">
-                                <ol class="reports-sanctions-steps">
-                                    <?php foreach ($row['steps'] as $step): ?>
-                                    <li><?= e((string) $step) ?></li>
-                                    <?php endforeach; ?>
-                                </ol>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+
+            <div class="reports-modal__body-scroll">
+                <div class="reports-modal-form reports-sanctions-modal__form">
+                    <div class="reports-sanctions__body reports-sanctions__body--guide">
+                        <?= admin_incident_guard_operations_guide_html() ?>
+                        <p id="guide-search-empty" class="reports-guide-empty" role="status" hidden>
+                            No matches. Try another search or reset.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <p id="sanctions-empty" class="reports-sanctions-empty" role="status" hidden>No matching incident types.</p>
         </div>
     </div>
 </div>
@@ -588,7 +607,9 @@ function admin_reports_row_attrs(array $report): string
 <script type="application/json" id="reports-data-json"><?=
     json_encode($incidentReports, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
 ?></script>
-
+<script type="application/json" id="reports-status-labels"><?=
+    json_encode(admin_incident_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+?></script>
 <?php admin_shell_scripts(); ?>
 <script src="assets/js/reports.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/reports.js') ?>" defer></script>
 

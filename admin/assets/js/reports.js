@@ -8,8 +8,24 @@
     }
     root.dataset.reportsBound = '1';
 
+    const tableHeadWrap = document.getElementById('reports-table-head-wrap');
+    const tableBodyWrap = document.getElementById('reports-table-body-wrap');
+    if (tableHeadWrap && tableBodyWrap) {
+        tableBodyWrap.addEventListener(
+            'scroll',
+            () => {
+                tableHeadWrap.scrollLeft = tableBodyWrap.scrollLeft;
+            },
+            { passive: true }
+        );
+    }
+
     const dataEl = document.getElementById('reports-data-json');
+    const statusLabelsEl = document.getElementById('reports-status-labels');
     const allReports = dataEl ? safeParse(dataEl.textContent) : [];
+    const STATUS_LABELS = statusLabelsEl ? safeParse(statusLabelsEl.textContent) : {};
+    const DEFAULT_STATUS_LABEL =
+        (STATUS_LABELS && STATUS_LABELS.ongoing) || 'Open';
     const reportsById = {};
     if (Array.isArray(allReports)) {
         allReports.forEach((r) => {
@@ -41,14 +57,33 @@
     const sanctionsOverlay = document.getElementById('reports-sanctions-overlay');
     const sanctionsModal = document.getElementById('reports-sanctions-modal');
     const sanctionsClose = document.getElementById('reports-sanctions-close');
-    const sanctionsSearch = document.getElementById('sanctions-search');
-    const sanctionsEmpty = document.getElementById('sanctions-empty');
-    const sanctionsRows = Array.from(document.querySelectorAll('.reports-sanctions-row'));
+    const guideFilterSearch = document.getElementById('guide-filter-search');
+    const guideFilterReset = document.getElementById('guide-filter-reset');
+    const guideFilterCountVisible = document.getElementById('guide-filter-count-visible');
+    const guideFilterCountSuffix = document.getElementById('guide-filter-count-suffix');
+    const workflowRows = Array.from(document.querySelectorAll('.reports-workflow-row'));
+    const workflowCategoryRows = Array.from(document.querySelectorAll('.reports-workflow-category'));
+    const guideSections = Array.from(
+        document.querySelectorAll('.reports-guide-section[data-guide-search]')
+    );
+    const guideBlocks = Array.from(document.querySelectorAll('[data-guide-block]'));
+    const guideSearchEmpty = document.getElementById('guide-search-empty');
+    const guideScroll = document.querySelector('.reports-sanctions__body--guide');
+    const workflowTotal = workflowRows.length;
+    const guideSearchTotal = workflowTotal + guideSections.length;
     const sortButtons = Array.from(root.querySelectorAll('.reports-sort[data-sort-key]'));
 
     const LEGACY_STATUS_TABS = { history: 'all', active: 'all' };
     const STATUS_SORT_ORDER = { ongoing: 1, on_hold: 2, accomplished: 3, denied: 4 };
     const SEVERITY_SORT_ORDER = { High: 1, Medium: 2, Low: 3 };
+
+    function normalizeCategory(cat) {
+        const c = String(cat || '').toLowerCase();
+        if (c === 'external' || c === 'outside_post' || c === 'outside') {
+            return 'outside_post';
+        }
+        return 'per_post';
+    }
 
     let activeStatus = document.body.dataset.statusTab || 'all';
     if (!activeStatus) activeStatus = 'all';
@@ -72,7 +107,7 @@
             el: row,
             id: row.dataset.id || '',
             ref: row.dataset.ref || '',
-            category: row.dataset.category || '',
+            category: normalizeCategory(row.dataset.category || ''),
             status: row.dataset.status || '',
             submittedAt: row.dataset.submittedAt || '',
             updatedAt: row.dataset.updatedAt || '',
@@ -80,7 +115,7 @@
             payload: reportsById[row.dataset.id || ''] || safeParse(row.dataset.detail),
             sort: {
                 ref: (row.dataset.ref || '').toLowerCase(),
-                category: (row.dataset.category || '').toLowerCase(),
+                category: normalizeCategory(row.dataset.category || ''),
                 incident: (row.dataset.sortIncident || '').toLowerCase(),
                 severity: SEVERITY_SORT_ORDER[row.dataset.sortSeverity || ''] ?? 99,
                 headGuard: (row.dataset.sortHg || '').toLowerCase(),
@@ -263,7 +298,7 @@
     function updateSortHeaderUi() {
         const sortLabels = {
             ref: 'Reference',
-            category: 'Category',
+            category: 'Report scope',
             incident: 'Incident',
             severity: 'Severity',
             headGuard: 'Head guard',
@@ -343,7 +378,7 @@
         reportsIndex.forEach((r) => {
             let show = true;
             if (activeStatus !== 'all' && !statusMatchesTab(r.status, activeStatus)) show = false;
-            if (show && cat !== 'all' && r.category !== cat) show = false;
+            if (show && cat !== 'all' && normalizeCategory(r.category) !== cat) show = false;
             if (show && q && !r.searchBlob.includes(q)) show = false;
             if (show && !inDateRange(r.submittedAt, from, to)) show = false;
 
@@ -442,39 +477,77 @@
         );
     }
 
+    function historyWizardChromeHtml(total, currentStep) {
+        const stepLabel = total === 1 ? '1 step' : total + ' steps';
+        const progressPct = total > 0 ? Math.round(((currentStep + 1) / total) * 100) : 100;
+
+        return (
+            '<div class="reports-ops-wizard__brand-accent" aria-hidden="true"></div>' +
+            '<header class="reports-ops-wizard__header">' +
+            '<div class="reports-ops-wizard__header-main">' +
+            '<span class="reports-ops-wizard__brand-tag">' +
+            '<i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Golden Z Kids · Operations</span>' +
+            '<p class="reports-ops-wizard__header-title">Incident activity trail</p>' +
+            '</div>' +
+            '<div class="reports-ops-wizard__header-meta">' +
+            '<span class="reports-ops-wizard__meta-pill">' +
+            escapeHtml(stepLabel) +
+            '</span>' +
+            '<span class="reports-ops-wizard__meta-direction">' +
+            'Oldest <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i> Newest' +
+            '</span></div></header>' +
+            '<div class="reports-ops-wizard__stepper">' +
+            '<div class="reports-ops-wizard__progress" aria-hidden="true">' +
+            '<div class="reports-ops-wizard__progress-track"></div>' +
+            '<div class="reports-ops-wizard__progress-fill" style="width:' +
+            progressPct +
+            '%"></div></div>'
+        );
+    }
+
     function historyContentShellHtml(intent, event, phase, at, badgeLabel, badgeClass, noteHtml) {
         return (
-            '<div class="reports-ops-wizard__content">' +
+            '<div class="reports-ops-wizard__detail">' +
+            '<div class="reports-ops-wizard__detail-head">' +
             '<p class="reports-ops-wizard__intent" data-history-intent>' +
+            '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>' +
+            '<span>' +
             escapeHtml(intent) +
-            '</p>' +
+            '</span></p>' +
             '<h4 class="reports-ops-wizard__content-title" data-history-content-title>' +
             escapeHtml(event) +
-            '</h4>' +
+            '</h4></div>' +
             '<div class="reports-ops-step-facts" data-history-facts>' +
-            '<span class="reports-ops-fact reports-ops-fact--phase">' +
+            '<div class="reports-ops-fact reports-ops-fact--phase">' +
+            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>' +
+            '<div class="reports-ops-fact__body">' +
             '<span class="reports-ops-fact__label">Step</span>' +
             '<span class="reports-ops-fact__value" data-history-phase>' +
             escapeHtml(phase) +
-            '</span></span>' +
-            '<span class="reports-ops-fact reports-ops-fact--when">' +
+            '</span></div></div>' +
+            '<div class="reports-ops-fact reports-ops-fact--when">' +
+            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-clock"></i></span>' +
+            '<div class="reports-ops-fact__body">' +
             '<span class="reports-ops-fact__label">Recorded</span>' +
             '<span class="reports-ops-fact__value mono" data-history-when>' +
             escapeHtml(at || '—') +
-            '</span></span>' +
-            '<span class="reports-ops-fact reports-ops-fact--status">' +
+            '</span></div></div>' +
+            '<div class="reports-ops-fact reports-ops-fact--status">' +
+            '<span class="reports-ops-fact__icon" aria-hidden="true"><i class="fa-solid fa-flag-checkered"></i></span>' +
+            '<div class="reports-ops-fact__body">' +
             '<span class="reports-ops-fact__label">Outcome</span>' +
             '<span class="reports-ops-fact__value">' +
             '<span class="reports-timeline-detail__status reports-timeline-detail__status--' +
             escapeHtml(badgeClass) +
             '" data-history-status>' +
             escapeHtml(badgeLabel) +
-            '</span></span></span></div>' +
+            '</span></span></div></div></div>' +
             '<div class="reports-ops-notes-block">' +
-            '<p class="reports-ops-notes-block__label">What was recorded</p>' +
+            '<p class="reports-ops-notes-block__label">' +
+            '<i class="fa-solid fa-file-lines" aria-hidden="true"></i> What was recorded</p>' +
             '<div class="reports-ops-notes" data-history-notes>' +
             noteHtml +
-            '</div></div>' +
+            '</div></div></div>' +
             '<div class="reports-timeline__detail-area reports-timeline__detail-area--sr" aria-hidden="true">'
         );
     }
@@ -488,7 +561,13 @@
         const notesEl = wrapper.querySelector('[data-history-notes]');
 
         if (intentEl) {
-            intentEl.textContent = btn.dataset.stepIntent || '';
+            const intentText = btn.dataset.stepIntent || '';
+            const intentSpan = intentEl.querySelector('span');
+            if (intentSpan) {
+                intentSpan.textContent = intentText;
+            } else {
+                intentEl.textContent = intentText;
+            }
         }
         if (titleEl) {
             titleEl.textContent = btn.dataset.eventTitle || 'Operations update';
@@ -614,7 +693,7 @@
 
         const connector =
             index < total - 1
-                ? '<span class="reports-compact-step__connector" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>'
+                ? '<span class="reports-compact-step__connector" aria-hidden="true"><span class="reports-compact-step__connector-line"></span></span>'
                 : '';
 
         const panel = buildTimelineDetailPanel(panelId, tabId, note);
@@ -649,6 +728,11 @@
             if (index < 0 || index >= total) return;
             current = index;
             wrapper.dataset.currentStep = String(current);
+
+            const progressFill = wrapper.querySelector('.reports-ops-wizard__progress-fill');
+            if (progressFill && total > 0) {
+                progressFill.style.width = Math.round(((current + 1) / total) * 100) + '%';
+            }
 
             buttons.forEach((btn, i) => {
                 const status = stepStatusForIndex(i);
@@ -730,9 +814,10 @@
         stepperHost.innerHTML =
             '<div class="reports-process-timeline reports-ops-wizard" data-process-timeline data-current-step="' +
             currentStep +
+            '" data-total-steps="' +
+            total +
             '">' +
-            '<p class="reports-ops-wizard__trail-hint">Oldest <i class="fa-solid fa-arrow-right" aria-hidden="true"></i> newest</p>' +
-            '<div class="reports-ops-wizard__stepper">' +
+            historyWizardChromeHtml(total, currentStep) +
             '<div class="reports-timeline__scroll" role="region" aria-label="Timeline steps" tabindex="0">' +
             '<div class="reports-timeline__track reports-timeline__track--compact" role="tablist">' +
             trackHtml +
@@ -865,8 +950,9 @@
     }
 
     function categoryBadgeHtml(p) {
-        const slug = p.category === 'external' ? 'external' : 'internal';
-        const label = p.category_label || slug;
+        const slug = normalizeCategory(p.category);
+        const label =
+            p.category_label || (slug === 'outside_post' ? 'Off post' : 'On post');
         return (
             '<span class="reports-badge reports-badge--' +
             escapeHtml(slug) +
@@ -880,7 +966,7 @@
         if (!viewDetails || !p) return;
         const gridClass = 'reports-detail-grid reports-detail-grid--modal reports-detail-grid--compact';
         const overview =
-            '<div class="reports-detail-item reports-detail-item--chip"><dt>Category</dt><dd>' +
+            '<div class="reports-detail-item reports-detail-item--chip"><dt>Report scope</dt><dd>' +
             categoryBadgeHtml(p) +
             '</dd></div>' +
             '<div class="reports-detail-item reports-detail-item--chip"><dt>Severity</dt><dd>' +
@@ -950,7 +1036,7 @@
         const idInput = document.getElementById('edit-incident-id');
         if (idInput) idInput.value = p.id || '';
         set('status', p.status);
-        set('category', p.category);
+        set('category', normalizeCategory(p.category));
         set('incident_type', p.incident_type);
         set('site', p.site);
         set('severity', p.severity);
@@ -981,7 +1067,7 @@
     function updateRowFromPayload(p) {
         const row = reportsIndex.find((r) => r.id === p.id);
         if (!row || !row.el) return;
-        row.category = p.category;
+        row.category = normalizeCategory(p.category);
         row.status = p.status;
         row.payload = p;
         row.sort.severity = SEVERITY_SORT_ORDER[p.severity] ?? 99;
@@ -999,7 +1085,7 @@
         ]
             .join(' ')
             .toLowerCase();
-        row.el.dataset.category = p.category;
+        row.el.dataset.category = normalizeCategory(p.category);
         row.el.dataset.status = p.status;
         row.el.dataset.sortSeverity = p.severity || '';
         row.el.dataset.search = row.searchBlob;
@@ -1076,7 +1162,7 @@
         const statusWrap = document.getElementById('modal-status-badge-wrap');
         if (statusWrap) {
             const slug = p.status || 'ongoing';
-            const label = p.status_label || 'Ongoing';
+            const label = p.status_label || DEFAULT_STATUS_LABEL;
             const tip = p.status_description || '';
             statusWrap.innerHTML =
                 '<span class="reports-badge reports-badge--' +
@@ -1116,18 +1202,69 @@
         reportsIndex.forEach((r) => r.el.classList.remove('is-selected'));
     }
 
-    function filterSanctionsGuide() {
-        const q = (sanctionsSearch?.value || '').trim().toLowerCase();
-        let visible = 0;
-        sanctionsRows.forEach((row) => {
-            const blob = row.dataset.search || '';
-            const show = !q || blob.includes(q);
+    function applyGuideSearch() {
+        const q = (guideFilterSearch?.value || '').trim().toLowerCase();
+        let workflowVisible = 0;
+        let sectionVisible = 0;
+
+        workflowRows.forEach((row) => {
+            const show = !q || (row.dataset.search || '').includes(q);
             row.classList.toggle('is-hidden', !show);
-            if (show) visible += 1;
+            if (show) {
+                workflowVisible += 1;
+            }
         });
-        if (sanctionsEmpty) {
-            sanctionsEmpty.hidden = visible > 0;
+        workflowCategoryRows.forEach((catRow) => {
+            const slug = catRow.dataset.categoryGroup || '';
+            const anyVisible = workflowRows.some(
+                (r) => r.dataset.category === slug && !r.classList.contains('is-hidden')
+            );
+            catRow.classList.toggle('is-hidden', !anyVisible);
+        });
+
+        guideSections.forEach((section) => {
+            const show = !q || (section.dataset.guideSearch || '').includes(q);
+            section.classList.toggle('is-hidden', !show);
+            if (show) {
+                sectionVisible += 1;
+            }
+        });
+
+        guideBlocks.forEach((block) => {
+            const blockId = block.dataset.guideBlock || '';
+            let showBlock = true;
+            if (q) {
+                if (blockId === 'incidents') {
+                    showBlock = workflowVisible > 0;
+                } else {
+                    showBlock = !!block.querySelector(
+                        '.reports-guide-section:not(.is-hidden)'
+                    );
+                }
+            }
+            block.classList.toggle('is-hidden', !showBlock);
+        });
+
+        const totalVisible = workflowVisible + sectionVisible;
+        if (guideSearchEmpty) {
+            guideSearchEmpty.hidden = !q || totalVisible > 0;
         }
+        if (guideFilterCountVisible) {
+            guideFilterCountVisible.textContent = String(q ? totalVisible : guideSearchTotal);
+        }
+        if (guideFilterCountSuffix) {
+            guideFilterCountSuffix.textContent = q
+                ? ' matches'
+                : ' topics';
+        }
+    }
+
+    function resetGuideFilters() {
+        if (guideFilterSearch) {
+            guideFilterSearch.value = '';
+        }
+        applyGuideSearch();
+        guideScroll?.scrollTo(0, 0);
     }
 
     function openSanctionsGuide() {
@@ -1136,11 +1273,8 @@
         sanctionsOverlay.classList.add('is-open');
         sanctionsOverlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
-        if (sanctionsSearch) {
-            sanctionsSearch.value = '';
-            filterSanctionsGuide();
-            sanctionsSearch.focus();
-        }
+        resetGuideFilters();
+        guideFilterSearch?.focus();
     }
 
     function closeSanctionsGuide() {
@@ -1257,7 +1391,8 @@
         if (e.target === sanctionsOverlay) closeSanctionsGuide();
     });
     sanctionsModal?.addEventListener('click', (e) => e.stopPropagation());
-    sanctionsSearch?.addEventListener('input', filterSanctionsGuide);
+    guideFilterSearch?.addEventListener('input', applyGuideSearch);
+    guideFilterReset?.addEventListener('click', resetGuideFilters);
 
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;

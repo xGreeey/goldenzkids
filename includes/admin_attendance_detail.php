@@ -1,9 +1,27 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * DAD — Daily Attendance Detail (registry, NTE, missing/wrong time-in/out).
+ */
+
 require_once __DIR__ . '/admin_incident_reports.php';
 
 const ADMIN_ATTENDANCE_SESSION_KEY = 'admin_attendance_detail_store';
+
+/** Full module name shown in page titles and section headers. */
+const ADMIN_ATTENDANCE_MODULE_LABEL = 'Daily Attendance Detail';
+
+/** Registry reference code prefix (e.g. DAD-2026-0201). */
+const ADMIN_ATTENDANCE_REF_CODE = 'DAD';
+
+/** Admin registry page (canonical URL). */
+const ADMIN_ATTENDANCE_PAGE = 'dad.php';
+
+function admin_attendance_page_path(): string
+{
+    return ADMIN_ATTENDANCE_PAGE;
+}
 
 const ADMIN_ATTENDANCE_STATUS_PENDING = 'pending';
 const ADMIN_ATTENDANCE_STATUS_NTE = 'nte';
@@ -131,10 +149,11 @@ function admin_attendance_seed_templates(): array
 {
     return [
         [
-            'id' => 'att-001',
-            'ref' => 'ATT-2026-0201',
+            'id' => 'dad-001',
+            'ref' => 'DAD-2026-0201',
             'guard_id' => 'GZ-1042',
             'guard_name' => 'Juan Dela Cruz',
+            'head_guard_name' => 'Head Guard Reyes',
             'post' => 'Golden Z-5 Main Office',
             'shift_date' => '2026-05-20',
             'shift_display' => '20 May 2026 — Day shift',
@@ -146,14 +165,15 @@ function admin_attendance_seed_templates(): array
             'status' => 'pending',
             'summary' => 'Guard forgot morning punch. Head guard flagged before payroll cutoff.',
             'history' => [
-                ['at' => '20 May 2026, 19:10', 'event' => 'Flagged by head guard', 'note' => 'Auto-alert from daily attendance sheet.'],
+                ['at' => '20 May 2026, 19:10', 'event' => 'Flagged by head guard', 'note' => 'Auto-alert from DAD sheet.'],
             ],
         ],
         [
-            'id' => 'att-002',
-            'ref' => 'ATT-2026-0198',
+            'id' => 'dad-002',
+            'ref' => 'DAD-2026-0198',
             'guard_id' => 'GZ-0877',
             'guard_name' => 'Maria Santos',
+            'head_guard_name' => 'Head Guard Cruz',
             'post' => 'Ayala Mall Cebu — North Wing',
             'shift_date' => '2026-05-19',
             'shift_display' => '19 May 2026 — Night shift',
@@ -170,8 +190,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-003',
-            'ref' => 'ATT-2026-0194',
+            'id' => 'dad-003',
+            'ref' => 'DAD-2026-0194',
             'guard_id' => 'GZ-1203',
             'guard_name' => 'Ramon Garcia',
             'post' => 'SM Seaside — Annex Retail',
@@ -190,8 +210,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-004',
-            'ref' => 'ATT-2026-0188',
+            'id' => 'dad-004',
+            'ref' => 'DAD-2026-0188',
             'guard_id' => 'GZ-0911',
             'guard_name' => 'Elena Reyes',
             'post' => 'Quest Hotel Mactan — Lobby',
@@ -210,8 +230,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-005',
-            'ref' => 'ATT-2026-0181',
+            'id' => 'dad-005',
+            'ref' => 'DAD-2026-0181',
             'guard_id' => 'GZ-1055',
             'guard_name' => 'Carlo Mendoza',
             'post' => 'Cebu IT Park — Tower 1',
@@ -229,8 +249,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-006',
-            'ref' => 'ATT-2026-0175',
+            'id' => 'dad-006',
+            'ref' => 'DAD-2026-0175',
             'guard_id' => 'GZ-0788',
             'guard_name' => 'Ana Villanueva',
             'post' => 'Landers Superstore Banilad',
@@ -249,8 +269,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-007',
-            'ref' => 'ATT-2026-0169',
+            'id' => 'dad-007',
+            'ref' => 'DAD-2026-0169',
             'guard_id' => 'GZ-1120',
             'guard_name' => 'Pedro Navarro',
             'post' => 'University of San Carlos — Gate 2',
@@ -269,8 +289,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-008',
-            'ref' => 'ATT-2026-0162',
+            'id' => 'dad-008',
+            'ref' => 'DAD-2026-0162',
             'guard_id' => 'GZ-0994',
             'guard_name' => 'Liza Fernandez',
             'post' => 'Operations Dispatch',
@@ -289,8 +309,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-009',
-            'ref' => 'ATT-2026-0155',
+            'id' => 'dad-009',
+            'ref' => 'DAD-2026-0155',
             'guard_id' => 'GZ-0833',
             'guard_name' => 'Miguel Torres',
             'post' => 'Training Facility — Lapu-Lapu',
@@ -309,8 +329,8 @@ function admin_attendance_seed_templates(): array
             ],
         ],
         [
-            'id' => 'att-010',
-            'ref' => 'ATT-2026-0148',
+            'id' => 'dad-010',
+            'ref' => 'DAD-2026-0148',
             'guard_id' => 'GZ-1066',
             'guard_name' => 'Grace Lim',
             'post' => 'Golden Z-5 Main Office',
@@ -337,6 +357,16 @@ function admin_attendance_seed_templates(): array
  */
 function admin_attendance_normalize(array $row): array
 {
+    $id = (string) ($row['id'] ?? '');
+    if (preg_match('/^att-(\d{3,})$/i', $id, $m)) {
+        $row['id'] = 'dad-' . $m[1];
+    }
+
+    $ref = (string) ($row['ref'] ?? '');
+    if (preg_match('/^ATT-(.+)$/i', $ref, $m)) {
+        $row['ref'] = ADMIN_ATTENDANCE_REF_CODE . '-' . $m[1];
+    }
+
     $status = (string) ($row['status'] ?? ADMIN_ATTENDANCE_STATUS_PENDING);
     if (!admin_attendance_status_is_valid($status)) {
         $status = ADMIN_ATTENDANCE_STATUS_PENDING;
@@ -354,6 +384,7 @@ function admin_attendance_normalize(array $row): array
 
     $row['status'] = $status;
     $row['status_label'] = admin_attendance_status_label($status);
+    $row['status_description'] = admin_attendance_status_definitions()[$status]['description'] ?? '';
     $row['issue'] = $issue;
     $row['issue_label'] = admin_attendance_issue_label($issue);
     $row['recorded'] = $recorded;
@@ -376,7 +407,8 @@ function admin_attendance_normalize(array $row): array
     $row['updated_table_time'] = $updatedParts['time'];
 
     $row['head_guard_id'] = trim((string) ($row['head_guard_id'] ?? ''));
-    $row['head_guard_name'] = trim((string) ($row['head_guard_name'] ?? 'Head guard')) ?: 'Head guard';
+    $headGuardName = trim((string) ($row['head_guard_name'] ?? ''));
+    $row['head_guard_name'] = $headGuardName !== '' ? $headGuardName : 'Head guard';
 
     return $row;
 }
@@ -472,9 +504,10 @@ function admin_attendance_status_badge_html(array $record): string
     $slug = (string) ($record['status'] ?? ADMIN_ATTENDANCE_STATUS_PENDING);
     $label = (string) ($record['status_label'] ?? admin_attendance_status_label($slug));
 
-    return '<span class="reports-status reports-status--' . e($slug) . '" title="'
-        . e((string) ($record['status_description'] ?? admin_attendance_status_definitions()[$slug]['description'] ?? ''))
-        . '">' . e($label) . '</span>';
+    $tip = admin_attendance_status_definitions()[$slug]['description'] ?? '';
+
+    return '<span class="reports-badge reports-badge--' . e($slug) . '" title="' . e($tip) . '">'
+        . e($label) . '</span>';
 }
 
 /**
@@ -593,8 +626,18 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
     }
 
     $found['status'] = $newStatus;
-    $found['issue'] = (string) ($input['issue'] ?? $found['issue']);
-    $found['recorded'] = (string) ($input['recorded'] ?? $found['recorded']);
+
+    $issue = (string) ($input['issue'] ?? $found['issue']);
+    if (!array_key_exists($issue, admin_attendance_issue_options())) {
+        $issue = (string) $found['issue'];
+    }
+    $found['issue'] = $issue;
+
+    $recorded = (string) ($input['recorded'] ?? $found['recorded']);
+    if (!admin_attendance_recorded_is_valid($recorded)) {
+        $recorded = (string) $found['recorded'];
+    }
+    $found['recorded'] = $recorded;
     $found['post'] = trim((string) ($input['post'] ?? $found['post']));
     $found['time_record'] = trim((string) ($input['time_record'] ?? $found['time_record']));
     $found['summary'] = trim((string) ($input['summary'] ?? $found['summary']));
@@ -620,28 +663,28 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
 }
 
 /**
- * Attendance monitoring reference (single scroll, like operations guide).
+ * DAD monitoring reference (single scroll, like operations guide).
  */
 function admin_attendance_monitoring_guide_html(): string
 {
-    $html = '<nav class="reports-guide-jump" aria-label="Jump to guide section">';
-    $html .= '<a class="reports-guide-jump__link" href="#att-guide-values">Equivalence values</a>';
-    $html .= '<a class="reports-guide-jump__link" href="#att-guide-flow">Review workflow</a>';
-    $html .= '<a class="reports-guide-jump__link" href="#att-guide-nte">NTE &amp; missing</a>';
+    $html = '<nav class="reports-guide-jump" aria-label="Jump to DAD guide section">';
+    $html .= '<a class="reports-guide-jump__link" href="#dad-guide-values">Equivalence values</a>';
+    $html .= '<a class="reports-guide-jump__link" href="#dad-guide-flow">Review workflow</a>';
+    $html .= '<a class="reports-guide-jump__link" href="#dad-guide-nte">NTE &amp; missing</a>';
     $html .= '</nav><div class="reports-guide-document">';
 
-    $html .= '<div class="reports-guide-block" id="att-guide-values">';
-    $html .= '<h2 class="reports-guide-block__title">Daily attendance equivalence</h2>';
+    $html .= '<div class="reports-guide-block" id="dad-guide-values">';
+    $html .= '<h2 class="reports-guide-block__title">' . e(ADMIN_ATTENDANCE_REF_CODE) . ' equivalence values</h2>';
     $html .= '<p class="reports-guide-block__lead">How head guards and payroll interpret each shift day.</p>';
     $html .= '<div class="reports-guide-table-wrap"><table class="reports-guide-table">';
     $html .= '<thead><tr><th>Status</th><th>Basis</th><th>Value</th><th>Typical action</th></tr></thead><tbody>';
     $html .= '<tr><td>Present</td><td>Time-in within grace (0–15 min)</td><td>1.00</td><td>Usually no case — monitor only</td></tr>';
     $html .= '<tr><td>Late</td><td>Check-in after grace (16–30 min) or wrong time-out</td><td>0.50</td><td>Flag; coaching if pattern repeats</td></tr>';
-    $html .= '<tr><td>Absent</td><td>No punch or confirmed no-show</td><td>0.00</td><td>File attendance case; relief roster update</td></tr>';
+    $html .= '<tr><td>Absent</td><td>No punch or confirmed no-show</td><td>0.00</td><td>File DAD case; relief roster update</td></tr>';
     $html .= '<tr><td>No value</td><td>Missing time-in/out or system gap</td><td>N/A</td><td>Pending review → NTE if not fixed in 24h</td></tr>';
     $html .= '</tbody></table></div></div>';
 
-    $html .= '<div class="reports-guide-block" id="att-guide-flow">';
+    $html .= '<div class="reports-guide-block" id="dad-guide-flow">';
     $html .= '<h2 class="reports-guide-block__title">Review workflow</h2>';
     $html .= '<div class="reports-guide-table-wrap"><table class="reports-guide-table">';
     $html .= '<thead><tr><th>Step</th><th>Who</th><th>Action</th></tr></thead><tbody>';
@@ -652,7 +695,7 @@ function admin_attendance_monitoring_guide_html(): string
     $html .= '<tr><td>5</td><td>Admin</td><td>Resolve, issue NTE, or Dismiss if scheduling error</td></tr>';
     $html .= '</tbody></table></div></div>';
 
-    $html .= '<div class="reports-guide-block" id="att-guide-nte">';
+    $html .= '<div class="reports-guide-block" id="dad-guide-nte">';
     $html .= '<h2 class="reports-guide-block__title">NTE &amp; missing values</h2>';
     $html .= '<div class="reports-guide-table-wrap"><table class="reports-guide-table">';
     $html .= '<thead><tr><th>Situation</th><th>Action</th><th>Registry status</th></tr></thead><tbody>';

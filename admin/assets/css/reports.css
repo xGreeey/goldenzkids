@@ -4101,3 +4101,177 @@ body:not(.light-mode) .reports-guide--simple .reports-guide-table thead th {
         min-width: 0;
     }
 }
+
+/* Daily Attendance Detail (DAD) — mirrors incident reports layout */
+body.page-daily-detail {
+    --report-text: #1a222c;
+    --report-text-muted: #4a5f73;
+    --report-pending: #2563eb;
+    --report-nte: #7c3aed;
+    --report-on-hold: #b45309;
+    --report-resolved: #15803d;
+    --report-dismissed: #b91c1c;
+    overflow: hidden;
+    height: 100dvh;
+    color: var(--report-text);
+}
+
+body.page-daily-detail:not(.light-mode) {
+    --report-text: var(--app-ink-on-dark);
+    --report-text-muted: var(--app-ink-muted-on-dark);
+}
+
+body.page-daily-detail .app-shell {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+body.page-daily-detail .app-main,
+body.page-daily-detail .app-main__stage {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#daily-detail-module {
+    font-family: var(--font-body-family);
+    font-size: var(--font-body-size-sm);
+    color: var(--report-text);
+}
+
+body.page-daily-detail .page-header {
+    flex-shrink: 0;
+    margin-bottom: clamp(12px, 1.5vw, 20px);
+}
+
+body.page-daily-detail .page-title__code {
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--report-text-muted);
+    vertical-align: middle;
+    margin-left: 0.35em;
+}
+
+#daily-detail-module .kpi-grid {
+    flex-shrink: 0;
+    margin-bottom: clamp(16px, 2vw, 24px);
+}
+
+.page-daily-detail #daily-detail-module .kpi-card--pending .kpi-icon,
+.page-daily-detail #daily-detail-module .kpi-card--pending .kpi-value {
+    color: var(--report-pending);
+}
+
+.page-daily-detail #daily-detail-module .kpi-card--nte .kpi-icon,
+.page-daily-detail #daily-detail-module .kpi-card--nte .kpi-value {
+    color: var(--report-nte);
+}
+
+.page-daily-detail #daily-detail-module .kpi-card--on_hold .kpi-icon,
+.page-daily-detail #daily-detail-module .kpi-card--on_hold .kpi-value {
+    color: var(--report-on-hold);
+}
+
+.page-daily-detail #daily-detail-module .kpi-card--resolved .kpi-icon,
+.page-daily-detail #daily-detail-module .kpi-card--resolved .kpi-value {
+    color: var(--report-resolved);
+}
+
+.page-daily-detail #daily-detail-module .kpi-card--dismissed .kpi-icon,
+.page-daily-detail #daily-detail-module .kpi-card--dismissed .kpi-value {
+    color: var(--report-dismissed);
+}
+
+.reports-registry .reports-badge--pending {
+    color: var(--report-pending);
+}
+
+.reports-registry .reports-badge--nte {
+    color: var(--report-nte);
+}
+
+.reports-registry .reports-badge--on_hold {
+    color: var(--report-on-hold);
+}
+
+.reports-registry .reports-badge--resolved {
+    color: var(--report-resolved);
+}
+
+.reports-registry .reports-badge--dismissed {
+    color: var(--report-dismissed);
+}
+
+.reports-status-dot--pending {
+    background: var(--report-pending);
+}
+
+.reports-status-dot--nte {
+    background: var(--report-nte);
+}
+
+.reports-status-dot--on_hold {
+    background: var(--report-on-hold);
+}
+
+.reports-status-dot--resolved {
+    background: var(--report-resolved);
+}
+
+.reports-status-dot--dismissed {
+    background: var(--report-dismissed);
+}
+
+.reports-table--attendance .reports-col-guard {
+    min-width: 9rem;
+}
+
+.reports-table--attendance .reports-col-time {
+    min-width: 11rem;
+    max-width: 16rem;
+}
+
+.reports-time-record {
+    display: block;
+    font-size: var(--font-body-size-xs);
+    line-height: 1.4;
+    color: var(--report-text-muted);
+}
+
+.reports-issue-label {
+    font-weight: 600;
+    color: var(--report-text);
+}
+
+.reports-equiv {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.reports-equiv--present {
+    color: var(--report-resolved);
+}
+
+.reports-equiv--late {
+    color: var(--report-on-hold);
+}
+
+.reports-equiv--absent {
+    color: var(--report-dismissed);
+}
+
+.reports-equiv--missing {
+    color: var(--report-text-muted);
+}
+
+.reports-inline-form {
+    display: inline;
+}
+
+body.page-daily-detail .reports-toolbar input,
+body.page-daily-detail .reports-toolbar select {
+    color: var(--report-text);
+}

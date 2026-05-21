@@ -218,7 +218,8 @@ function auth_permissions_for_role(int $role): array
         'admin.dashboard.view',
         'admin.inbox.manage',
         'admin.reports.view',
-        'admin.duty.view',
+        'admin.duty.view', // Daily Attendance Detail (DAD) registry
+        'admin.dad.view',
         'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
@@ -467,7 +468,16 @@ function auth_user_can(string $permissionSlug): bool
         return false;
     }
 
-    return in_array($permissionSlug, $perms, true);
+    if (in_array($permissionSlug, $perms, true)) {
+        return true;
+    }
+
+    // Daily Attendance Detail (DAD) — alias for sessions granted before admin.dad.view
+    if ($permissionSlug === 'admin.dad.view' && in_array('admin.duty.view', $perms, true)) {
+        return true;
+    }
+
+    return false;
 }
 
 function auth_role_is(int ...$roles): bool

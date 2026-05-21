@@ -26,9 +26,9 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
             Incident report
         </a>
-        <a href="duty-detail.php" class="sidebar-link<?= $adminNavActive === 'duty' ? ' active' : '' ?>"<?= $adminNavActive === 'duty' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Duty posts and personnel assignments') ?>>
-            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
-            Duty detail
+        <a href="dad.php" class="sidebar-link<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' active' : '' ?>"<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Attendance Detail (DAD) — time-in/out, NTE, missing values') ?>>
+            <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+            DAD
         </a>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
             <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>

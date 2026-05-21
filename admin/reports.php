@@ -212,7 +212,7 @@ function admin_reports_row_attrs(array $report): string
                                         <i class="fa-solid fa-file-export reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
-                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Operations guide — workflow, case progression, registry status">
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
                                         <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Guard guide</span>
                                     </button>
@@ -434,9 +434,6 @@ function admin_reports_row_attrs(array $report): string
                 <div class="reports-modal-form">
                     <div class="reports-modal-form__blocks">
                     <div id="modal-panel-view" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide<?= $drawerMode === 'view' ? ' is-active' : '' ?>"<?= $drawerMode === 'view' ? '' : ' hidden' ?>>
-                        <header class="reports-modal-form__section-header">
-                            <h3 id="modal-view-heading" class="reports-modal-form__section-title">Report details</h3>
-                        </header>
                         <div class="reports-detail-groups reports-detail-groups--modal" id="modal-view-details">
                             <?php if ($openIncident): ?>
                             <?= admin_incident_modal_details_html($openIncident) ?>
@@ -514,18 +511,19 @@ function admin_reports_row_attrs(array $report): string
                     <hr class="reports-modal-form__separator" aria-hidden="true">
 
                     <section class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history" aria-labelledby="modal-history-heading">
-                        <header class="reports-modal-form__section-header">
-                            <h3 id="modal-history-heading" class="reports-modal-form__section-title reports-modal-form__section-title--timeline">
-                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                        <header class="reports-modal-form__section-header reports-modal__history-intro">
+                            <h3 id="modal-history-heading" class="reports-modal-form__section-title">
                                 <?= e(admin_incident_timeline_section_title()) ?>
                             </h3>
-                            <p class="reports-modal-form__section-desc"><?= e(admin_incident_timeline_section_description()) ?></p>
+                            <?php if (admin_incident_timeline_section_description() !== ''): ?>
+                            <p class="reports-modal-form__section-desc reports-modal__history-lead"><?= e(admin_incident_timeline_section_description()) ?></p>
+                            <?php endif; ?>
                         </header>
-                        <div id="modal-stepper" class="reports-timeline-host">
+                        <div id="modal-stepper" class="reports-timeline-host" role="region" aria-label="<?= e(admin_incident_timeline_section_title()) ?>">
                             <?php if ($openIncident): ?>
                                 <?= admin_incident_history_stepper_html(
                                     is_array($openIncident['history'] ?? null) ? $openIncident['history'] : [],
-                                    (string) ($openIncident['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING)
+                                    $openIncident
                                 ) ?>
                             <?php endif; ?>
                         </div>
@@ -561,18 +559,15 @@ function admin_reports_row_attrs(array $report): string
 <div id="reports-sanctions-overlay" class="reports-modal-overlay reports-sanctions-overlay"
      role="presentation" aria-hidden="true">
     <div class="reports-modal reports-sanctions-modal reports-guide--simple" id="reports-sanctions-modal" role="dialog"
-         aria-modal="true" aria-labelledby="sanctions-modal-title" aria-describedby="sanctions-modal-desc">
+         aria-modal="true" aria-labelledby="sanctions-modal-title">
         <header class="reports-modal__header">
             <div class="reports-modal__identity">
-                <span class="reports-modal__eyebrow">Security operations</span>
+                <span class="reports-modal__eyebrow">Incident report</span>
                 <div class="reports-modal__title-row">
-                    <h2 id="sanctions-modal-title" class="reports-modal__ref">Security guard operations guide</h2>
+                    <h2 id="sanctions-modal-title" class="reports-modal__ref">Guard guide</h2>
                 </div>
-                <p id="sanctions-modal-desc" class="reports-modal__lead">
-                    Incident workflow by type, how cases progress in the registry, status rules, and what happens when incidents repeat — one scrollable reference.
-                </p>
             </div>
-            <button type="button" class="reports-modal__close" id="reports-sanctions-close" aria-label="Close operations guide">&times;</button>
+            <button type="button" class="reports-modal__close" id="reports-sanctions-close" aria-label="Close guard guide">&times;</button>
         </header>
 
         <div class="reports-modal__content">
@@ -580,7 +575,7 @@ function admin_reports_row_attrs(array $report): string
                 <div class="reports-guide-filters" id="reports-guide-filters" data-guide-filters-mode="search">
                     <label for="guide-filter-search" class="reports-guide-filters__search-label">Search</label>
                     <input type="search" id="guide-filter-search" class="reports-guide-filters__search-input"
-                           placeholder="Search incident, step, status, or escalation…" autocomplete="off"
+                           placeholder="Search workflow or rules…" autocomplete="off"
                            aria-describedby="guide-filter-count">
                     <button type="button" class="reports-btn reports-btn--secondary reports-btn--sm" id="guide-filter-reset">Reset</button>
                     <p id="guide-filter-count" class="reports-guide-filters__count" aria-live="polite">

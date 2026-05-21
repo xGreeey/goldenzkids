@@ -34,34 +34,6 @@ try {
     error_log('admin/inbox messaging: ' . $e->getMessage());
 }
 
-$error = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
-    csrf_verify();
-
-    $remark = (string) $_POST['remark'];
-    $r_time = (string) $_POST['report_time'];
-    $r_guard = (string) $_POST['guard_id'];
-
-    $sql = 'UPDATE dgd SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?';
-    $stmt = $conn->prepare($sql);
-
-    if ($stmt && $stmt->bind_param('sss', $remark, $r_time, $r_guard) && $stmt->execute()) {
-        redirect_with_alert('Status updated successfully.', 'inbox.php');
-    }
-
-    $error = 'Could not update status. Please try again.';
-}
-
-$guards_result = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards');
-$guard_dict = [];
-if ($guards_result && $guards_result->num_rows > 0) {
-    while ($g = $guards_result->fetch_assoc()) {
-        $guard_dict[(string) $g['Company_ID']] = $g['Last_Name'] . ', ' . $g['First_Name'];
-    }
-}
-
-$reports_result = $conn->query('SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv FROM dgd ORDER BY Time_of_Report DESC');
-
 $memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
 
 $adminNavActive = 'inbox';
@@ -86,130 +58,14 @@ $adminNavActive = 'inbox';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Internal communications, staff messaging, and daily guard report review.</p>
+            <p class="page-subtitle">Internal communications, staff messaging, and memos.</p>
         </header>
-
-        <?php if ($error !== null): ?>
-            <div class="alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
 
         <div class="inbox-top-grid">
             <?php require __DIR__ . '/../includes/admin_internal_communications.php'; ?>
             <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
         </div>
-
-        <h2 class="inbox-section-title">Daily guard reports</h2>
-
-        <div class="notif-list" id="alert-feed" data-uploads-base="<?= e(UPLOADS_URL) ?>">
-            <?php
-            if ($reports_result && $reports_result->num_rows > 0) {
-                while ($row = $reports_result->fetch_assoc()) {
-                    $iv = base64_decode((string) $row['iv'], true) ?: '';
-                    $decrypted_est = $iv !== ''
-                        ? (openssl_decrypt((string) $row['Establishment'], $cipher_algo, $master_key, 0, $iv) ?: '[Decryption failed]')
-                        : '[Missing IV]';
-                    $decrypted_template = $iv !== ''
-                        ? (openssl_decrypt((string) $row['Template_Path'], $cipher_algo, $master_key, 0, $iv) ?: '')
-                        : '';
-
-                    $encrypted_ai = $row['AI_Extracted_Text'] ?? '';
-                    $decrypted_ai = '';
-                    if ($encrypted_ai !== '' && $iv !== '') {
-                        $decrypted_ai = openssl_decrypt((string) $encrypted_ai, $cipher_algo, $master_key, 0, $iv) ?: '';
-                    }
-
-                    $guard_id = (string) $row['Company_ID'];
-                    $guard_name = $guard_dict[$guard_id] ?? 'Unknown personnel';
-                    $time_sent = (string) $row['Time_of_Report'];
-                    $status = (string) $row['Status'];
-                    $status_text = strtoupper($status);
-
-                    $badge_bg = 'var(--accent-blue-soft)';
-                    $badge_color = 'var(--accent-blue)';
-                    if ($status_text === 'PENDING') {
-                        $badge_bg = 'var(--warning-soft)';
-                        $badge_color = 'var(--warning)';
-                    } elseif ($status_text === 'APPROVED') {
-                        $badge_bg = 'var(--success-soft)';
-                        $badge_color = 'var(--success)';
-                    } elseif ($status_text === 'FOR CLARIFICATION' || $status_text === 'NTE') {
-                        $badge_bg = 'var(--danger-soft)';
-                        $badge_color = 'var(--danger)';
-                    }
-                    ?>
-            <article class="notif-card" role="button" tabindex="0"<?= ui_tooltip('Open report details') ?>
-                     data-guard="<?= htmlspecialchars($guard_name, ENT_QUOTES, 'UTF-8') ?>"
-                     data-id="<?= htmlspecialchars($guard_id, ENT_QUOTES, 'UTF-8') ?>"
-                     data-est="<?= htmlspecialchars($decrypted_est, ENT_QUOTES, 'UTF-8') ?>"
-                     data-time="<?= htmlspecialchars($time_sent, ENT_QUOTES, 'UTF-8') ?>"
-                     data-template="<?= htmlspecialchars($decrypted_template, ENT_QUOTES, 'UTF-8') ?>"
-                     data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
-                     data-aitext="<?= htmlspecialchars($decrypted_ai, ENT_QUOTES, 'UTF-8') ?>">
-                <div class="icon-box" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></div>
-                <div class="content-box">
-                    <div class="notif-title">
-                        Daily guard report
-                        <span class="status-badge" style="background:<?= $badge_bg ?>;color:<?= $badge_color ?>;"><?= htmlspecialchars($status_text) ?></span>
-                    </div>
-                    <p class="notif-desc">Submitted for <?= htmlspecialchars($decrypted_est) ?>.</p>
-                    <div class="timestamp">
-                        <span>Employee ID: <?= htmlspecialchars($guard_id) ?></span>
-                        <span><?= htmlspecialchars($time_sent) ?></span>
-                    </div>
-                </div>
-                <button type="button" class="btn-dismiss" aria-label="Dismiss from list"<?= ui_tooltip('Dismiss from list') ?> onclick="dismiss(event, this)">×</button>
-            </article>
-                    <?php
-                }
-            }
-            ?>
-        </div>
-
-        <div id="empty-msg" class="empty-state">
-            <div style="font-size:2rem;margin-bottom:10px;" aria-hidden="true">✓</div>
-            <p style="font-weight:600;color:var(--text-secondary);">All clear</p>
-            <p style="font-size:0.875rem;margin-top:6px;">No reports awaiting review.</p>
-        </div>
     </main>
-</div>
-
-<div id="reportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <button type="button" class="close-modal" onclick="closeModal()" aria-label="Close"<?= ui_tooltip('Close') ?>>&times;</button>
-        <div class="modal-header">
-            <h2 id="modalTitle">Report details</h2>
-            <div id="modalTimestamp" class="modal-subtitle"></div>
-        </div>
-        <div class="modal-body">
-            <p class="modal-scan-label">Scanned form (click to enlarge)</p>
-            <img id="imgTemp" class="modal-scan-img" src="" alt="Report scan" role="presentation">
-            <div class="modal-info" id="modalInfo"></div>
-            <div id="aiTextContainer" class="ai-text-box" style="display:none;">
-                <div class="ai-text-header"><i class="fa-solid fa-robot" aria-hidden="true"></i> Extracted text</div>
-                <div id="modalAiText" class="ai-text-content"></div>
-            </div>
-            <form method="POST" id="remarking" class="modal-form-divider">
-                <?= csrf_field() ?>
-                <input type="hidden" name="report_time" id="formTime">
-                <input type="hidden" name="guard_id" id="formGuardId">
-                <div class="form-group">
-                    <label class="form-label" for="remark">Update report status</label>
-                    <select class="form-control" name="remark" id="remark" required>
-                        <option value="" disabled selected>Select status…</option>
-                        <option value="Pending">Pending</option>
-                        <option value="For Clarification">For clarification</option>
-                        <option value="Approved">Approved</option>
-                    </select>
-                </div>
-                <button type="submit" class="submit-btn"<?= ui_tooltip('Save report status') ?>>Save status</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div id="imageViewer" class="image-viewer-overlay" role="dialog" aria-label="Enlarged scan">
-    <button type="button" class="close-viewer" onclick="closeImageViewer(event)" aria-label="Close"<?= ui_tooltip('Close image viewer') ?>>&times;</button>
-    <img id="fullScreenImg" src="" alt="Enlarged report scan">
 </div>
 
 <?php admin_shell_scripts(); ?>

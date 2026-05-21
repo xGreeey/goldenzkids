@@ -12,7 +12,12 @@ if (!defined('APP_BASE')) {
     if ($docRoot !== '' && str_starts_with($appRoot, $docRoot)) {
         define('APP_BASE', rtrim(substr($appRoot, strlen($docRoot)), '/') ?: '');
     } else {
-        define('APP_BASE', '/abc');
+        $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        if (preg_match('#^/([^/]+)/(?:guard|admin|superadmin|auth|api)/#', $script, $m)) {
+            define('APP_BASE', '/' . $m[1]);
+        } else {
+            define('APP_BASE', '/goldenzkids');
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-$adminNavActive = $adminNavActive ?? 'dashboard';
+$guardNavActive = $guardNavActive ?? 'dashboard';
 $adminProfile = admin_sidebar_profile();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
@@ -9,22 +9,18 @@ $adminProfile = admin_sidebar_profile();
         <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo">
     </div>
 
-    <nav class="sidebar-nav" aria-label="Workspace">
-        <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Operations dashboard') ?>>
+    <nav class="sidebar-nav" aria-label="Guard workspace">
+        <a href="dashboard.php" class="sidebar-link<?= $guardNavActive === 'dashboard' ? ' active' : '' ?>"<?= $guardNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Field dashboard') ?>>
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Internal communications and messaging') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos and notifications') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
         </a>
-        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard report review') ?>>
+        <a href="reports.php" class="sidebar-link<?= $guardNavActive === 'reports' ? ' active' : '' ?>"<?= $guardNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard reports') ?>>
             <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
-            Reports
-        </a>
-        <a href="duty-detail.php" class="sidebar-link<?= $adminNavActive === 'duty' ? ' active' : '' ?>"<?= $adminNavActive === 'duty' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Duty posts and personnel assignments') ?>>
-            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
-            Duty detail
+            My reports
         </a>
     </nav>
 
@@ -41,13 +37,13 @@ $adminProfile = admin_sidebar_profile();
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>
                 <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="#" class="sidebar-footer-icon" aria-label="Audit Logs"<?= ui_tooltip('Audit logs', 'bottom') ?>>
+                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
                         <?= admin_sidebar_icon('audit') ?>
                     </a>
-                    <a href="#" class="sidebar-footer-icon" aria-label="Settings"<?= ui_tooltip('Account settings', 'bottom') ?>>
+                    <a href="reports.php" class="sidebar-footer-icon" aria-label="My reports"<?= ui_tooltip('My reports', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>
-                    <form method="POST" action="../auth/logout-admin.php" class="sidebar-footer-logout">
+                    <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">
                         <?= csrf_field() ?>
                         <button type="submit" class="sidebar-footer-icon" aria-label="Sign Out"<?= ui_tooltip('Sign out', 'bottom') ?>>
                             <?= admin_sidebar_icon('logout') ?>

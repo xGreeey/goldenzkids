@@ -72,18 +72,13 @@ declare(strict_types=1);
 
                 <div class="field">
                     <label for="memoContentInput" class="field-label">Memo body<span class="required-mark">*</span></label>
-                    <textarea name="content" id="memoContentInput" class="field-textarea" rows="8" placeholder="Enter the official memo text. Content is encrypted (AES-256) before storage."></textarea>
+                    <textarea name="content" id="memoContentInput" class="field-textarea" rows="8"></textarea>
                 </div>
 
                 <button type="submit" name="generate_memo" class="btn-primary"<?= ui_tooltip('Encrypt and publish secured memo') ?>>
                     <i class="fa-solid fa-lock" aria-hidden="true"></i>
                     Publish secured memo
                 </button>
-
-                <p class="security-note">
-                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
-                    <span>All memo content is encrypted at rest. Distribution is logged for audit compliance.</span>
-                </p>
             </div>
         </form>
     </div>

@@ -411,6 +411,7 @@ function superadmin_render_create_account_form(
         <div class="form-field">
             <label for="<?= e($pid('role')) ?>" class="label-with-icon"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Role</label>
             <select id="<?= e($pid('role')) ?>" name="role" required>
+                <option value="0"<?= $form['role'] === '0' ? ' selected' : '' ?>>Head guard</option>
                 <option value="1"<?= $form['role'] === '1' ? ' selected' : '' ?>>Administrator</option>
                 <option value="2"<?= $form['role'] === '2' ? ' selected' : '' ?>>Super administrator</option>
             </select>

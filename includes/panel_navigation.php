@@ -254,10 +254,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
         }
-<<<<<<< HEAD
         if (typeof window.initReportsModule === 'function' && doc.getElementById('reports-module')) {
             window.initReportsModule();
-=======
+        }
         if (typeof window.guardInitPortal === 'function'
             && document.body.classList.contains('guard-portal')) {
             flattenMainStage(stage);
@@ -265,7 +264,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (typeof window.initGuardApp === 'function') {
             window.initGuardApp();
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
         }
     }
 

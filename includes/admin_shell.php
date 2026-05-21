@@ -883,10 +883,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
-<<<<<<< HEAD
         echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
-=======
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
     }
 }

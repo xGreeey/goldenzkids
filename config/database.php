@@ -31,9 +31,5 @@ try {
     http_response_code(503);
     exit('Service temporarily unavailable. Please try again later.');
 }
-<<<<<<< HEAD
 
-$conn->set_charset('utf8mb4');
 $GLOBALS['conn'] = $conn;
-=======
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd

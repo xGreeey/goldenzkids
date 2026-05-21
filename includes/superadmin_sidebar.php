@@ -24,8 +24,6 @@ $superadminNavActive = $superadminNavActive ?? 'dashboard';
     </nav>
 
     <div class="sidebar-footer">
-<<<<<<< HEAD
-=======
         <div class="sidebar-footer-user">
             <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
             <div class="sidebar-footer-meta">
@@ -33,7 +31,6 @@ $superadminNavActive = $superadminNavActive ?? 'dashboard';
             </div>
         </div>
 
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>

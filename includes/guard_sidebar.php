@@ -28,16 +28,6 @@ $guardNavActive = $guardNavActive ?? 'dashboard';
     </nav>
 
     <div class="sidebar-footer">
-<<<<<<< HEAD
-=======
-        <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
-            <div class="sidebar-footer-meta">
-                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-            </div>
-        </div>
-
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
                 <div class="sidebar-footer-actions" role="toolbar" aria-label="Sign out and appearance">

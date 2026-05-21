@@ -17,18 +17,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
     $action = trim((string) ($_POST['action'] ?? ''));
 
-<<<<<<< HEAD
     if ($action === 'reset_demo') {
         admin_incident_store_reset();
         redirect_with_alert('Demo incident data has been reset to defaults.', 'reports.php');
-=======
-    $remark = (string) $_POST['remark'];
-    $r_time = (string) $_POST['report_time'];
-    $r_guard = (string) $_POST['guard_id'];
-
-    if (db_execute($conn, 'UPDATE dgd SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?', 'sss', [$remark, $r_time, $r_guard])) {
-        redirect_with_alert('Status updated successfully.', 'reports.php');
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
     }
 
     if ($action === 'update_incident') {
@@ -43,7 +34,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'ops_note' => (string) ($_POST['ops_note'] ?? ''),
         ], $actorId);
 
-<<<<<<< HEAD
         if ($updated === null) {
             redirect_with_alert('Incident report not found.', 'reports.php');
         }
@@ -67,18 +57,6 @@ if (isset($_GET['export']) && (string) $_GET['export'] === '1') {
     }
     admin_incident_export_csv(admin_incident_store_all());
 }
-=======
-$guard_dict = [];
-foreach (db_fetch_all($conn, 'SELECT Company_ID, First_Name, Last_Name FROM guards') as $g) {
-    $guard_dict[(string) $g['Company_ID']] = $g['Last_Name'] . ', ' . $g['First_Name'];
-}
-
-$reports_rows = db_fetch_all(
-    $conn,
-    'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv
-     FROM dgd ORDER BY Time_of_Report DESC'
-);
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
 
 $incidentReports = admin_incident_store_all();
 $statusCounts = admin_incident_status_counts($incidentReports);
@@ -164,7 +142,6 @@ function admin_reports_row_attrs(array $report): string
                 <p class="page-subtitle">Monitor and archive head-guard incident submissions — internal and external, with full status history.</p>
         </header>
 
-<<<<<<< HEAD
             <div id="reports-module" class="reports-module">
                 <div class="reports-kpi-grid" aria-label="Report summary">
                     <article class="reports-kpi">
@@ -177,68 +154,6 @@ function admin_reports_row_attrs(array $report): string
                         <p class="reports-kpi__label"><?= e($def['kpi']) ?></p>
                     </article>
                     <?php endforeach; ?>
-=======
-        <?php if ($error !== null): ?>
-            <div class="alert-error" role="alert"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
-
-        <div class="notif-list" id="alert-feed" data-uploads-base="<?= e(UPLOADS_URL) ?>">
-            <?php
-            if ($reports_rows !== []) {
-                foreach ($reports_rows as $row) {
-                    $iv = base64_decode((string) $row['iv'], true) ?: '';
-                    $decrypted_est = $iv !== ''
-                        ? (openssl_decrypt((string) $row['Establishment'], $cipher_algo, $master_key, 0, $iv) ?: '[Decryption failed]')
-                        : '[Missing IV]';
-                    $decrypted_template = $iv !== ''
-                        ? (openssl_decrypt((string) $row['Template_Path'], $cipher_algo, $master_key, 0, $iv) ?: '')
-                        : '';
-
-                    $encrypted_ai = $row['AI_Extracted_Text'] ?? '';
-                    $decrypted_ai = '';
-                    if ($encrypted_ai !== '' && $iv !== '') {
-                        $decrypted_ai = openssl_decrypt((string) $encrypted_ai, $cipher_algo, $master_key, 0, $iv) ?: '';
-                    }
-
-                    $guard_id = (string) $row['Company_ID'];
-                    $guard_name = $guard_dict[$guard_id] ?? 'Unknown personnel';
-                    $time_sent = (string) $row['Time_of_Report'];
-                    $status = (string) $row['Status'];
-                    $status_text = strtoupper($status);
-
-                    $badge_bg = 'var(--accent-blue-soft)';
-                    $badge_color = 'var(--accent-blue)';
-                    if ($status_text === 'PENDING') {
-                        $badge_bg = 'var(--warning-soft)';
-                        $badge_color = 'var(--warning)';
-                    } elseif ($status_text === 'APPROVED') {
-                        $badge_bg = 'var(--success-soft)';
-                        $badge_color = 'var(--success)';
-                    } elseif ($status_text === 'FOR CLARIFICATION' || $status_text === 'NTE') {
-                        $badge_bg = 'var(--danger-soft)';
-                        $badge_color = 'var(--danger)';
-                    }
-                    ?>
-            <article class="notif-card" role="button" tabindex="0"<?= ui_tooltip('Open report details') ?>
-                     data-guard="<?= htmlspecialchars($guard_name, ENT_QUOTES, 'UTF-8') ?>"
-                     data-id="<?= htmlspecialchars($guard_id, ENT_QUOTES, 'UTF-8') ?>"
-                     data-est="<?= htmlspecialchars($decrypted_est, ENT_QUOTES, 'UTF-8') ?>"
-                     data-time="<?= htmlspecialchars($time_sent, ENT_QUOTES, 'UTF-8') ?>"
-                     data-template="<?= htmlspecialchars($decrypted_template, ENT_QUOTES, 'UTF-8') ?>"
-                     data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
-                     data-aitext="<?= htmlspecialchars($decrypted_ai, ENT_QUOTES, 'UTF-8') ?>">
-                <div class="icon-box" aria-hidden="true"><i class="fa-solid fa-file-lines"></i></div>
-                <div class="content-box">
-                    <div class="notif-title">
-                        Daily guard report
-                        <span class="status-badge" style="background:<?= $badge_bg ?>;color:<?= $badge_color ?>;"><?= htmlspecialchars($status_text) ?></span>
-                    </div>
-                    <p class="notif-desc">Submitted for <?= htmlspecialchars($decrypted_est) ?>.</p>
-                    <div class="timestamp">
-                        <span>Employee ID: <?= htmlspecialchars($guard_id) ?></span>
-                        <span><?= htmlspecialchars($time_sent) ?></span>
-                    </div>
->>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
                 </div>
 
                 <section class="reports-panel" aria-label="Incident reports registry">

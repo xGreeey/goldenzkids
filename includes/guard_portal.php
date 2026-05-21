@@ -45,6 +45,15 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
     return $rows;
 }
 
+/** @return list<string> */
+function guard_portal_report_types(): array
+{
+    return [
+        'Post incident',
+        'Daily Attendance Document',
+    ];
+}
+
 function guard_portal_status_badge_class(string $status): string
 {
     return match (strtoupper(trim($status))) {

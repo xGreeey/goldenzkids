@@ -28,7 +28,12 @@ try {
 
 $companyId = (string) ($_SESSION['company_id'] ?? '');
 $establishment = guard_portal_assigned_post($conn, $companyId);
-$templateName = trim((string) ($_POST['template_name'] ?? 'Guard report'));
+$reportType = trim((string) ($_POST['report_type'] ?? $_POST['template_name'] ?? ''));
+if (!in_array($reportType, guard_portal_report_types(), true)) {
+    echo json_encode(['ok' => false, 'error' => 'Please select a valid report type.']);
+    exit;
+}
+$templateName = $reportType;
 
 if ($establishment === '') {
     echo json_encode(['ok' => false, 'error' => 'No post is assigned to your guard profile. Contact your administrator.']);
@@ -94,11 +99,11 @@ $ok = db_execute(
 
 if (!$ok) {
     @unlink($scanPath);
-    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $conn->error]);
+    echo json_encode(['ok' => false, 'error' => 'Could not save report. Please try again.']);
     exit;
 }
 
-$reportNumber = (int) $conn->insert_id;
+$reportNumber = db_last_insert_id($conn);
 
 if (db_table_exists($conn, 'guard_duty_status')) {
     db_execute(

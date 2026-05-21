@@ -379,16 +379,41 @@ function guard_hub_scripts(): void
             });
         }
 
+        var reportTypeSelect = qs('[name="report_type"]', form);
+        var reportTypeSummary = qs('[data-guard-report-type-summary]', form);
+
+        function selectedReportType() {
+            return reportTypeSelect ? String(reportTypeSelect.value || '').trim() : '';
+        }
+
+        function syncReportTypeSummary() {
+            if (reportTypeSummary) {
+                reportTypeSummary.textContent = selectedReportType() || '—';
+            }
+        }
+
+        if (reportTypeSelect) {
+            reportTypeSelect.addEventListener('change', syncReportTypeSummary);
+        }
+
         qsa('[data-wizard-next]', form).forEach(function (btn) {
             btn.addEventListener('click', function () {
                 var target = parseInt(btn.getAttribute('data-wizard-next'), 10);
-                if (current === 1 && !reportFile) {
-                    window.guardShowToast('Add a report scan or upload first.', 'error');
-                    return;
+                if (current === 1) {
+                    if (!selectedReportType()) {
+                        window.guardShowToast('Select a report type first.', 'error');
+                        if (reportTypeSelect) reportTypeSelect.focus();
+                        return;
+                    }
+                    if (!reportFile) {
+                        window.guardShowToast('Add a report scan or upload first.', 'error');
+                        return;
+                    }
                 }
                 goStep(target);
                 if (target === 1) startCamera();
                 else stopCamera();
+                if (target === 3) syncReportTypeSummary();
             });
         });
 
@@ -400,7 +425,13 @@ function guard_hub_scripts(): void
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            var template = (qs('[name="template_name"]', form) || {}).value || 'Guard report';
+            var reportType = selectedReportType();
+            if (!reportType) {
+                window.guardShowToast('Select a report type first.', 'error');
+                goStep(1);
+                if (reportTypeSelect) reportTypeSelect.focus();
+                return;
+            }
             if (!reportFile) {
                 window.guardShowToast('Report image is required.', 'error');
                 return;
@@ -412,7 +443,7 @@ function guard_hub_scripts(): void
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Submitting…';
             }
             var fd = new FormData();
-            fd.append('template_name', template.trim());
+            fd.append('report_type', reportType);
             fd.append('report_scan', reportFile);
             evidences.forEach(function (ev, i) {
                 fd.append('evidence[]', ev.file);

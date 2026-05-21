@@ -60,18 +60,12 @@ function guard_ui_settings_row_markup(string $themeToggleId): void
 {
     ?>
     <div class="guard-app__settings">
-        <span class="guard-app__settings-label">Settings</span>
-        <div class="guard-app__settings-tools" role="toolbar" aria-label="Settings shortcuts">
-            <a href="submit-report.php" class="guard-app__icon-btn" aria-label="Submit report">
-                <?= guard_ui_icon('clipboard-list', 20) ?>
-            </a>
-            <a href="inbox.php" class="guard-app__icon-btn" aria-label="Inbox and tracking">
-                <?= guard_ui_icon('gear', 20) ?>
-            </a>
+        <div class="guard-app__settings-tools" role="toolbar" aria-label="Sign out and appearance">
             <form method="POST" action="../auth/logout-guard.php" class="guard-app__logout-form">
                 <?= csrf_field() ?>
-                <button type="submit" class="guard-app__icon-btn" aria-label="Sign out">
+                <button type="submit" class="guard-app__icon-btn guard-app__logout-btn" aria-label="Sign out">
                     <?= guard_ui_icon('logout', 20) ?>
+                    <span class="guard-app__logout-btn-label">Logout</span>
                 </button>
             </form>
             <div class="guard-app__theme-toggle">

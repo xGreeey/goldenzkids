@@ -38,14 +38,7 @@ $adminProfile = admin_sidebar_profile();
 
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
-                <span class="sidebar-footer-label">Settings</span>
-                <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="submit-report.php" class="sidebar-footer-icon" aria-label="Submit report"<?= ui_tooltip('Submit report', 'bottom') ?>>
-                        <?= admin_sidebar_icon('audit') ?>
-                    </a>
-                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
-                        <?= admin_sidebar_icon('settings') ?>
-                    </a>
+                <div class="sidebar-footer-actions" role="toolbar" aria-label="Sign out and appearance">
                     <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">
                         <?= csrf_field() ?>
                         <button type="submit" class="sidebar-footer-icon" aria-label="Sign Out"<?= ui_tooltip('Sign out', 'bottom') ?>>

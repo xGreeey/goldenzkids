@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
+require_once __DIR__ . '/../includes/guard_portal.php';
 
 auth_require_permission('guard.reports.submit');
 
+$reportTypes = guard_portal_report_types();
 $guardNavActive = 'submit';
 guard_layout_head('Submit Report');
 ?>
@@ -39,6 +41,17 @@ guard_layout_head('Submit Report');
 
                 <div class="guard-wizard__pane is-active" data-wizard-pane="1">
                     <h3 class="panel-title guard-wizard__pane-title">Step 1 — Insert filled report</h3>
+                    <div class="form-field guard-wizard__report-type">
+                        <label for="report_type">Report type</label>
+                        <div class="guard-select">
+                            <select id="report_type" name="report_type" class="guard-select__native" required>
+                                <option value="" disabled selected>Select report type…</option>
+                                <?php foreach ($reportTypes as $type): ?>
+                                    <option value="<?= e($type) ?>"><?= e($type) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
                     <div class="guard-scanner" data-guard-scanner>
                         <video class="guard-scanner__video" data-guard-scanner-video playsinline muted autoplay aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
@@ -78,10 +91,10 @@ guard_layout_head('Submit Report');
 
                 <div class="guard-wizard__pane" data-wizard-pane="3">
                     <h3 class="panel-title guard-wizard__pane-title">Step 3 — Submit</h3>
-                    <div class="form-field">
-                        <label for="template_name" class="label-with-icon"><i class="fa-solid fa-file" aria-hidden="true"></i> Template name</label>
-                        <input type="text" id="template_name" name="template_name" value="Daily guard report" required>
-                    </div>
+                    <p class="form-hint guard-wizard__review-type">
+                        <strong>Report type:</strong>
+                        <span data-guard-report-type-summary>—</span>
+                    </p>
                     <p class="form-hint">Your report will appear as <strong>Pending</strong> until reviewed on the admin dashboard.</p>
                     <button type="button" class="btn-ghost" data-wizard-back="2"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</button>
                     <button type="submit" class="btn-primary guard-wizard__submit" data-guard-submit>

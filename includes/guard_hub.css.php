@@ -405,6 +405,91 @@ function guard_hub_styles(): void
             margin: 0 0 10px;
         }
 
+        body.guard-portal .guard-app__scroll .guard-wizard__report-type {
+            margin: 0 0 12px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-wizard__review-type {
+            margin: 0 0 10px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select {
+            position: relative;
+            width: 100%;
+        }
+
+        /* Report type — neutral only (no brand/accent tints on field or options) */
+        body.guard-portal .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal .guard-app__scroll .guard-select__native {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 40px 10px 14px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            line-height: 1.3;
+            color: #111827;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            box-shadow: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            accent-color: #6b7280;
+            color-scheme: light;
+            transition: border-color 0.15s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px 18px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:hover {
+            border-color: #d1d5db;
+            background-color: #ffffff;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:focus,
+        body.guard-portal.superadmin-portal .form-field .guard-select__native:focus {
+            outline: none;
+            border-color: #9ca3af;
+            box-shadow: none;
+            background-color: #ffffff;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:invalid {
+            color: #111827;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native option,
+        body.guard-portal .guard-app__scroll .guard-select__native optgroup {
+            background-color: #ffffff;
+            color: #111827;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native {
+            color: #111827;
+            background-color: #ffffff;
+            border-color: #d1d5db;
+            color-scheme: light;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:hover,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:focus,
+        body.guard-portal.superadmin-portal:not(.light-mode) .form-field .guard-select__native:focus {
+            background-color: #ffffff;
+            border-color: #9ca3af;
+            box-shadow: none;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native option,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native optgroup {
+            background-color: #ffffff;
+            color: #111827;
+        }
+
         body.guard-portal .guard-app__scroll .guard-scanner {
             position: relative;
             width: 100%;

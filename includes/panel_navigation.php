@@ -254,7 +254,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
         }
-<<<<<<< HEAD
         if (typeof window.guardInitPortal === 'function'
             && document.body.classList.contains('guard-portal')) {
             flattenMainStage(stage);
@@ -262,11 +261,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (typeof window.initGuardApp === 'function') {
             window.initGuardApp();
-=======
-        if (typeof window.initMessagingBoard === 'function'
-            && (doc.getElementById('messaging-board') || document.getElementById('messaging-board'))) {
-            window.initMessagingBoard();
->>>>>>> 493ddc0826316fd078ab98e571f6a6efec50cf08
         }
     }
 

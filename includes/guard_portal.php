@@ -1,40 +1,23 @@
 <?php
 declare(strict_types=1);
 
-function guard_portal_table_exists(mysqli $conn, string $table): bool
-{
-    $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
-    if ($table === '') {
-        return false;
-    }
-    $res = $conn->query("SHOW TABLES LIKE '{$table}'");
-
-    return $res instanceof mysqli_result && $res->num_rows > 0;
-}
-
 /** @return list<array<string,mixed>> */
-function guard_portal_announcements(mysqli $conn, int $limit = 20): array
+function guard_portal_announcements(PDO $conn, int $limit = 20): array
 {
-    if (!guard_portal_table_exists($conn, 'guard_announcements')) {
+    if (!db_table_exists($conn, 'guard_announcements')) {
         return [];
     }
     $limit = max(1, min($limit, 50));
-    $rows = [];
-    $res = $conn->query(
-        "SELECT id, title, body, created_at FROM guard_announcements
-         WHERE is_active = 1 ORDER BY created_at DESC LIMIT {$limit}"
-    );
-    if ($res) {
-        while ($r = $res->fetch_assoc()) {
-            $rows[] = $r;
-        }
-    }
 
-    return $rows;
+    return db_fetch_all(
+        $conn,
+        'SELECT id, title, body, created_at FROM guard_announcements
+         WHERE is_active = 1 ORDER BY created_at DESC LIMIT ' . $limit
+    );
 }
 
 /** @return list<array<string,mixed>> */
-function guard_portal_user_reports(mysqli $conn, string $companyId, int $limit = 50): array
+function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50): array
 {
     if ($companyId === '') {
         return [];
@@ -49,7 +32,7 @@ function guard_portal_user_reports(mysqli $conn, string $companyId, int $limit =
     );
     $rows = [];
     if ($res) {
-        while ($r = $res->fetch_assoc()) {
+        while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
             $est = (string) ($r['Establishment'] ?? '');
             if ($est !== '' && preg_match('/^[A-Za-z0-9+\/=]+$/', $est)) {
                 $est = 'Secured';
@@ -72,28 +55,28 @@ function guard_portal_status_badge_class(string $status): string
 }
 
 /** Post assigned to the logged-in guard (from guards.Post_Assigned). */
-function guard_portal_assigned_post(mysqli $conn, string $companyId): string
+function guard_portal_assigned_post(PDO $conn, string $companyId): string
 {
     if ($companyId === '') {
         return '';
     }
-    $prof = db_query(
+    $row = db_fetch_one(
         $conn,
         'SELECT Post_Assigned FROM guards WHERE Company_ID = ? LIMIT 1',
         's',
         [$companyId]
     );
-    if ($prof && $prof->num_rows > 0) {
-        return trim((string) ($prof->fetch_assoc()['Post_Assigned'] ?? ''));
+    if ($row !== null) {
+        return trim((string) ($row['Post_Assigned'] ?? ''));
     }
 
     return '';
 }
 
 /** @return list<array{company_id:string,label:string,unread:int}> */
-function guard_portal_admin_contacts(mysqli $conn): array
+function guard_portal_admin_contacts(PDO $conn): array
 {
-    if (!guard_portal_table_exists($conn, 'guard_staff_messages')) {
+    if (!db_table_exists($conn, 'guard_staff_messages')) {
         return [];
     }
     $roleCol = auth_users_role_column($conn);
@@ -111,7 +94,7 @@ function guard_portal_admin_contacts(mysqli $conn): array
     );
     $contacts = [];
     if ($res) {
-        while ($row = $res->fetch_assoc()) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $contacts[] = [
                 'company_id' => (string) $row['company_id'],
                 'label' => (string) $row['label'],
@@ -131,7 +114,7 @@ function guard_portal_admin_contacts(mysqli $conn): array
     );
     $map = [];
     if ($unread) {
-        while ($u = $unread->fetch_assoc()) {
+        while ($u = $unread->fetch(PDO::FETCH_ASSOC)) {
             $map[(string) $u['sender_company_id']] = (int) $u['c'];
         }
     }
@@ -143,9 +126,9 @@ function guard_portal_admin_contacts(mysqli $conn): array
 }
 
 /** @return list<array<string,mixed>> */
-function guard_portal_message_thread(mysqli $conn, string $viewerId, string $peerId): array
+function guard_portal_message_thread(PDO $conn, string $viewerId, string $peerId): array
 {
-    if (!guard_portal_table_exists($conn, 'guard_staff_messages') || $viewerId === '' || $peerId === '') {
+    if (!db_table_exists($conn, 'guard_staff_messages') || $viewerId === '' || $peerId === '') {
         return [];
     }
     $res = db_query(
@@ -160,7 +143,7 @@ function guard_portal_message_thread(mysqli $conn, string $viewerId, string $pee
     );
     $rows = [];
     if ($res) {
-        while ($r = $res->fetch_assoc()) {
+        while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
             $r['is_mine'] = (string) $r['sender_company_id'] === $viewerId;
             $rows[] = $r;
         }
@@ -176,9 +159,9 @@ function guard_portal_message_thread(mysqli $conn, string $viewerId, string $pee
     return $rows;
 }
 
-function guard_portal_send_message(mysqli $conn, string $senderId, string $recipientId, string $body): bool
+function guard_portal_send_message(PDO $conn, string $senderId, string $recipientId, string $body): bool
 {
-    if (!guard_portal_table_exists($conn, 'guard_staff_messages')) {
+    if (!db_table_exists($conn, 'guard_staff_messages')) {
         return false;
     }
     $body = trim($body);
@@ -186,16 +169,16 @@ function guard_portal_send_message(mysqli $conn, string $senderId, string $recip
         return false;
     }
     $roleCol = auth_users_role_column($conn);
-    $chk = db_query(
+    $row = db_fetch_one(
         $conn,
         "SELECT {$roleCol} AS role FROM users WHERE Company_ID = ? AND is_active = 1 LIMIT 1",
         's',
         [$recipientId]
     );
-    if (!$chk || $chk->num_rows === 0) {
+    if ($row === null) {
         return false;
     }
-    $role = auth_normalize_role($chk->fetch_assoc()['role'] ?? AUTH_ROLE_ADMIN);
+    $role = auth_normalize_role($row['role'] ?? AUTH_ROLE_ADMIN);
     if ($role !== AUTH_ROLE_ADMIN) {
         return false;
     }

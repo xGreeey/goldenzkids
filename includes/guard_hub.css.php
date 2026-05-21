@@ -407,20 +407,30 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-app__scroll .guard-scanner {
             position: relative;
+            width: 100%;
             border-radius: 10px;
             overflow: hidden;
             background: #0f172a;
-            aspect-ratio: 4/3;
-            max-height: 240px;
+            aspect-ratio: 4 / 3;
+            max-height: min(240px, 42vh);
             border: 1px solid var(--guard-ui-border, #e2e8f0);
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 0;
             display: block;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            max-width: none;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            object-position: center center;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
@@ -438,6 +448,7 @@ function guard_hub_styles(): void
         body.guard-portal .guard-app__scroll .guard-scanner__frame {
             position: absolute;
             inset: 12% 8%;
+            z-index: 1;
             border: 2px solid rgba(255, 255, 255, 0.85);
             border-radius: 8px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
@@ -454,6 +465,7 @@ function guard_hub_styles(): void
             left: 0;
             right: 0;
             bottom: 0;
+            z-index: 2;
             padding: 8px 10px;
             font-size: 0.75rem;
             font-weight: 600;

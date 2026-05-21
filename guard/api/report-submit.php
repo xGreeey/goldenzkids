@@ -100,7 +100,7 @@ if (!$ok) {
 
 $reportNumber = (int) $conn->insert_id;
 
-if (guard_portal_table_exists($conn, 'guard_duty_status')) {
+if (db_table_exists($conn, 'guard_duty_status')) {
     db_execute(
         $conn,
         'INSERT INTO guard_duty_status (company_id, duty_status) VALUES (?, ?)
@@ -110,7 +110,7 @@ if (guard_portal_table_exists($conn, 'guard_duty_status')) {
     );
 }
 
-if (guard_portal_table_exists($conn, 'guard_report_evidence') && isset($_FILES['evidence'])) {
+if (db_table_exists($conn, 'guard_report_evidence') && isset($_FILES['evidence'])) {
     $evFiles = $_FILES['evidence'];
     $names = is_array($evFiles['name']) ? $evFiles['name'] : [$evFiles['name']];
     $tmps = is_array($evFiles['tmp_name']) ? $evFiles['tmp_name'] : [$evFiles['tmp_name']];

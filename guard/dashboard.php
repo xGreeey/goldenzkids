@@ -66,23 +66,6 @@ if ($totalQuery) {
     $totalReports = (int) ($totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
-<<<<<<< HEAD
-=======
-$recentMemos = [];
-$memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.created_at, mr.is_read
-            FROM memo_recipients mr
-            INNER JOIN memos m ON m.Memo_ID = mr.Memo_ID
-            WHERE mr.Company_ID = ?
-            ORDER BY m.created_at DESC
-            LIMIT 5';
-$memoResult = db_query($conn, $memoSql, 's', [$companyId]);
-if ($memoResult) {
-    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
-        $recentMemos[] = $r;
-    }
-}
-
->>>>>>> 493ddc0826316fd078ab98e571f6a6efec50cf08
 $guardNavActive = 'dashboard';
 guard_layout_head('Dashboard');
 ?>

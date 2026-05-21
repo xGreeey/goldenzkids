@@ -70,7 +70,7 @@ guard_layout_head('Dashboard');
                     </a>
                     <a href="inbox.php" class="guard-ui-action-card">
                         <span class="guard-ui-action-card__icon"><?= guard_ui_icon('inbox', 24) ?></span>
-                        <span class="guard-ui-action-card__label">Inbox &amp; tracking</span>
+                        <span class="guard-ui-action-card__label">Inbox</span>
                     </a>
                     <a href="corner.php" class="guard-ui-action-card">
                         <span class="guard-ui-action-card__icon"><?= guard_ui_icon('shield', 24) ?></span>

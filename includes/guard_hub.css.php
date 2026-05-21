@@ -170,6 +170,22 @@ function guard_hub_styles(): void
             display: none;
         }
 
+        body.guard-portal .guard-submit-card .guard-card__head .guard-report-history-toggle {
+            flex-shrink: 0;
+            min-height: 36px;
+            padding: 6px 12px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-report-history__hint {
+            margin: 0 0 10px;
+        }
+
+        body.guard-portal .guard-submit-card.is-history-open .guard-wizard {
+            display: none;
+        }
+
         /* Responsive page grids */
         body.guard-portal .guard-page-grid {
             display: grid;

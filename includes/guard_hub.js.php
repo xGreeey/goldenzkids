@@ -470,7 +470,7 @@ function guard_hub_scripts(): void
                         if (scanner) scanner.classList.remove('has-capture');
                         goStep(1);
                         setTimeout(function () {
-                            window.location.href = 'inbox.php?tab=reports';
+                            window.location.href = 'submit-report.php?view=history';
                         }, 1200);
                     } else {
                         window.guardShowToast(data.error || 'Submission failed.', 'error');
@@ -618,6 +618,67 @@ function guard_hub_scripts(): void
         }
     }
 
+    function applySubmitReportView(root, open) {
+        var card = qs('[data-guard-submit-card]', root);
+        var toggle = qs('[data-guard-report-history-toggle]', root);
+        var history = qs('[data-guard-report-history]', root);
+        var wizard = qs('[data-guard-report-wizard]', root);
+        var heading = qs('[data-guard-submit-card-heading]', root);
+        if (!card || !toggle || !history || !wizard) {
+            return;
+        }
+        card.classList.toggle('is-history-open', open);
+        history.hidden = !open;
+        wizard.hidden = open;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.textContent = open ? 'Back to submission' : 'Report history';
+        if (heading) {
+            heading.textContent = open ? 'Report history' : 'Report submission';
+        }
+    }
+
+    function initReportHistoryToggle(root) {
+        var card = qs('[data-guard-submit-card]', root);
+        var toggle = qs('[data-guard-report-history-toggle]', root);
+        if (!card || !toggle) {
+            return;
+        }
+        if (toggle._guardHistoryBound) {
+            return;
+        }
+        toggle._guardHistoryBound = true;
+
+        toggle.addEventListener('click', function () {
+            var open = !card.classList.contains('is-history-open');
+            applySubmitReportView(root, open);
+            try {
+                var url = new URL(window.location.href);
+                if (open) {
+                    url.searchParams.set('view', 'history');
+                } else {
+                    url.searchParams.delete('view');
+                }
+                history.replaceState({ panelNav: true, url: url.href }, '', url.href);
+                persistGuardLocation(url.href);
+            } catch (e) {
+                /* ignore */
+            }
+        });
+    }
+
+    function syncSubmitReportViewFromUrl(root) {
+        if (!qs('[data-guard-submit-card]', root)) {
+            return;
+        }
+        var view = '';
+        try {
+            view = new URL(window.location.href).searchParams.get('view') || '';
+        } catch (e) {
+            return;
+        }
+        applySubmitReportView(root, view === 'history');
+    }
+
     function syncInboxTabFromUrl(root) {
         var tab = '';
         try {
@@ -674,6 +735,8 @@ function guard_hub_scripts(): void
         initAccordion(root);
         syncCornerTabFromUrl(root);
         syncInboxTabFromUrl(root);
+        syncSubmitReportViewFromUrl(root);
+        initReportHistoryToggle(root);
         var wizard = qs('[data-guard-report-wizard]', root);
         if (wizard) {
             initReportWizard(wizard);

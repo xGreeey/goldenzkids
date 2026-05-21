@@ -7,7 +7,10 @@ require_once __DIR__ . '/../includes/guard_portal.php';
 
 auth_require_permission('guard.reports.submit');
 
+$companyId = (string) $_SESSION['company_id'];
 $reportTypes = guard_portal_report_types();
+$reports = guard_portal_user_reports($conn, $companyId);
+$showHistory = (($_GET['view'] ?? '') === 'history');
 $guardNavActive = 'submit';
 guard_layout_head('Submit Report');
 ?>
@@ -17,11 +20,33 @@ guard_layout_head('Submit Report');
             <p class="page-subtitle">Three-step submission: scan your filled report, attach evidences, then submit for admin review.</p>
         </header>
 
-        <section class="guard-card">
+        <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
             <div class="guard-card__head">
-                <h2 class="panel-title">Report submission</h2>
+                <h2 id="guard-submit-card-heading" class="panel-title" data-guard-submit-card-heading><?= $showHistory ? 'Report history' : 'Report submission' ?></h2>
+                <button
+                    type="button"
+                    class="btn-ghost guard-report-history-toggle"
+                    data-guard-report-history-toggle
+                    aria-expanded="<?= $showHistory ? 'true' : 'false' ?>"
+                ><?= $showHistory ? 'Back to submission' : 'Report history' ?></button>
             </div>
-            <form class="guard-wizard" data-guard-report-wizard method="POST" action="api/report-submit.php" enctype="multipart/form-data" autocomplete="off">
+            <div
+                class="guard-report-history"
+                data-guard-report-history
+                <?= $showHistory ? '' : 'hidden' ?>
+                aria-labelledby="guard-submit-card-heading"
+            >
+                <?php guard_portal_report_history_markup($reports); ?>
+            </div>
+            <form
+                class="guard-wizard"
+                data-guard-report-wizard
+                method="POST"
+                action="api/report-submit.php"
+                enctype="multipart/form-data"
+                autocomplete="off"
+                <?= $showHistory ? 'hidden' : '' ?>
+            >
                 <?= csrf_field() ?>
 
                 <div class="guard-wizard__steps" role="tablist" aria-label="Report steps">

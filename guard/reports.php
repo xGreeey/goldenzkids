@@ -1,5 +1,5 @@
 <?php
 declare(strict_types=1);
 
-header('Location: inbox.php?tab=reports');
+header('Location: submit-report.php?view=history');
 exit;

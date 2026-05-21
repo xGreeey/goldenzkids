@@ -54,6 +54,30 @@ function guard_portal_report_types(): array
     ];
 }
 
+/** @param list<array<string,mixed>> $reports */
+function guard_portal_report_history_markup(array $reports): void
+{
+    ?>
+    <p class="form-hint guard-report-history__hint">Status matches the admin dashboard. Refresh to see updates.</p>
+    <?php if ($reports === []): ?>
+        <p class="empty-state">No reports submitted yet.</p>
+    <?php else: ?>
+        <ul class="guard-report-list">
+            <?php foreach ($reports as $report): ?>
+                <?php $status = (string) ($report['Status'] ?? 'Pending'); ?>
+                <li class="guard-report-list__item">
+                    <span class="guard-badge <?= e(guard_portal_status_badge_class($status)) ?>"><?= e($status) ?></span>
+                    <time class="guard-report-list__date"><?= e((string) ($report['Time_of_Report'] ?? '—')) ?></time>
+                    <span class="guard-report-list__meta">
+                        <?= e((string) ($report['establishment_label'] ?? '—')) ?>
+                        · <?= e((string) ($report['Template'] ?? 'Report')) ?>
+                    </span>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif;
+}
+
 function guard_portal_status_badge_class(string $status): string
 {
     return match (strtoupper(trim($status))) {

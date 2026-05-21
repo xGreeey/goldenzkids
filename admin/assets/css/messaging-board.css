@@ -205,9 +205,54 @@
     border-bottom: 1px solid var(--border);
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.messaging-thread__header-main {
+    display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 8px;
     min-width: 0;
+    flex: 1 1 auto;
+}
+
+.messaging-thread__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.messaging-thread__action {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm, 8px);
+    border: 1px solid var(--border);
+    background: var(--app-card-bg, #fff);
+    color: var(--app-ink-muted, #5c6b7d);
+    font-family: inherit;
+    font-size: var(--font-body-size-xs, 0.8125rem);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.messaging-thread__action:hover {
+    border-color: var(--accent-blue, #219ebc);
+    color: var(--app-ink-deep, #023047);
+}
+
+.messaging-thread__action--danger {
+    border-color: #f5c2c7;
+    color: #b42318;
+}
+
+.messaging-thread__action--danger:hover {
+    border-color: #c62828;
+    background: #fff5f5;
+    color: #c62828;
 }
 
 .messaging-thread__header strong,

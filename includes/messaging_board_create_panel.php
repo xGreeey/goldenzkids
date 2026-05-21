@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /** Create-group panel fragment (included from messaging_board.php). */
 ?>
-<div class="messaging-create-panel" id="createGroupPanel">
+<div class="messaging-create-panel">
     <div class="messaging-create-panel__intro">
         <i class="fa-solid fa-users-rays messaging-create-panel__icon" aria-hidden="true"></i>
         <div>
@@ -12,7 +12,7 @@ declare(strict_types=1);
         </div>
     </div>
     <?php if ($canRenderCreateForm): ?>
-    <form method="POST" action="<?= e($messagingCreateGroupUrl) ?>" class="messaging-create-group__form">
+    <form method="POST" action="<?= e($messagingCreateGroupUrl) ?>" class="messaging-create-group__form js-messaging-create-group-form">
         <?= csrf_field() ?>
         <label class="messaging-create-group__label" for="groupNameInput">Group name</label>
         <input type="text"

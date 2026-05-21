@@ -23,6 +23,7 @@ try {
         $payload = messaging_ajax_build_group_payload(
             $conn,
             $viewerId,
+            $viewerRole,
             $groupId,
             app_url('guard/send-group-message.php')
         );

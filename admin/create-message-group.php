@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/group_messaging.php';
+require_once APP_ROOT . '/includes/messaging_ajax.php';
 
 auth_require_permission('admin.messaging.send');
 
@@ -23,16 +24,37 @@ if (!is_array($memberIds)) {
 $redirect = 'inbox.php#messaging-board';
 
 if ($groupName === '') {
-    redirect_with_alert('Enter a name for the group chat.', $redirect);
+    if (messaging_ajax_wants_json()) {
+        messaging_ajax_json(['ok' => false, 'error' => 'Enter a name for the group chat.']);
+    }
+    redirect_with_alert('Enter a name for the group chat.', $redirect, 'warning');
 }
 
 if ($memberIds === []) {
-    redirect_with_alert('Select at least one head guard for the group.', $redirect);
+    if (messaging_ajax_wants_json()) {
+        messaging_ajax_json(['ok' => false, 'error' => 'Select at least one head guard for the group.']);
+    }
+    redirect_with_alert('Select at least one head guard for the group.', $redirect, 'warning');
 }
 
 $groupId = group_messaging_create_group($conn, $creatorId, $groupName, $memberIds);
 if ($groupId === null) {
-    redirect_with_alert('Group could not be created. Check the name and head guard selection.', $redirect);
+    if (messaging_ajax_wants_json()) {
+        messaging_ajax_json(['ok' => false, 'error' => 'Group could not be created. Check the name and head guard selection.']);
+    }
+    redirect_with_alert('Group could not be created. Check the name and head guard selection.', $redirect, 'error');
 }
 
-redirect_with_alert('Group chat created.', 'inbox.php?group=' . $groupId . '#messaging-board');
+if (messaging_ajax_wants_json()) {
+    messaging_ajax_json([
+        'ok' => true,
+        'message' => 'Group chat created.',
+        'title' => 'Success',
+        'type' => 'success',
+        'group_id' => $groupId,
+        'group_name' => $groupName,
+        'member_count' => count($memberIds) + 1,
+    ]);
+}
+
+redirect_with_alert('Group chat created.', 'inbox.php?group=' . $groupId . '#messaging-board', 'success');

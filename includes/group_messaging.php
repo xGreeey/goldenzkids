@@ -280,7 +280,8 @@ function group_messaging_get_group_meta(mysqli $conn, int $groupId, string $view
     }
 
     $stmt = $conn->prepare(
-        'SELECT group_id, group_name FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1'
+        'SELECT group_id, group_name, created_by_company_id
+         FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1'
     );
     if (!$stmt) {
         return null;
@@ -332,8 +333,180 @@ function group_messaging_get_group_meta(mysqli $conn, int $groupId, string $view
     return [
         'group_id' => (int) $row['group_id'],
         'group_name' => (string) $row['group_name'],
+        'created_by_company_id' => (string) $row['created_by_company_id'],
         'members' => $members,
     ];
+}
+
+function group_messaging_is_group_creator(array $meta, string $companyId): bool
+{
+    return ($meta['created_by_company_id'] ?? '') === $companyId;
+}
+
+function group_messaging_can_delete_group(mysqli $conn, int $groupId, string $actorId, int $actorRole): bool
+{
+    if (!group_messaging_user_in_group($conn, $groupId, $actorId)) {
+        return false;
+    }
+
+    $role = auth_normalize_role($actorRole);
+    if ($role === AUTH_ROLE_ADMIN || $role === AUTH_ROLE_SUPERADMIN) {
+        return true;
+    }
+
+    $stmt = $conn->prepare(
+        'SELECT created_by_company_id FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1'
+    );
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('i', $groupId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return $row && (string) $row['created_by_company_id'] === $actorId;
+}
+
+/** Delete all messages in a group; members remain. */
+function group_messaging_clear_history(mysqli $conn, int $groupId, string $actorId): bool
+{
+    if (!group_messaging_user_in_group($conn, $groupId, $actorId)) {
+        return false;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        $del = $conn->prepare('DELETE FROM message_group_messages WHERE group_id = ?');
+        if (!$del || !$del->bind_param('i', $groupId) || !$del->execute()) {
+            throw new RuntimeException('Could not clear messages');
+        }
+        $del->close();
+
+        $read = $conn->prepare(
+            'UPDATE message_group_read_state SET last_read_message_id = NULL WHERE group_id = ?'
+        );
+        if ($read) {
+            $read->bind_param('i', $groupId);
+            $read->execute();
+            $read->close();
+        }
+
+        $conn->commit();
+
+        return true;
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('group_messaging_clear_history: ' . $e->getMessage());
+
+        return false;
+    }
+}
+
+/** Remove member from group; deactivates group when empty. */
+function group_messaging_leave_group(mysqli $conn, int $groupId, string $companyId): bool
+{
+    if (!group_messaging_user_in_group($conn, $groupId, $companyId)) {
+        return false;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        $stmt = $conn->prepare(
+            'DELETE FROM message_group_members WHERE group_id = ? AND company_id = ?'
+        );
+        if (!$stmt || !$stmt->bind_param('is', $groupId, $companyId) || !$stmt->execute()) {
+            throw new RuntimeException('Could not leave group');
+        }
+        $stmt->close();
+
+        $read = $conn->prepare(
+            'DELETE FROM message_group_read_state WHERE group_id = ? AND company_id = ?'
+        );
+        if ($read) {
+            $read->bind_param('is', $groupId, $companyId);
+            $read->execute();
+            $read->close();
+        }
+
+        $countStmt = $conn->prepare(
+            'SELECT COUNT(*) AS total FROM message_group_members WHERE group_id = ?'
+        );
+        if (!$countStmt || !$countStmt->bind_param('i', $groupId) || !$countStmt->execute()) {
+            throw new RuntimeException('Could not count members');
+        }
+        $countRow = $countStmt->get_result()->fetch_assoc();
+        $countStmt->close();
+
+        if ((int) ($countRow['total'] ?? 0) === 0) {
+            group_messaging_deactivate_group($conn, $groupId);
+        }
+
+        $conn->commit();
+
+        return true;
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('group_messaging_leave_group: ' . $e->getMessage());
+
+        return false;
+    }
+}
+
+/** Deactivate group and remove all data (admin/creator only). */
+function group_messaging_delete_group(mysqli $conn, int $groupId, string $actorId, int $actorRole): bool
+{
+    if (!group_messaging_can_delete_group($conn, $groupId, $actorId, $actorRole)) {
+        return false;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        foreach (
+            [
+                'DELETE FROM message_group_messages WHERE group_id = ?',
+                'DELETE FROM message_group_read_state WHERE group_id = ?',
+                'DELETE FROM message_group_members WHERE group_id = ?',
+            ] as $sql
+        ) {
+            $del = $conn->prepare($sql);
+            if (!$del || !$del->bind_param('i', $groupId) || !$del->execute()) {
+                throw new RuntimeException('Could not delete group data');
+            }
+            $del->close();
+        }
+
+        $stmt = $conn->prepare('UPDATE message_groups SET is_active = 0 WHERE group_id = ?');
+        if (!$stmt || !$stmt->bind_param('i', $groupId) || !$stmt->execute()) {
+            throw new RuntimeException('Could not delete group');
+        }
+        $stmt->close();
+
+        $conn->commit();
+
+        return true;
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('group_messaging_delete_group: ' . $e->getMessage());
+
+        return false;
+    }
+}
+
+function group_messaging_deactivate_group(mysqli $conn, int $groupId): void
+{
+    $stmt = $conn->prepare('UPDATE message_groups SET is_active = 0 WHERE group_id = ?');
+    if (!$stmt) {
+        return;
+    }
+
+    $stmt->bind_param('i', $groupId);
+    $stmt->execute();
+    $stmt->close();
 }
 
 /**

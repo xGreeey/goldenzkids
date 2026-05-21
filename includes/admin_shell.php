@@ -711,6 +711,9 @@ document.addEventListener('DOMContentLoaded', function () {
     panel_navigation_script();
     superadmin_modal_script();
     theme_toggle_script();
+    if (function_exists('app_notify_footer')) {
+        app_notify_footer();
+    }
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';

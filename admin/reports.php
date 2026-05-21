@@ -15,25 +15,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remark'])) {
     $r_time = (string) $_POST['report_time'];
     $r_guard = (string) $_POST['guard_id'];
 
-    $sql = 'UPDATE dgd SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?';
-    $stmt = $conn->prepare($sql);
-
-    if ($stmt && $stmt->bind_param('sss', $remark, $r_time, $r_guard) && $stmt->execute()) {
+    if (db_execute($conn, 'UPDATE dgd SET Status = ? WHERE Time_of_Report = ? AND Company_ID = ?', 'sss', [$remark, $r_time, $r_guard])) {
         redirect_with_alert('Status updated successfully.', 'reports.php');
     }
 
     $error = 'Could not update status. Please try again.';
 }
 
-$guards_result = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards');
 $guard_dict = [];
-if ($guards_result && $guards_result->num_rows > 0) {
-    while ($g = $guards_result->fetch_assoc()) {
-        $guard_dict[(string) $g['Company_ID']] = $g['Last_Name'] . ', ' . $g['First_Name'];
-    }
+foreach (db_fetch_all($conn, 'SELECT Company_ID, First_Name, Last_Name FROM guards') as $g) {
+    $guard_dict[(string) $g['Company_ID']] = $g['Last_Name'] . ', ' . $g['First_Name'];
 }
 
-$reports_result = $conn->query(
+$reports_rows = db_fetch_all(
+    $conn,
     'SELECT Company_ID, Establishment, Template_Path, Template, Time_of_Report, Status, AI_Extracted_Text, iv
      FROM dgd ORDER BY Time_of_Report DESC'
 );
@@ -70,8 +65,8 @@ $adminNavActive = 'reports';
 
         <div class="notif-list" id="alert-feed" data-uploads-base="<?= e(UPLOADS_URL) ?>">
             <?php
-            if ($reports_result && $reports_result->num_rows > 0) {
-                while ($row = $reports_result->fetch_assoc()) {
+            if ($reports_rows !== []) {
+                foreach ($reports_rows as $row) {
                     $iv = base64_decode((string) $row['iv'], true) ?: '';
                     $decrypted_est = $iv !== ''
                         ? (openssl_decrypt((string) $row['Establishment'], $cipher_algo, $master_key, 0, $iv) ?: '[Decryption failed]')

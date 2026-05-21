@@ -25,28 +25,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $error = 'Password confirmation does not match.';
     } else {
         if ($companyId === '') {
-            $stmt = $conn->prepare('SELECT Company_ID FROM users WHERE Email = ? LIMIT 1');
-            if ($stmt) {
-                $stmt->bind_param('s', $email);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $stmt->close();
-                if ($result && $result->num_rows === 1) {
-                    $row = $result->fetch_assoc();
-                    $companyId = (string) ($row['Company_ID'] ?? '');
-                }
+            $row = db_fetch_one($conn, 'SELECT Company_ID FROM users WHERE Email = ? LIMIT 1', 's', [$email]);
+            if ($row !== null) {
+                $companyId = (string) ($row['Company_ID'] ?? '');
             }
         }
 
         if ($companyId === '') {
             $error = 'Your reset session has expired. Please start again.';
         } else {
-            $hashRow = db_query($conn, 'SELECT password_hash FROM users WHERE Company_ID = ? LIMIT 1', 's', [$companyId]);
-            $existingHash = '';
-            if ($hashRow && $hashRow->num_rows === 1) {
-                $hr = $hashRow->fetch_assoc();
-                $existingHash = trim((string) ($hr['password_hash'] ?? ''));
-            }
+            $hr = db_fetch_one($conn, 'SELECT password_hash FROM users WHERE Company_ID = ? LIMIT 1', 's', [$companyId]);
+            $existingHash = $hr !== null ? trim((string) ($hr['password_hash'] ?? '')) : '';
 
             if ($existingHash !== '' && auth_password_matches_existing_hash($newPassword, $existingHash)) {
                 $error = 'You cannot reuse your previous password. Choose a different one.';

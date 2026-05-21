@@ -63,16 +63,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $role = (int) $user['role'];
             $roleLabel = auth_role_label_for_recording($role);
 
-            $log = $conn->prepare(
-                'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)'
-            );
             $event = 'LOGIN';
-            $log->bind_param('ssss', $company_id, $roleLabel, $event, $time_of_event);
-            $insertOk = $log->execute();
-            $log->close();
+            $insertOk = db_execute(
+                $conn,
+                'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)',
+                'ssss',
+                [$company_id, $roleLabel, $event, $time_of_event]
+            );
 
             if (!$insertOk) {
-                error_log('Login audit insert failed for ' . $company_id . ': ' . $conn->error);
+                error_log('Login audit insert failed for ' . $company_id);
             }
 
             auth_login_session($user, $permissions);

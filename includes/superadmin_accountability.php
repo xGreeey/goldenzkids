@@ -3,15 +3,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/superadmin_page.css.php';
 
-function recording_supports_audit_detail(mysqli $conn): bool
+function recording_supports_audit_detail(PDO $conn): bool
 {
     static $cached = null;
     if ($cached !== null) {
         return $cached;
     }
 
-    $col = $conn->query("SHOW COLUMNS FROM recording LIKE 'event_detail'");
-    $cached = $col && $col->num_rows > 0;
+    $cached = db_column_exists($conn, 'recording', 'event_detail');
 
     return $cached;
 }
@@ -20,7 +19,7 @@ function recording_supports_audit_detail(mysqli $conn): bool
  * Append-only audit entry. Staff cannot delete these from the portal.
  */
 function superadmin_log_account_event(
-    mysqli $conn,
+    PDO $conn,
     string $targetCompanyId,
     string $event,
     ?string $detail = null
@@ -66,7 +65,7 @@ function superadmin_log_account_event(
  * @param array{email?:string,role?:int,is_active?:int,password_changed?:bool} $after
  */
 function superadmin_log_account_diff(
-    mysqli $conn,
+    PDO $conn,
     string $targetCompanyId,
     array $before,
     array $after,
@@ -110,7 +109,7 @@ function superadmin_log_account_diff(
 /**
  * @return list<array<string,mixed>>
  */
-function superadmin_account_audit_trail(mysqli $conn, string $companyId, int $limit = 25): array
+function superadmin_account_audit_trail(PDO $conn, string $companyId, int $limit = 25): array
 {
     if ($companyId === '') {
         return [];
@@ -144,7 +143,7 @@ function superadmin_account_audit_trail(mysqli $conn, string $companyId, int $li
 
     $rows = [];
     if ($result) {
-        while ($r = $result->fetch_assoc()) {
+        while ($r = $result->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = $r;
         }
     }
@@ -155,7 +154,7 @@ function superadmin_account_audit_trail(mysqli $conn, string $companyId, int $li
 /**
  * @return list<array<string,mixed>>
  */
-function superadmin_recent_account_changes(mysqli $conn, int $limit = 10): array
+function superadmin_recent_account_changes(PDO $conn, int $limit = 10): array
 {
     $events = [
         'ACCOUNT_CREATED', 'ACCOUNT_UPDATED', 'ACCOUNT_ENABLED', 'ACCOUNT_DISABLED',
@@ -177,7 +176,7 @@ function superadmin_recent_account_changes(mysqli $conn, int $limit = 10): array
     $result = db_query($conn, $sql, $types, $params);
     $rows = [];
     if ($result) {
-        while ($r = $result->fetch_assoc()) {
+        while ($r = $result->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = $r;
         }
     }

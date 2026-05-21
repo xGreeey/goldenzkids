@@ -5,6 +5,7 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/session.php';
 require_once APP_ROOT . '/includes/security.php';
+require_once APP_ROOT . '/includes/app_notify.php';
 require_once APP_ROOT . '/includes/db.php';
 require_once APP_ROOT . '/includes/auth.php';
 require_once APP_ROOT . '/includes/theme.php';
@@ -17,5 +18,7 @@ $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP
 if (in_array($authCurrentScript, $authPublicEntryPages, true)) {
     auth_redirect_if_authenticated();
 }
+
+csrf_enforce_post();
 
 send_security_headers();

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Secured memo compose (company-wide or targeted guard memos).
  *
- * @var mysqli_result|false|null $memo_guards_query
+ * @var PDOStatement|false|null $memo_guards_query
  */
 ?>
 <section class="panel panel--compose panel--inbox" aria-labelledby="compose-heading">
@@ -40,9 +40,9 @@ declare(strict_types=1);
                         <select name="target_guard" id="targetGuardInput" class="field-select">
                             <option value="" disabled selected>Choose an employee…</option>
                             <?php
-                            if (isset($memo_guards_query) && $memo_guards_query && $memo_guards_query->num_rows > 0) {
+                            if (isset($memo_guards_query) && $memo_guards_query) {
                                 $memo_guards_query->data_seek(0);
-                                while ($row = $memo_guards_query->fetch_assoc()) {
+                                while ($row = $memo_guards_query->fetch(PDO::FETCH_ASSOC)) {
                                     $label = (string) $row['Last_Name']
                                         . ', ' . (string) $row['First_Name']
                                         . ' (ID: ' . (string) $row['Company_ID'] . ')';

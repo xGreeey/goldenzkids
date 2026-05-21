@@ -4,28 +4,17 @@ declare(strict_types=1);
 /**
  * Align live database with app code: dgd columns, memo_recipients, establishments, recording PK.
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $dbRow = $conn->query('SELECT DATABASE()');
     $dbName = $dbRow ? (string) ($dbRow->fetch_row()[0] ?? '') : '';
     echo "  Consolidating schema on `{$dbName}`...\n";
 
-    $tableExists = static function (mysqli $conn, string $table): bool {
-        $safe = $conn->real_escape_string($table);
-        $result = $conn->query("SHOW TABLES LIKE '{$safe}'");
+    $tableExists = static fn (PDO $conn, string $table): bool => db_table_exists($conn, $table);
 
-        return $result && $result->num_rows > 0;
-    };
-
-    $columnExists = static function (mysqli $conn, string $table, string $column): bool {
-        $safeTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-        $safeCol = $conn->real_escape_string($column);
-        $result = $conn->query("SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeCol}'");
-
-        return $result && $result->num_rows > 0;
-    };
+    $columnExists = static fn (PDO $conn, string $table, string $column): bool => db_column_exists($conn, $table, $column);
 
     if ($tableExists($conn, 'DGD') && !$tableExists($conn, 'dgd')) {
-        $conn->query('RENAME TABLE `DGD` TO `dgd`');
+        $conn->exec('RENAME TABLE `DGD` TO `dgd`');
         echo "  Renamed DGD → dgd.\n";
     }
 

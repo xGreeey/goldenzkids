@@ -250,9 +250,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function runPanelPageInit(doc) {
         if (typeof window.initAdminInboxPage === 'function'
-            && (doc.getElementById('alert-feed') || doc.getElementById('memoForm'))) {
+            && (doc.getElementById('alert-feed') || doc.getElementById('memoForm')
+                || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
         }
+<<<<<<< HEAD
         if (typeof window.guardInitPortal === 'function'
             && document.body.classList.contains('guard-portal')) {
             flattenMainStage(stage);
@@ -260,6 +262,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (typeof window.initGuardApp === 'function') {
             window.initGuardApp();
+=======
+        if (typeof window.initMessagingBoard === 'function'
+            && (doc.getElementById('messaging-board') || document.getElementById('messaging-board'))) {
+            window.initMessagingBoard();
+>>>>>>> 493ddc0826316fd078ab98e571f6a6efec50cf08
         }
     }
 
@@ -438,6 +445,8 @@ document.addEventListener('DOMContentLoaded', function () {
             var editBar = form.querySelector('[data-sa-toolbar-editing]');
             var saveWrap = form.querySelector('[data-sa-save-wrap]');
             var company = form.querySelector('[data-sa-edit-field="company"]');
+            var firstName = form.querySelector('[data-sa-edit-field="first_name"]');
+            var lastName = form.querySelector('[data-sa-edit-field="last_name"]');
             var email = form.querySelector('[data-sa-edit-field="email"]');
             var role = form.querySelector('[data-sa-edit-field="role"]');
             var active = form.querySelector('[data-sa-edit-field="active"]');
@@ -474,6 +483,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (start) {
                 form.setAttribute('data-sa-editing', '1');
+                if (firstName) {
+                    firstName.readOnly = false;
+                }
+                if (lastName) {
+                    lastName.readOnly = false;
+                }
                 if (email) {
                     email.readOnly = false;
                 }
@@ -513,12 +528,22 @@ document.addEventListener('DOMContentLoaded', function () {
             if (cancel) {
                 form.removeAttribute('data-sa-editing');
                 var oc = form.getAttribute('data-orig-company') || '';
+                var ofn = form.getAttribute('data-orig-first') || '';
+                var oln = form.getAttribute('data-orig-last') || '';
                 var oe = form.getAttribute('data-orig-email') || '';
                 var orv = form.getAttribute('data-orig-role') || '0';
                 var oa = form.getAttribute('data-orig-active') === '1';
                 if (company) {
                     company.value = oc;
                     company.readOnly = true;
+                }
+                if (firstName) {
+                    firstName.value = ofn;
+                    firstName.readOnly = true;
+                }
+                if (lastName) {
+                    lastName.value = oln;
+                    lastName.readOnly = true;
                 }
                 if (email) {
                     email.value = oe;

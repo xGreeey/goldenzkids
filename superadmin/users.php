@@ -114,7 +114,7 @@ if ($params === []) {
     $countResult = db_query($conn, $countSql, $types, $params);
 }
 if ($countResult) {
-    $totalRows = (int) (($countResult->fetch_assoc()['c'] ?? 0));
+    $totalRows = (int) (($countResult->fetch(PDO::FETCH_ASSOC)['c'] ?? 0));
 }
 
 $totalPages = max(1, (int) ceil($totalRows / $perPage));
@@ -135,7 +135,7 @@ if ($params === []) {
 }
 
 if ($result) {
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $users[] = $row;
     }
 }

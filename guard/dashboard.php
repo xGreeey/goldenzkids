@@ -16,8 +16,8 @@ $profile = db_query(
     's',
     [$companyId]
 );
-if ($profile && $profile->num_rows > 0) {
-    $row = $profile->fetch_assoc();
+$row = $profile ? $profile->fetch(PDO::FETCH_ASSOC) : false;
+if ($row) {
     $post = trim((string) ($row['Post_Assigned'] ?? ''));
     $postAssigned = $post !== '' ? $post : '—';
 }
@@ -30,7 +30,7 @@ $unreadQuery = db_query(
     [$companyId]
 );
 if ($unreadQuery) {
-    $unreadMemos = (int) ($unreadQuery->fetch_assoc()['total'] ?? 0);
+    $unreadMemos = (int) ($unreadQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
 $reportsToday = 0;
@@ -41,7 +41,7 @@ $todayQuery = db_query(
     [$companyId]
 );
 if ($todayQuery) {
-    $reportsToday = (int) ($todayQuery->fetch_assoc()['total'] ?? 0);
+    $reportsToday = (int) ($todayQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
 $pendingReports = 0;
@@ -52,7 +52,7 @@ $pendingQuery = db_query(
     [$companyId]
 );
 if ($pendingQuery) {
-    $pendingReports = (int) ($pendingQuery->fetch_assoc()['total'] ?? 0);
+    $pendingReports = (int) ($pendingQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
 $totalReports = 0;
@@ -63,9 +63,26 @@ $totalQuery = db_query(
     [$companyId]
 );
 if ($totalQuery) {
-    $totalReports = (int) ($totalQuery->fetch_assoc()['total'] ?? 0);
+    $totalReports = (int) ($totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 }
 
+<<<<<<< HEAD
+=======
+$recentMemos = [];
+$memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.created_at, mr.is_read
+            FROM memo_recipients mr
+            INNER JOIN memos m ON m.Memo_ID = mr.Memo_ID
+            WHERE mr.Company_ID = ?
+            ORDER BY m.created_at DESC
+            LIMIT 5';
+$memoResult = db_query($conn, $memoSql, 's', [$companyId]);
+if ($memoResult) {
+    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
+        $recentMemos[] = $r;
+    }
+}
+
+>>>>>>> 493ddc0826316fd078ab98e571f6a6efec50cf08
 $guardNavActive = 'dashboard';
 guard_layout_head('Dashboard');
 ?>

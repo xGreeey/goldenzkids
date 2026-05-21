@@ -14,9 +14,13 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Internal communications and messaging') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging board') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
+        </a>
+        <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Secured memos and internal announcements') ?>>
+            <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
+            Announcement
         </a>
         <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard report review') ?>>
             <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
@@ -30,10 +34,9 @@ $adminProfile = admin_sidebar_profile();
 
     <div class="sidebar-footer">
         <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name"><?= e($adminProfile['name']) ?></span>
+            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
             <div class="sidebar-footer-meta">
                 <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-                <span class="sidebar-footer-email" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['email']) ?></span>
             </div>
         </div>
 
@@ -44,7 +47,7 @@ $adminProfile = admin_sidebar_profile();
                     <a href="#" class="sidebar-footer-icon" aria-label="Audit Logs"<?= ui_tooltip('Audit logs', 'bottom') ?>>
                         <?= admin_sidebar_icon('audit') ?>
                     </a>
-                    <a href="#" class="sidebar-footer-icon" aria-label="Settings"<?= ui_tooltip('Account settings', 'bottom') ?>>
+                    <a href="settings.php" class="sidebar-footer-icon<?= ($adminNavActive ?? '') === 'settings' ? ' active' : '' ?>" aria-label="Settings"<?= ($adminNavActive ?? '') === 'settings' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Account settings', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>
                     <form method="POST" action="../auth/logout-admin.php" class="sidebar-footer-logout">

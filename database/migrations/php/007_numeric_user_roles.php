@@ -6,7 +6,7 @@ declare(strict_types=1);
  *   0 = headguard, 1 = admin, 2 = superadmin
  * Drops roles, permissions, role_permissions, portal_users.
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $tableCheck = $conn->query("SHOW TABLES LIKE 'users'");
     if (!$tableCheck || $tableCheck->num_rows === 0) {
         echo "  [skip] users table not found.\n";
@@ -15,11 +15,11 @@ return static function (mysqli $conn): void {
 
     $cols = $conn->query('SHOW COLUMNS FROM users');
     $colNames = [];
-    while ($c = $cols->fetch_assoc()) {
+    while ($c = $cols->fetch(PDO::FETCH_ASSOC)) {
         $colNames[] = strtolower((string) $c['Field']);
     }
 
-    $dropFk = static function (mysqli $conn, string $table, string $constraint): void {
+    $dropFk = static function (PDO $conn, string $table, string $constraint): void {
         $conn->query("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$constraint}`");
     };
 

@@ -26,10 +26,9 @@ $adminProfile = admin_sidebar_profile();
 
     <div class="sidebar-footer">
         <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name"><?= e($adminProfile['name']) ?></span>
+            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
             <div class="sidebar-footer-meta">
                 <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-                <span class="sidebar-footer-email" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['email']) ?></span>
             </div>
         </div>
 
@@ -40,7 +39,7 @@ $adminProfile = admin_sidebar_profile();
                     <a href="audit-log.php" class="sidebar-footer-icon" aria-label="Audit Logs"<?= ui_tooltip('Audit logs', 'bottom') ?>>
                         <?= admin_sidebar_icon('audit') ?>
                     </a>
-                    <a href="users.php" class="sidebar-footer-icon" aria-label="User accounts"<?= ui_tooltip('User accounts', 'bottom') ?>>
+                    <a href="settings.php" class="sidebar-footer-icon<?= ($superadminNavActive ?? '') === 'settings' ? ' active' : '' ?>" aria-label="Settings"<?= ($superadminNavActive ?? '') === 'settings' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Account settings', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>
                     <form method="POST" action="../auth/logout-superadmin.php" class="sidebar-footer-logout">

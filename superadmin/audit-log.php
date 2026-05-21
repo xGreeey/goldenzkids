@@ -57,7 +57,7 @@ if ($params === []) {
     $countResult = db_query($conn, $countSql, $types, $params);
 }
 if ($countResult) {
-    $total = (int) $countResult->fetch_assoc()['c'];
+    $total = (int) $countResult->fetch(PDO::FETCH_ASSOC)['c'];
 }
 
 $totalPages = max(1, (int) ceil($total / $perPage));
@@ -81,7 +81,7 @@ $listParams[] = $offset;
 $entries = [];
 $listResult = db_query($conn, $listSql, $listTypes, $listParams);
 if ($listResult) {
-    while ($row = $listResult->fetch_assoc()) {
+    while ($row = $listResult->fetch(PDO::FETCH_ASSOC)) {
         $entries[] = $row;
     }
 }

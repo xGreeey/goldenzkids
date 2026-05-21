@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/admin_incident_guidelines.php';
+require_once __DIR__ . '/guard_incident.php';
 
 const ADMIN_INCIDENT_SESSION_KEY = 'admin_incident_reports_store';
 
@@ -432,9 +433,18 @@ function admin_incident_normalize(array $row): array
 /** @return list<array<string, mixed>> */
 function admin_incident_store_all(): array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && guard_incident_table_exists($GLOBALS['conn'])) {
+        $out = [];
+        foreach (guard_incident_fetch_admin_records($GLOBALS['conn']) as $row) {
+            $out[] = admin_incident_normalize($row);
+        }
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+
+        return $out;
+    }
+
     if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {
-        global $conn;
-        $seed = admin_incident_seed_reports(isset($conn) && $conn instanceof mysqli ? $conn : null);
+        $seed = admin_incident_seed_reports(null);
         $normalized = [];
         foreach ($seed as $row) {
             $normalized[] = admin_incident_normalize($row);
@@ -470,6 +480,13 @@ function admin_incident_store_reset(): void
 
 function admin_incident_find(string $id): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^inc-(\d+)$/', $id)) {
+        $row = guard_incident_find_by_id($GLOBALS['conn'], $id);
+        if ($row !== null) {
+            return admin_incident_normalize($row);
+        }
+    }
+
     foreach (admin_incident_store_all() as $row) {
         if ((string) ($row['id'] ?? '') === $id) {
             return $row;
@@ -647,6 +664,15 @@ function admin_incident_append_history(array $report, string $event, string $not
  */
 function admin_incident_update(string $id, array $input, string $actorId): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^inc-(\d+)$/', $id, $m)) {
+        $updated = guard_incident_admin_update($GLOBALS['conn'], (int) $m[1], $input, $actorId);
+        if ($updated !== null) {
+            return admin_incident_normalize($updated);
+        }
+
+        return null;
+    }
+
     $reports = admin_incident_store_all();
     $found = null;
     $idx = null;

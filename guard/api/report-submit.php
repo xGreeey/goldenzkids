@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../includes/guard_portal.php';
 require_once __DIR__ . '/../../includes/document_ai.php';
 require_once __DIR__ . '/../../includes/guard_dad.php';
+require_once __DIR__ . '/../../includes/guard_incident.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -200,9 +201,43 @@ if (guard_dad_is_report_type($templateName)) {
     $dadReference = (string) ($dadResult['reference'] ?? '');
 }
 
+$incReference = null;
+if (guard_incident_is_report_type($templateName)) {
+    $structured = [];
+    if ($aiStored !== '') {
+        $decoded = document_ai_decode_stored($aiStored);
+        $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
+    }
+
+    $incResult = guard_incident_create_submission(
+        $conn,
+        $companyId,
+        $establishment,
+        $reportNumber,
+        $ivB64,
+        $pathCipher['cipher'],
+        $aiCipher !== '' ? $aiCipher : null,
+        [
+            'structured' => $structured,
+            'submit_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'submit_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'submit_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+        ]
+    );
+
+    if (!$incResult['ok']) {
+        echo json_encode(['ok' => false, 'error' => (string) ($incResult['error'] ?? 'Could not register incident report.')]);
+        exit;
+    }
+    $incReference = (string) ($incResult['reference'] ?? '');
+}
+
 $message = guard_dad_is_report_type($templateName)
     ? 'Daily attendance document submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
-    : 'Report submitted. Status: Pending review.';
+    : (guard_incident_is_report_type($templateName)
+        ? 'Post incident submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
+        : 'Report submitted. Status: Pending review.');
 if ($aiStored !== '') {
     $message .= ' Form text extracted via Document AI.';
 }
@@ -217,5 +252,6 @@ echo json_encode([
     'evidence_saved' => $evidenceSaved,
     'ocr_applied' => $aiStored !== '',
     'dad_reference' => $dadReference,
+    'incident_reference' => $incReference,
     'redirect' => guard_dad_is_report_type($templateName) ? 'submit-report.php?view=history' : null,
 ]);

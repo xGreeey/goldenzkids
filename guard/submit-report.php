@@ -18,7 +18,7 @@ guard_layout_head('Submit Report');
         <div class="guard-section-stack">
         <header class="page-header">
             <h1 class="page-title">Submit report</h1>
-            <p class="page-subtitle">Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.</p>
+            <p class="page-subtitle" data-guard-submit-subtitle>Scan your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
         </header>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
@@ -57,7 +57,7 @@ guard_layout_head('Submit Report');
                     </div>
                     <div class="guard-wizard__step" data-wizard-step="2" role="tab">
                         <span class="guard-wizard__step-num">2</span>
-                        <span>Evidences</span>
+                        <span data-guard-step2-label>Evidences</span>
                     </div>
                     <div class="guard-wizard__step" data-wizard-step="3" role="tab">
                         <span class="guard-wizard__step-num">3</span>
@@ -104,14 +104,43 @@ guard_layout_head('Submit Report');
                             <input type="file" class="visually-hidden" data-guard-report-upload accept="image/*" capture="environment">
                         </label>
                     </div>
-                    <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2">
-                        Continue to evidences <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    <div class="guard-location-stamp guard-location-stamp--sheet" data-guard-sheet-location hidden>
+                        <h4 class="guard-location-stamp__title"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Sheet location stamp (step 1)</h4>
+                        <p class="form-hint" data-guard-sheet-location-status>Stamped when you capture or upload the attendance sheet.</p>
+                        <p class="guard-location-stamp__coords mono" data-guard-sheet-location-coords hidden></p>
+                        <p class="guard-location-stamp__address" data-guard-sheet-location-address hidden></p>
+                    </div>
+                    <input type="hidden" name="sheet_latitude" data-guard-sheet-lat-input value="">
+                    <input type="hidden" name="sheet_longitude" data-guard-sheet-lng-input value="">
+                    <input type="hidden" name="sheet_accuracy_m" data-guard-sheet-acc-input value="">
+                    <input type="hidden" name="sheet_location_label" data-guard-sheet-location-label-input value="">
+                    <div class="guard-ocr-preview" data-guard-ocr-preview hidden>
+                        <h4 class="guard-ocr-preview__title"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Document AI — handwritten text</h4>
+                        <p class="form-hint guard-ocr-preview__status" data-guard-ocr-status>Reading attendance sheet…</p>
+                        <pre class="guard-ocr-preview__text" data-guard-ocr-text></pre>
+                    </div>
+                    <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next>
+                        Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <div class="guard-wizard__pane" data-wizard-pane="2">
-                    <h3 class="panel-title guard-wizard__pane-title">Step 2 — Insert evidences</h3>
-                    <p class="form-hint" style="margin-bottom:8px;">Photos are tagged with device date/time and GPS when available.</p>
+                    <h3 class="panel-title guard-wizard__pane-title" data-guard-step2-title>Step 2 — Insert evidences</h3>
+                    <div class="guard-dad-sheet-preview" data-guard-dad-sheet-preview hidden>
+                        <h4 class="guard-dad-sheet-preview__label">Attendance sheet preview</h4>
+                        <img src="" alt="Attendance sheet" data-guard-dad-sheet-img>
+                    </div>
+                    <div class="guard-location-stamp guard-location-stamp--evidence" data-guard-evidence-location>
+                        <h4 class="guard-location-stamp__title"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i> Evidence location stamp (step 2)</h4>
+                        <p class="form-hint" data-guard-evidence-location-status>Acquiring GPS at the site when you add photos…</p>
+                        <p class="guard-location-stamp__coords mono" data-guard-evidence-location-coords hidden></p>
+                        <p class="guard-location-stamp__address" data-guard-evidence-location-address hidden></p>
+                    </div>
+                    <input type="hidden" name="evidence_latitude" data-guard-evidence-lat-input value="">
+                    <input type="hidden" name="evidence_longitude" data-guard-evidence-lng-input value="">
+                    <input type="hidden" name="evidence_accuracy_m" data-guard-evidence-acc-input value="">
+                    <input type="hidden" name="evidence_location_label" data-guard-evidence-location-label-input value="">
+                    <p class="form-hint" data-guard-step2-hint style="margin-bottom:8px;">Photos are tagged with device date/time and GPS when available.</p>
                     <label class="btn-ghost" style="display:inline-flex;cursor:pointer;">
                         <i class="fa-solid fa-plus" aria-hidden="true"></i> Add photos
                         <input type="file" class="visually-hidden" data-guard-evidence-input accept="image/*" multiple capture="environment">

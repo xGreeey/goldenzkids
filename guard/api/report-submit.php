@@ -6,6 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../includes/guard_portal.php';
 require_once __DIR__ . '/../../includes/document_ai.php';
+require_once __DIR__ . '/../../includes/guard_dad.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -159,7 +160,49 @@ $evidenceSaved = guard_portal_store_report_evidence(
     $evidenceMeta
 );
 
-$message = 'Report submitted. Status: Pending review.';
+$dadReference = null;
+if (guard_dad_is_report_type($templateName)) {
+    $structured = [];
+    if ($aiStored !== '') {
+        $decoded = document_ai_decode_stored($aiStored);
+        $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
+    }
+
+    $dadResult = guard_dad_create_submission(
+        $conn,
+        $companyId,
+        $establishment,
+        $reportNumber,
+        $ivB64,
+        $pathCipher['cipher'],
+        $aiCipher !== '' ? $aiCipher : null,
+        [
+            'structured' => $structured,
+            'sheet_latitude' => $_POST['sheet_latitude'] ?? null,
+            'sheet_longitude' => $_POST['sheet_longitude'] ?? null,
+            'sheet_accuracy_m' => $_POST['sheet_accuracy_m'] ?? null,
+            'sheet_location_label' => (string) ($_POST['sheet_location_label'] ?? ''),
+            'evidence_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'evidence_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'evidence_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'evidence_location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+            'submit_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'submit_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'submit_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+        ]
+    );
+
+    if (!$dadResult['ok']) {
+        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DAD record.')]);
+        exit;
+    }
+    $dadReference = (string) ($dadResult['reference'] ?? '');
+}
+
+$message = guard_dad_is_report_type($templateName)
+    ? 'Daily attendance document submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
+    : 'Report submitted. Status: Pending review.';
 if ($aiStored !== '') {
     $message .= ' Form text extracted via Document AI.';
 }
@@ -173,4 +216,6 @@ echo json_encode([
     'report_number' => $reportNumber,
     'evidence_saved' => $evidenceSaved,
     'ocr_applied' => $aiStored !== '',
+    'dad_reference' => $dadReference,
+    'redirect' => guard_dad_is_report_type($templateName) ? 'submit-report.php?view=history' : null,
 ]);

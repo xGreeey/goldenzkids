@@ -11,9 +11,15 @@ function db_bind(PDOStatement $stmt, string $types, array $params): void
     }
 
     foreach ($params as $index => $value) {
+        if ($value === null) {
+            $stmt->bindValue($index + 1, null, PDO::PARAM_NULL);
+            continue;
+        }
+
         $type = $types[$index] ?? 's';
         $paramType = match ($type) {
             'i' => PDO::PARAM_INT,
+            'd' => PDO::PARAM_STR,
             'b' => PDO::PARAM_LOB,
             default => PDO::PARAM_STR,
         };

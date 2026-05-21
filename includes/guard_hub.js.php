@@ -222,6 +222,209 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
+        var DAD_TYPE = 'Daily Attendance Document';
+        var ocrPreview = qs('[data-guard-ocr-preview]', form);
+        var ocrStatus = qs('[data-guard-ocr-status]', form);
+        var ocrText = qs('[data-guard-ocr-text]', form);
+        var dadSheetPreview = qs('[data-guard-dad-sheet-preview]', form);
+        var dadSheetImg = qs('[data-guard-dad-sheet-img]', form);
+        var sheetLocPanel = qs('[data-guard-sheet-location]', form);
+        var sheetLocStatus = qs('[data-guard-sheet-location-status]', form);
+        var sheetLocCoords = qs('[data-guard-sheet-location-coords]', form);
+        var sheetLocAddress = qs('[data-guard-sheet-location-address]', form);
+        var sheetLatInput = qs('[data-guard-sheet-lat-input]', form);
+        var sheetLngInput = qs('[data-guard-sheet-lng-input]', form);
+        var sheetAccInput = qs('[data-guard-sheet-acc-input]', form);
+        var sheetLabelInput = qs('[data-guard-sheet-location-label-input]', form);
+        var evidenceLocStatus = qs('[data-guard-evidence-location-status]', form);
+        var evidenceLocCoords = qs('[data-guard-evidence-location-coords]', form);
+        var evidenceLocAddress = qs('[data-guard-evidence-location-address]', form);
+        var evidenceLatInput = qs('[data-guard-evidence-lat-input]', form);
+        var evidenceLngInput = qs('[data-guard-evidence-lng-input]', form);
+        var evidenceAccInput = qs('[data-guard-evidence-acc-input]', form);
+        var evidenceLabelInput = qs('[data-guard-evidence-location-label-input]', form);
+        var step2Label = qs('[data-guard-step2-label]', form);
+        var step2Title = qs('[data-guard-step2-title]', form);
+        var step2Hint = qs('[data-guard-step2-hint]', form);
+        var step1Next = qs('[data-guard-step1-next]', form);
+        var submitSubtitle = qs('[data-guard-submit-subtitle]', form.closest('.guard-section-stack') || document);
+        var sheetLocationFix = null;
+        var evidenceLocationFix = null;
+        var ocrDone = false;
+        var ocrBusy = false;
+
+        function isDadMode() {
+            var sel = qs('[name="report_type"]', form);
+            return sel && String(sel.value || '').trim() === DAD_TYPE;
+        }
+
+        function syncDadUi() {
+            var dad = isDadMode();
+            if (step2Label) step2Label.textContent = dad ? 'Site photos' : 'Evidences';
+            if (step2Title) step2Title.textContent = dad ? 'Step 2 — Site photos & location' : 'Step 2 — Insert evidences';
+            if (step2Hint) {
+                step2Hint.textContent = dad
+                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DAD).'
+                    : 'Photos are tagged with device date/time and GPS when available.';
+            }
+            if (sheetLocPanel) sheetLocPanel.hidden = !dad;
+            if (step1Next) {
+                step1Next.innerHTML = (dad ? 'Continue to site photos' : 'Continue to evidences')
+                    + ' <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+            }
+            if (submitSubtitle) {
+                submitSubtitle.textContent = dad
+                    ? 'Daily attendance: GPS is stamped when you scan the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
+                    : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
+            }
+            if (!dad && ocrPreview) {
+                ocrPreview.hidden = true;
+            }
+        }
+
+        function runOcrPreview() {
+            if (!isDadMode() || !reportFile || ocrBusy) {
+                return;
+            }
+            ocrBusy = true;
+            ocrDone = false;
+            if (ocrPreview) ocrPreview.hidden = false;
+            if (ocrStatus) ocrStatus.textContent = 'Reading handwritten attendance sheet with Document AI…';
+            if (ocrText) ocrText.textContent = '';
+
+            var fd = new FormData();
+            fd.append('report_type', DAD_TYPE);
+            fd.append('report_scan', reportFile, reportFile.name || 'scan.jpg');
+            var csrfInput = qs('input[name="_csrf"]', form);
+            if (csrfInput && csrfInput.value) fd.append('_csrf', csrfInput.value);
+
+            var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+            if (csrfInput && csrfInput.value) headers['X-CSRF-Token'] = csrfInput.value;
+
+            fetch('api/report-ocr-preview.php', {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: headers
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    ocrBusy = false;
+                    if (!data.ok) {
+                        if (ocrStatus) ocrStatus.textContent = data.error || 'OCR preview failed.';
+                        return;
+                    }
+                    ocrDone = true;
+                    if (ocrStatus) ocrStatus.textContent = 'Handwriting detected — review below before continuing.';
+                    if (ocrText) ocrText.textContent = data.formatted || data.raw || '(no text detected)';
+                })
+                .catch(function () {
+                    ocrBusy = false;
+                    if (ocrStatus) ocrStatus.textContent = 'Could not reach Document AI. You may still submit; OCR runs again on save.';
+                });
+        }
+
+        function updateLocationUi(kind, lat, lng, accuracy, label, statusText) {
+            var coordsEl = kind === 'sheet' ? sheetLocCoords : evidenceLocCoords;
+            var addressEl = kind === 'sheet' ? sheetLocAddress : evidenceLocAddress;
+            var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
+            var latIn = kind === 'sheet' ? sheetLatInput : evidenceLatInput;
+            var lngIn = kind === 'sheet' ? sheetLngInput : evidenceLngInput;
+            var accIn = kind === 'sheet' ? sheetAccInput : evidenceAccInput;
+            var labelIn = kind === 'sheet' ? sheetLabelInput : evidenceLabelInput;
+
+            if (latIn) latIn.value = lat != null ? String(lat) : '';
+            if (lngIn) lngIn.value = lng != null ? String(lng) : '';
+            if (accIn) accIn.value = accuracy != null ? String(accuracy) : '';
+            if (labelIn) labelIn.value = label || '';
+            if (coordsEl && lat != null && lng != null) {
+                var accTxt = accuracy != null ? ' (±' + Math.round(accuracy) + ' m)' : '';
+                coordsEl.textContent = lat.toFixed(6) + ', ' + lng.toFixed(6) + accTxt;
+                coordsEl.hidden = false;
+            }
+            if (addressEl && label) {
+                addressEl.textContent = label;
+                addressEl.hidden = false;
+            }
+            if (statusEl && statusText) statusEl.textContent = statusText;
+        }
+
+        function reverseGeocode(lat, lng) {
+            return fetch('api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.ok && data.label) return String(data.label);
+                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                })
+                .catch(function () {
+                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                });
+        }
+
+        function stampLocation(kind) {
+            if (!navigator.geolocation) {
+                var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
+                if (statusEl) statusEl.textContent = 'GPS not supported on this device.';
+                return;
+            }
+            var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
+            var pending = kind === 'sheet'
+                ? 'Stamping sheet location from this device…'
+                : 'Stamping evidence location at the site…';
+            if (statusEl) statusEl.textContent = pending;
+
+            navigator.geolocation.getCurrentPosition(
+                function (pos) {
+                    var lat = pos.coords.latitude;
+                    var lng = pos.coords.longitude;
+                    var acc = pos.coords.accuracy;
+                    var fix = { lat: lat, lng: lng, accuracy: acc, label: '' };
+                    if (kind === 'sheet') {
+                        sheetLocationFix = fix;
+                    } else {
+                        evidenceLocationFix = fix;
+                    }
+                    updateLocationUi(kind, lat, lng, acc, '', 'Resolving address…');
+                    reverseGeocode(lat, lng).then(function (address) {
+                        fix.label = address;
+                        if (kind === 'sheet') sheetLocationFix = fix;
+                        else evidenceLocationFix = fix;
+                        updateLocationUi(
+                            kind,
+                            lat,
+                            lng,
+                            acc,
+                            address,
+                            kind === 'sheet'
+                                ? 'Sheet location stamped — continue when ready.'
+                                : 'Evidence location stamped — add photos or continue.'
+                        );
+                    });
+                },
+                function (err) {
+                    if (statusEl) {
+                        statusEl.textContent = err.code === 1
+                            ? 'Location denied. Enable GPS in browser settings.'
+                            : 'Could not acquire GPS. Move outdoors and retry.';
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+            );
+        }
+
+        function syncDadSheetPreview() {
+            if (!dadSheetPreview || !dadSheetImg || !reportFile) return;
+            if (isDadMode()) {
+                dadSheetImg.src = URL.createObjectURL(reportFile);
+                dadSheetPreview.hidden = false;
+            } else {
+                dadSheetPreview.hidden = true;
+                dadSheetImg.removeAttribute('src');
+            }
+        }
 
         var scanner = qs('[data-guard-scanner]', form);
         var video = qs('[data-guard-scanner-video]', form);
@@ -293,6 +496,10 @@ function guard_hub_scripts(): void
             panes.forEach(function (p) {
                 p.classList.toggle('is-active', parseInt(p.getAttribute('data-wizard-pane'), 10) === n);
             });
+            if (n === 2 && isDadMode()) {
+                syncDadSheetPreview();
+                stampLocation('evidence');
+            }
         }
 
         function isMobileScanner() {
@@ -428,9 +635,12 @@ function guard_hub_scripts(): void
                         scanner.classList.remove('is-live');
                         setScannerFullscreen(false);
                         scanner.classList.add('has-capture');
-                        if (hint) hint.textContent = 'Report captured. Continue to evidences.';
+                        if (hint) hint.textContent = isDadMode() ? 'Sheet captured. Reading handwriting…' : 'Report captured. Continue to evidences.';
                         syncTorchButton();
                         stopCamera();
+                        runOcrPreview();
+                        syncDadSheetPreview();
+                        if (isDadMode()) stampLocation('sheet');
                     }, 'image/jpeg', 0.88);
                 }
             }, 700);
@@ -496,6 +706,9 @@ function guard_hub_scripts(): void
                 }
                 if (hint) hint.textContent = 'File ready: ' + f.name;
                 stopCamera();
+                runOcrPreview();
+                syncDadSheetPreview();
+                if (isDadMode()) stampLocation('sheet');
             });
         }
 
@@ -510,6 +723,13 @@ function guard_hub_scripts(): void
                 if (preview) preview.removeAttribute('src');
                 stopCamera();
                 if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
+                ocrDone = false;
+                sheetLocationFix = null;
+                if (ocrPreview) ocrPreview.hidden = true;
+                if (ocrText) ocrText.textContent = '';
+                if (dadSheetPreview) dadSheetPreview.hidden = true;
+                if (sheetLocPanel) sheetLocPanel.hidden = true;
+                updateLocationUi('sheet', null, null, null, '', 'Stamped when you capture or upload the attendance sheet.');
             });
         }
 
@@ -539,9 +759,15 @@ function guard_hub_scripts(): void
         function addEvidenceFile(file, gps) {
             var meta = new Date().toLocaleString();
             if (gps && gps.lat != null) {
-                meta += ' · GPS ' + gps.lat.toFixed(5) + ', ' + gps.lng.toFixed(5);
+                meta += ' · GPS ' + gps.lat.toFixed(6) + ', ' + gps.lng.toFixed(6);
+                if (gps.accuracy != null) meta += ' ±' + Math.round(gps.accuracy) + 'm';
             } else {
                 meta += ' · GPS unavailable';
+            }
+            if (evidenceLocationFix && evidenceLocationFix.label) {
+                meta += ' · Evidence site: ' + evidenceLocationFix.label;
+            } else if (sheetLocationFix && sheetLocationFix.label) {
+                meta += ' · Sheet: ' + sheetLocationFix.label;
             }
             evidences.push({ file: file, url: URL.createObjectURL(file), meta: meta });
             renderEvidence();
@@ -558,10 +784,15 @@ function guard_hub_scripts(): void
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         function (pos) {
-                            done({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                            var gps = {
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                                accuracy: pos.coords.accuracy
+                            };
+                            done(gps);
                         },
                         function () { done(null); },
-                        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                     );
                 } else {
                     done(null);
@@ -583,8 +814,12 @@ function guard_hub_scripts(): void
         }
 
         if (reportTypeSelect) {
-            reportTypeSelect.addEventListener('change', syncReportTypeSummary);
+            reportTypeSelect.addEventListener('change', function () {
+                syncReportTypeSummary();
+                syncDadUi();
+            });
         }
+        syncDadUi();
 
         qsa('[data-wizard-next]', form).forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -599,6 +834,18 @@ function guard_hub_scripts(): void
                         window.guardShowToast('Add a report scan or upload first.', 'error');
                         return;
                     }
+                    if (isDadMode() && ocrBusy) {
+                        window.guardShowToast('Document AI is still reading the sheet. Wait a moment.', 'error');
+                        return;
+                    }
+                }
+                if (target === 2 && isDadMode() && !sheetLocationFix) {
+                    window.guardShowToast('Wait for the sheet location stamp (step 1) before continuing.', 'error');
+                    return;
+                }
+                if (target === 3 && isDadMode() && !evidenceLocationFix) {
+                    window.guardShowToast('Allow location access and wait for the evidence GPS stamp (step 2).', 'error');
+                    return;
                 }
                 goStep(target);
                 if (target !== 1) {
@@ -627,6 +874,18 @@ function guard_hub_scripts(): void
                 window.guardShowToast('Report image is required.', 'error');
                 return;
             }
+            if (isDadMode()) {
+                if (!sheetLocationFix) {
+                    window.guardShowToast('Sheet location (step 1) is required. Capture or upload the attendance sheet again.', 'error');
+                    goStep(1);
+                    return;
+                }
+                if (!evidenceLocationFix) {
+                    window.guardShowToast('Evidence location (step 2) is required. Return to step 2 and allow GPS.', 'error');
+                    goStep(2);
+                    return;
+                }
+            }
             var submitBtn = qs('[data-guard-submit]', form);
             if (submitBtn) {
                 submitBtn.classList.add('is-loading');
@@ -637,6 +896,18 @@ function guard_hub_scripts(): void
             fd.append('report_type', reportType);
             var scanName = reportFile.name || ('report-scan-' + Date.now() + '.jpg');
             fd.append('report_scan', reportFile, scanName);
+            if (isDadMode() && sheetLocationFix) {
+                fd.append('sheet_latitude', String(sheetLocationFix.lat));
+                fd.append('sheet_longitude', String(sheetLocationFix.lng));
+                if (sheetLocationFix.accuracy != null) fd.append('sheet_accuracy_m', String(sheetLocationFix.accuracy));
+                if (sheetLocationFix.label) fd.append('sheet_location_label', sheetLocationFix.label);
+            }
+            if (isDadMode() && evidenceLocationFix) {
+                fd.append('evidence_latitude', String(evidenceLocationFix.lat));
+                fd.append('evidence_longitude', String(evidenceLocationFix.lng));
+                if (evidenceLocationFix.accuracy != null) fd.append('evidence_accuracy_m', String(evidenceLocationFix.accuracy));
+                if (evidenceLocationFix.label) fd.append('evidence_location_label', evidenceLocationFix.label);
+            }
             evidences.forEach(function (ev, i) {
                 var evName = ev.file.name || ('evidence-' + i + '.jpg');
                 fd.append('evidence[]', ev.file, evName);
@@ -675,7 +946,7 @@ function guard_hub_scripts(): void
                         if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
                         goStep(1);
                         setTimeout(function () {
-                            window.location.href = 'submit-report.php?view=history';
+                            window.location.href = data.redirect || 'submit-report.php?view=history';
                         }, 1200);
                     } else {
                         window.guardShowToast(data.error || 'Submission failed.', 'error');

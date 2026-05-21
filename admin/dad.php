@@ -44,6 +44,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             admin_attendance_page_path() . '?record=' . rawurlencode($id) . '&mode=view'
         );
     }
+
+    if ($action === 'delete_attendance') {
+        $id = trim((string) ($_POST['record_id'] ?? ''));
+        $deleted = admin_attendance_delete($id);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+        if ($deleted === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => ADMIN_ATTENDANCE_REF_CODE . ' record not found.']);
+                exit;
+            }
+            redirect_with_alert(ADMIN_ATTENDANCE_REF_CODE . ' record not found.', admin_attendance_page_path());
+        }
+
+        $ref = (string) ($deleted['ref'] ?? $id);
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => true, 'message' => ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' deleted.', 'id' => $id]);
+            exit;
+        }
+
+        redirect_with_alert(ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' deleted.', admin_attendance_page_path());
+    }
 }
 
 $attendanceRecords = admin_attendance_store_all();
@@ -99,7 +124,6 @@ function admin_daily_detail_row_attrs(array $record): string
         'data-sort-guard="' . e(strtolower((string) ($record['guard_name'] ?? ''))) . '"',
         'data-sort-issue="' . e(strtolower((string) ($record['issue_label'] ?? ''))) . '"',
         'data-search="' . e(admin_attendance_search_blob($record)) . '"',
-        'data-detail="' . e($detailJson) . '"',
     ]);
 }
 
@@ -139,7 +163,10 @@ $kpiIcons = [
             <p class="page-subtitle">Monitor and review daily attendance flags — missing or wrong time-in/out, late check-ins, absences, and NTE. Each case uses reference code <strong><?= e(ADMIN_ATTENDANCE_REF_CODE) ?></strong> (e.g. <?= e(ADMIN_ATTENDANCE_REF_CODE) ?>-2026-0201).</p>
         </header>
 
-        <div id="daily-detail-module" class="reports-module">
+        <div id="daily-detail-module"
+             class="reports-module"
+             data-csrf="<?= e_attr(csrf_token()) ?>"
+             data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>">
             <section class="kpi-grid" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> flags in the registry">
                     <div class="kpi-stat">
@@ -328,22 +355,31 @@ $kpiIcons = [
                                     <td class="reports-col-status"><?= admin_attendance_status_badge_html($record) ?></td>
                                     <td class="reports-col-actions">
                                         <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $record['ref']) ?>">
-                                            <a href="<?= e($dadPage) ?>?record=<?= rawurlencode((string) $record['id']) ?>&amp;mode=view"
-                                               class="reports-action-btn"
-                                               data-action="view"
-                                               data-record-id="<?= e((string) $record['id']) ?>"
-                                               title="View record"
-                                               aria-label="View <?= e((string) $record['ref']) ?>">
+                                            <button type="button"
+                                                    class="reports-action-btn"
+                                                    data-action="view"
+                                                    data-record-id="<?= e((string) $record['id']) ?>"
+                                                    title="View record"
+                                                    aria-label="View <?= e((string) $record['ref']) ?>">
                                                 <i class="fa-solid fa-eye" aria-hidden="true"></i>
-                                            </a>
-                                            <a href="<?= e($dadPage) ?>?record=<?= rawurlencode((string) $record['id']) ?>&amp;mode=edit"
-                                               class="reports-action-btn reports-action-btn--primary"
-                                               data-action="edit"
-                                               data-record-id="<?= e((string) $record['id']) ?>"
-                                               title="Edit record"
-                                               aria-label="Edit <?= e((string) $record['ref']) ?>">
+                                            </button>
+                                            <button type="button"
+                                                    class="reports-action-btn reports-action-btn--primary"
+                                                    data-action="edit"
+                                                    data-record-id="<?= e((string) $record['id']) ?>"
+                                                    title="Edit record"
+                                                    aria-label="Edit <?= e((string) $record['ref']) ?>">
                                                 <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                                            </a>
+                                            </button>
+                                            <button type="button"
+                                                    class="reports-action-btn reports-action-btn--danger"
+                                                    data-action="delete"
+                                                    data-record-id="<?= e((string) $record['id']) ?>"
+                                                    data-record-ref="<?= e((string) $record['ref']) ?>"
+                                                    title="Delete record"
+                                                    aria-label="Delete <?= e((string) $record['ref']) ?>">
+                                                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

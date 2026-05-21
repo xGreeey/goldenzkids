@@ -149,8 +149,18 @@ function send_security_headers(): void
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    $script = (string) ($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
+    $guardPortal = str_contains($script, '/guard/');
+    header(
+        $guardPortal
+            ? 'Permissions-Policy: geolocation=(self), camera=(self), microphone=()'
+            : 'Permissions-Policy: geolocation=(), microphone=(), camera=()'
+    );
     header('X-XSS-Protection: 0');
+
+    $connectSrc = $guardPortal
+        ? "'self' https://kit.fontawesome.com https://nominatim.openstreetmap.org https://maps.googleapis.com"
+        : "'self' https://kit.fontawesome.com";
 
     $csp = implode('; ', [
         "default-src 'self'",
@@ -158,7 +168,7 @@ function send_security_headers(): void
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com https://ka-f.fontawesome.com data:",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://kit.fontawesome.com",
+        "connect-src {$connectSrc}",
         "frame-ancestors 'self'",
         "base-uri 'self'",
         "form-action 'self'",

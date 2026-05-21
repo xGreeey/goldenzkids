@@ -401,23 +401,80 @@
             );
         }
 
+        function locationBlockHtml(title, lat, lng, accuracy, label) {
+            if (lat == null && lng == null && !label) {
+                return '';
+            }
+            let html =
+                '<div class="reports-detail-about reports-dad-loc"><h4 class="reports-detail-about__title">' +
+                escapeHtml(title) +
+                '</h4>';
+            if (label) {
+                html += '<p>' + escapeHtml(label) + '</p>';
+            }
+            if (lat != null && lng != null) {
+                html +=
+                    '<p class="mono">' +
+                    escapeHtml(lat.toFixed(6) + ', ' + lng.toFixed(6));
+                if (accuracy != null) {
+                    html += ' <span class="reports-optional">(±' + escapeHtml(String(Math.round(accuracy))) + ' m)</span>';
+                }
+                html += '</p>';
+                const mapUrl =
+                    'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng);
+                html +=
+                    '<p><a href="' +
+                    escapeHtml(mapUrl) +
+                    '" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></p>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function mediaBlockHtml(p) {
+            const scanUrl = p.scan_url || '';
+            const ocr = (p.ocr_formatted || p.ocr_raw || '').trim();
+            if (!scanUrl && !ocr) {
+                return '';
+            }
+            let html = '<div class="reports-dad-media">';
+            if (scanUrl) {
+                html +=
+                    '<section class="reports-dad-media__section"><h4 class="reports-dad-media__title">Attendance sheet (step 1)</h4>';
+                html +=
+                    '<a href="' +
+                    escapeHtml(scanUrl) +
+                    '" target="_blank" rel="noopener noreferrer"><img class="reports-dad-media__scan" src="' +
+                    escapeHtml(scanUrl) +
+                    '" alt="Uploaded attendance sheet"></a></section>';
+            }
+            if (ocr) {
+                html +=
+                    '<section class="reports-dad-media__section"><h4 class="reports-dad-media__title">Extracted handwriting (Document AI)</h4>';
+                html += '<pre class="reports-dad-media__ocr">' + escapeHtml(ocr) + '</pre></section>';
+            }
+            html += '</div>';
+            return html;
+        }
+
         function renderViewDetails(p) {
             if (!viewDetails) {
                 return;
             }
             const pairs = [
-                ['Guard', (p.guard_name || '') + ' (' + (p.guard_id || '') + ')'],
-                ['Post', p.post || ''],
-                ['Shift', p.shift_display || p.shift_date || ''],
-                ['Issue', p.issue_label || ''],
-                ['Time record', p.time_record || ''],
-                ['Equivalence', p.recorded_label || ''],
-                ['Status', p.status_label || ''],
-                ['Head guard', p.head_guard_name || ''],
-                ['Submitted', p.submitted_display || ''],
+                ['Guard', (p.guard_name || '—') + (p.guard_id ? ' (' + p.guard_id + ')' : '')],
+                ['Post', p.post || '—'],
+                ['Shift', p.shift_display || p.shift_date || '—'],
+                ['Issue', p.issue_label || '—'],
+                ['Time record', p.time_record || '—'],
+                ['Equivalence', p.recorded_label || '—'],
+                ['Status', p.status_label || '—'],
+                ['Head guard', p.head_guard_name || '—'],
+                ['Submitted', p.submitted_display || '—'],
                 ['Updated', p.updated_display || '—'],
             ];
-            let html = '<dl class="reports-detail-grid">';
+            let html = mediaBlockHtml(p);
+            html += '<dl class="reports-detail-grid">';
             pairs.forEach(([label, value]) => {
                 html +=
                     '<div class="reports-detail-item"><dt class="reports-detail-label">' +
@@ -426,8 +483,23 @@
                     escapeHtml(value) +
                     '</dd></div>';
             });
-            html += '</dl><div class="reports-detail-about"><h4 class="reports-detail-about__title">Summary</h4><p>';
-            html += escapeHtml(p.summary || '');
+            html += '</dl>';
+            html += locationBlockHtml(
+                'Location — attendance sheet (step 1)',
+                p.sheet_latitude != null ? Number(p.sheet_latitude) : null,
+                p.sheet_longitude != null ? Number(p.sheet_longitude) : null,
+                p.sheet_accuracy_m != null ? Number(p.sheet_accuracy_m) : null,
+                p.sheet_location_label || ''
+            );
+            html += locationBlockHtml(
+                'Location — site evidence (step 2)',
+                p.evidence_latitude != null ? Number(p.evidence_latitude) : null,
+                p.evidence_longitude != null ? Number(p.evidence_longitude) : null,
+                p.evidence_accuracy_m != null ? Number(p.evidence_accuracy_m) : null,
+                p.evidence_location_label || ''
+            );
+            html += '<div class="reports-detail-about"><h4 class="reports-detail-about__title">Summary</h4><p>';
+            html += escapeHtml(p.summary || '—');
             html += '</p></div>';
             viewDetails.innerHTML = html;
         }
@@ -578,8 +650,16 @@
         }
 
         function openRecord(id, mode) {
-            const p = recordsById[id] || recordsIndex.find((r) => r.id === id)?.payload;
-            if (!p || !modalOverlay) {
+            if (!id || !modalOverlay) {
+                return;
+            }
+            let p = recordsById[id];
+            if (!p) {
+                const row = recordsIndex.find((r) => r.id === id);
+                p = row?.payload || null;
+            }
+            if (!p) {
+                window.alert('Could not load this DAD record. Refresh the page and try again.');
                 return;
             }
             recordsById[id] = p;
@@ -617,6 +697,100 @@
             recordsIndex.forEach((r) => {
                 r.el.classList.toggle('is-selected', r.id === id);
             });
+        }
+
+        function refreshTabCounts() {
+            const counts = { all: 0 };
+            tabs.forEach((t) => {
+                const slug = t.dataset.statusTab || '';
+                if (slug && slug !== 'all') {
+                    counts[slug] = 0;
+                }
+            });
+            recordsIndex.forEach((r) => {
+                counts.all += 1;
+                const slug = r.status || '';
+                if (slug && counts[slug] !== undefined) {
+                    counts[slug] += 1;
+                }
+            });
+            tabs.forEach((tab) => {
+                const slug = tab.dataset.statusTab || '';
+                const countEl = tab.querySelector('.reports-status-tab__count');
+                if (countEl && counts[slug] !== undefined) {
+                    countEl.textContent = String(counts[slug]);
+                }
+            });
+            Object.keys(counts).forEach((slug) => {
+                const kpi = root.querySelector('[data-kpi="' + slug + '"]');
+                if (kpi) {
+                    kpi.textContent = String(counts[slug]);
+                }
+            });
+        }
+
+        function removeRecordFromUi(id) {
+            const idx = recordsIndex.findIndex((r) => r.id === id);
+            if (idx >= 0) {
+                recordsIndex[idx].el.remove();
+                recordsIndex.splice(idx, 1);
+            }
+            delete recordsById[id];
+            if (dataEl && Array.isArray(allRecords)) {
+                const dataIdx = allRecords.findIndex((r) => r && r.id === id);
+                if (dataIdx >= 0) {
+                    allRecords.splice(dataIdx, 1);
+                    dataEl.textContent = JSON.stringify(allRecords);
+                }
+            }
+            refreshTabCounts();
+            applyFilters();
+        }
+
+        function deleteRecord(id, refLabel) {
+            const deleteUrl = root.dataset.deleteUrl || window.location.pathname;
+            const csrf = root.dataset.csrf || '';
+            const label = refLabel || id || 'this record';
+            const confirmed = window.confirm(
+                'Delete ' + label + '? This removes the DAD registry entry. The guard report in Reports is not deleted.'
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'delete_attendance');
+            fd.append('record_id', id);
+            if (csrf) {
+                fd.append('_csrf', csrf);
+            }
+
+            fetch(deleteUrl, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+            })
+                .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        window.alert(data.error || 'Could not delete record.');
+                        return;
+                    }
+                    if (currentRecordId === id) {
+                        closeModal();
+                    }
+                    removeRecordFromUi(id);
+                    if (data.message && window.appNotify && typeof window.appNotify.success === 'function') {
+                        window.appNotify.success(data.message);
+                    }
+                })
+                .catch(() => {
+                    window.alert('Could not delete record. Refresh the page and try again.');
+                });
         }
 
         function closeModal() {
@@ -697,19 +871,33 @@
         root.addEventListener('click', (e) => {
             const viewBtn = e.target.closest('[data-action="view"]');
             const editBtn = e.target.closest('[data-action="edit"]');
+            const deleteBtn = e.target.closest('[data-action="delete"]');
             if (viewBtn) {
                 e.preventDefault();
-                openRecord(viewBtn.dataset.recordId, 'view');
+                e.stopPropagation();
+                const rid = viewBtn.getAttribute('data-record-id') || viewBtn.dataset.recordId || '';
+                openRecord(rid, 'view');
                 return;
             }
             if (editBtn) {
                 e.preventDefault();
-                openRecord(editBtn.dataset.recordId, 'edit');
+                e.stopPropagation();
+                const rid = editBtn.getAttribute('data-record-id') || editBtn.dataset.recordId || '';
+                openRecord(rid, 'edit');
+                return;
+            }
+            if (deleteBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rid = deleteBtn.getAttribute('data-record-id') || deleteBtn.dataset.recordId || '';
+                const ref =
+                    deleteBtn.getAttribute('data-record-ref') || deleteBtn.dataset.recordRef || '';
+                deleteRecord(rid, ref);
                 return;
             }
             const row = e.target.closest('[data-attendance-row]');
             if (row && !e.target.closest('.reports-actions')) {
-                openRecord(row.dataset.id, 'view');
+                openRecord(row.getAttribute('data-id') || row.dataset.id || '', 'view');
             }
         });
 

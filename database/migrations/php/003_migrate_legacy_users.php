@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Copy legacy `users` rows (Pin, Designation) into `portal_users` with bcrypt hashes.
  * Safe to re-run: skips company_ids that already exist in portal_users.
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $tableCheck = $conn->query("SHOW TABLES LIKE 'users'");
     if (!$tableCheck || $tableCheck->num_rows === 0) {
         echo "  [skip] Legacy table `users` not found.\n";
@@ -18,7 +18,7 @@ return static function (mysqli $conn): void {
     }
 
     $colNames = [];
-    while ($col = $columns->fetch_assoc()) {
+    while ($col = $columns->fetch(PDO::FETCH_ASSOC)) {
         $colNames[] = strtolower((string) $col['Field']);
     }
 
@@ -34,7 +34,7 @@ return static function (mysqli $conn): void {
     $roleStmt->execute();
     $roleResult = $roleStmt->get_result();
     $roleIds = [];
-    while ($row = $roleResult->fetch_assoc()) {
+    while ($row = $roleResult->fetch(PDO::FETCH_ASSOC)) {
         $roleIds[strtolower((string) $row['slug'])] = (int) $row['id'];
     }
     $roleStmt->close();
@@ -61,7 +61,7 @@ return static function (mysqli $conn): void {
     $migrated = 0;
     $skipped = 0;
 
-    while ($row = $legacy->fetch_assoc()) {
+    while ($row = $legacy->fetch(PDO::FETCH_ASSOC)) {
         $companyId = strtoupper(trim((string) ($row['Company_ID'] ?? '')));
         if ($companyId === '') {
             continue;

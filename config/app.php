@@ -19,4 +19,6 @@ if (in_array($authCurrentScript, $authPublicEntryPages, true)) {
     auth_redirect_if_authenticated();
 }
 
+csrf_enforce_post();
+
 send_security_headers();

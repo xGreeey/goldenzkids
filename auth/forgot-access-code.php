@@ -62,14 +62,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     } else {
         $email_exists_in_db = false;
 
-        $stmt = $conn->prepare('SELECT Email FROM users WHERE Email = ? LIMIT 1');
-        if ($stmt) {
-            $stmt->bind_param('s', $guard_email);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $email_exists_in_db = $result && $result->num_rows === 1;
-            $stmt->close();
-        }
+        $email_exists_in_db = db_fetch_one(
+            $conn,
+            'SELECT Email FROM users WHERE Email = ? LIMIT 1',
+            's',
+            [$guard_email]
+        ) !== null;
 
         if ($email_exists_in_db) {
             $otpCode = (string) random_int(100000, 999999);

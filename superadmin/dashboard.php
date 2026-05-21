@@ -24,7 +24,7 @@ $countResult = $conn->query(
      FROM users"
 );
 if ($countResult) {
-    $row = $countResult->fetch_assoc();
+    $row = $countResult->fetch(PDO::FETCH_ASSOC);
     $userCounts['total'] = (int) ($row['total'] ?? 0);
     $userCounts['guard'] = (int) ($row['guard'] ?? 0);
     $userCounts['admin'] = (int) ($row['admin'] ?? 0);
@@ -38,14 +38,14 @@ $loginsResult = $conn->query(
     "SELECT COUNT(*) AS c FROM recording WHERE Event = 'LOGIN' AND DATE(Time_Of_Event) = CURDATE()"
 );
 if ($loginsResult) {
-    $loginsToday = (int) $loginsResult->fetch_assoc()['c'];
+    $loginsToday = (int) $loginsResult->fetch(PDO::FETCH_ASSOC)['c'];
 }
 $uniqueResult = $conn->query(
     "SELECT COUNT(DISTINCT Company_ID) AS c FROM recording
      WHERE Event = 'LOGIN' AND DATE(Time_Of_Event) = CURDATE() AND Company_ID IS NOT NULL"
 );
 if ($uniqueResult) {
-    $uniqueLoginsToday = (int) $uniqueResult->fetch_assoc()['c'];
+    $uniqueLoginsToday = (int) $uniqueResult->fetch(PDO::FETCH_ASSOC)['c'];
 }
 
 $recentAudit = [];
@@ -54,7 +54,7 @@ $auditSql = recording_supports_audit_detail($conn)
     : 'SELECT Company_ID, Designation, Event, Time_Of_Event FROM recording ORDER BY Time_Of_Event DESC LIMIT 10';
 $auditResult = $conn->query($auditSql);
 if ($auditResult) {
-    while ($r = $auditResult->fetch_assoc()) {
+    while ($r = $auditResult->fetch(PDO::FETCH_ASSOC)) {
         $recentAudit[] = $r;
     }
 }

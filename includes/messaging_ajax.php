@@ -44,7 +44,7 @@ function messaging_ajax_find_contact_label(array $contacts, string $companyId): 
  * @return array<string,mixed>
  */
 function messaging_ajax_build_direct_payload(
-    mysqli $conn,
+    PDO $conn,
     string $viewerId,
     int $viewerRole,
     string $peerId,
@@ -88,7 +88,7 @@ function messaging_ajax_build_direct_payload(
  * @return array<string,mixed>
  */
 function messaging_ajax_build_group_payload(
-    mysqli $conn,
+    PDO $conn,
     string $viewerId,
     int $viewerRole,
     int $groupId,

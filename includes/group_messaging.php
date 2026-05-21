@@ -1,28 +1,26 @@
 <?php
 declare(strict_types=1);
 
-function message_groups_table_exists(mysqli $conn): bool
+function message_groups_table_exists(PDO $conn): bool
 {
     static $cached = null;
     if ($cached !== null) {
         return $cached;
     }
 
-    $result = $conn->query("SHOW TABLES LIKE 'message_groups'");
-    $cached = $result && $result->num_rows > 0;
+    $cached = db_table_exists($conn, 'message_groups');
 
     return $cached;
 }
 
-function callout_head_guards_table_exists(mysqli $conn): bool
+function callout_head_guards_table_exists(PDO $conn): bool
 {
     static $cached = null;
     if ($cached !== null) {
         return $cached;
     }
 
-    $result = $conn->query("SHOW TABLES LIKE 'callout_head_guards'");
-    $cached = $result && $result->num_rows > 0;
+    $cached = db_table_exists($conn, 'callout_head_guards');
 
     return $cached;
 }
@@ -32,7 +30,7 @@ function callout_head_guards_table_exists(mysqli $conn): bool
  *
  * @return list<array{company_id:string,label:string,head_guard_id:?int}>
  */
-function group_messaging_list_head_guard_options(mysqli $conn): array
+function group_messaging_list_head_guard_options(PDO $conn): array
 {
     if (!message_groups_table_exists($conn)) {
         return [];
@@ -58,17 +56,13 @@ function group_messaging_list_head_guard_options(mysqli $conn): array
             WHERE u.is_active = 1 AND u.{$roleCol} = ?
             ORDER BY label ASC";
 
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
+    $stmt = db_query($conn, $sql, 'i', [AUTH_ROLE_GUARD]);
+    if ($stmt === false) {
         return [];
     }
 
-    $guardRole = AUTH_ROLE_GUARD;
-    $stmt->bind_param('i', $guardRole);
-    $stmt->execute();
-    $result = $stmt->get_result();
     $options = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $headGuardId = $row['head_guard_id'] ?? null;
         $options[] = [
             'company_id' => (string) $row['company_id'],
@@ -76,39 +70,31 @@ function group_messaging_list_head_guard_options(mysqli $conn): array
             'head_guard_id' => $headGuardId !== null ? (int) $headGuardId : null,
         ];
     }
-    $stmt->close();
 
     return $options;
 }
 
-function group_messaging_is_selectable_head_guard(mysqli $conn, string $companyId): bool
+function group_messaging_is_selectable_head_guard(PDO $conn, string $companyId): bool
 {
     if ($companyId === '') {
         return false;
     }
 
     $roleCol = auth_users_role_column($conn);
-    $stmt = $conn->prepare(
-        "SELECT 1 FROM users WHERE Company_ID = ? AND is_active = 1 AND {$roleCol} = ? LIMIT 1"
-    );
-    if (!$stmt) {
-        return false;
-    }
 
-    $guardRole = AUTH_ROLE_GUARD;
-    $stmt->bind_param('si', $companyId, $guardRole);
-    $stmt->execute();
-    $ok = $stmt->get_result()->num_rows > 0;
-    $stmt->close();
-
-    return $ok;
+    return db_fetch_one(
+        $conn,
+        "SELECT 1 FROM users WHERE Company_ID = ? AND is_active = 1 AND {$roleCol} = ? LIMIT 1",
+        'si',
+        [$companyId, AUTH_ROLE_GUARD]
+    ) !== null;
 }
 
 /**
  * @param list<string> $memberCompanyIds Head guard company IDs (creator added automatically).
  */
 function group_messaging_create_group(
-    mysqli $conn,
+    PDO $conn,
     string $creatorId,
     string $groupName,
     array $memberCompanyIds
@@ -117,8 +103,8 @@ function group_messaging_create_group(
         return null;
     }
 
-    $groupName = trim($groupName);
-    if ($creatorId === '' || $groupName === '' || mb_strlen($groupName) > 120) {
+    $groupName = xss_sanitize_plaintext(trim($groupName), 120);
+    if ($creatorId === '' || $groupName === '') {
         return null;
     }
 
@@ -138,79 +124,65 @@ function group_messaging_create_group(
         return null;
     }
 
-    $conn->begin_transaction();
+    $conn->beginTransaction();
 
     try {
-        $stmt = $conn->prepare(
-            'INSERT INTO message_groups (group_name, created_by_company_id) VALUES (?, ?)'
-        );
-        if (!$stmt) {
-            throw new RuntimeException('Could not prepare group insert');
-        }
-        $stmt->bind_param('ss', $groupName, $creatorId);
-        if (!$stmt->execute()) {
-            $stmt->close();
+        if (!db_execute(
+            $conn,
+            'INSERT INTO message_groups (group_name, created_by_company_id) VALUES (?, ?)',
+            'ss',
+            [$groupName, $creatorId]
+        )) {
             throw new RuntimeException('Could not create group');
         }
-        $groupId = (int) $conn->insert_id;
-        $stmt->close();
 
+        $groupId = db_last_insert_id($conn);
         $members = array_values(array_unique([$creatorId, ...$validMembers]));
-        $memberStmt = $conn->prepare(
-            'INSERT INTO message_group_members (group_id, company_id) VALUES (?, ?)'
-        );
-        if (!$memberStmt) {
-            throw new RuntimeException('Could not prepare member insert');
-        }
+
         foreach ($members as $memberId) {
-            $memberStmt->bind_param('is', $groupId, $memberId);
-            if (!$memberStmt->execute()) {
-                $memberStmt->close();
+            if (!db_execute(
+                $conn,
+                'INSERT INTO message_group_members (group_id, company_id) VALUES (?, ?)',
+                'is',
+                [$groupId, $memberId]
+            )) {
                 throw new RuntimeException('Could not add group member');
             }
         }
-        $memberStmt->close();
 
         $conn->commit();
 
         return $groupId;
     } catch (Throwable $e) {
-        $conn->rollback();
+        $conn->rollBack();
         error_log('group_messaging_create_group: ' . $e->getMessage());
 
         return null;
     }
 }
 
-function group_messaging_user_in_group(mysqli $conn, int $groupId, string $companyId): bool
+function group_messaging_user_in_group(PDO $conn, int $groupId, string $companyId): bool
 {
     if (!message_groups_table_exists($conn) || $groupId < 1 || $companyId === '') {
         return false;
     }
 
-    $stmt = $conn->prepare(
+    return db_fetch_one(
+        $conn,
         'SELECT 1
          FROM message_group_members m
          INNER JOIN message_groups g ON g.group_id = m.group_id AND g.is_active = 1
          WHERE m.group_id = ? AND m.company_id = ?
-         LIMIT 1'
-    );
-    if (!$stmt) {
-        return false;
-    }
-
-    $stmt->bind_param('is', $groupId, $companyId);
-    $stmt->execute();
-    $exists = $stmt->get_result()->num_rows > 0;
-    $stmt->close();
-
-    return $exists;
+         LIMIT 1',
+        'is',
+        [$groupId, $companyId]
+    ) !== null;
 }
 
 /**
  * @return list<array{group_id:int,group_name:string,unread:int,member_count:int}>
  */
-function group_messaging_list_groups_for_user(mysqli $conn, string $companyId): array
+function group_messaging_list_groups_for_user(PDO $conn, string $companyId): array
 {
     if (!message_groups_table_exists($conn) || $companyId === '') {
         return [];
@@ -226,17 +198,13 @@ function group_messaging_list_groups_for_user(mysqli $conn, string $companyId): 
             WHERE g.is_active = 1
             ORDER BY g.created_at DESC';
 
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
+    $stmt = db_query($conn, $sql, 'ss', [$companyId, $companyId]);
+    if ($stmt === false) {
         return [];
     }
 
-    $stmt->bind_param('ss', $companyId, $companyId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
     $groups = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $groupId = (int) $row['group_id'];
         $lastRead = (int) $row['last_read_message_id'];
         $groups[] = [
@@ -246,26 +214,20 @@ function group_messaging_list_groups_for_user(mysqli $conn, string $companyId): 
             'unread' => group_messaging_unread_count($conn, $groupId, $companyId, $lastRead),
         ];
     }
-    $stmt->close();
 
     return $groups;
 }
 
-function group_messaging_unread_count(mysqli $conn, int $groupId, string $companyId, int $lastReadMessageId): int
+function group_messaging_unread_count(PDO $conn, int $groupId, string $companyId, int $lastReadMessageId): int
 {
-    $stmt = $conn->prepare(
+    $row = db_fetch_one(
+        $conn,
         'SELECT COUNT(*) AS unread
          FROM message_group_messages
-         WHERE group_id = ? AND message_id > ? AND sender_company_id != ?'
+         WHERE group_id = ? AND message_id > ? AND sender_company_id != ?',
+        'iis',
+        [$groupId, $lastReadMessageId, $companyId]
     );
-    if (!$stmt) {
-        return 0;
-    }
-
-    $stmt->bind_param('iis', $groupId, $lastReadMessageId, $companyId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
 
     return (int) ($row['unread'] ?? 0);
 }
@@ -273,26 +235,21 @@ function group_messaging_unread_count(mysqli $conn, int $groupId, string $compan
 /**
  * @return array{group_id:int,group_name:string,members:list<array{company_id:string,label:string}>}|null
  */
-function group_messaging_get_group_meta(mysqli $conn, int $groupId, string $viewerId): ?array
+function group_messaging_get_group_meta(PDO $conn, int $groupId, string $viewerId): ?array
 {
     if (!group_messaging_user_in_group($conn, $groupId, $viewerId)) {
         return null;
     }
 
-    $stmt = $conn->prepare(
+    $row = db_fetch_one(
+        $conn,
         'SELECT group_id, group_name, created_by_company_id
-         FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1'
+         FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1',
+        'i',
+        [$groupId]
     );
-    if (!$stmt) {
-        return null;
-    }
 
-    $stmt->bind_param('i', $groupId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$row) {
+    if ($row === null) {
         return null;
     }
 
@@ -313,22 +270,19 @@ function group_messaging_get_group_meta(mysqli $conn, int $groupId, string $view
                   {$hgJoin}
                   WHERE m.group_id = ?
                   ORDER BY label ASC";
-    $memberStmt = $conn->prepare($memberSql);
-    if (!$memberStmt) {
+
+    $memberStmt = db_query($conn, $memberSql, 'i', [$groupId]);
+    if ($memberStmt === false) {
         return null;
     }
 
-    $memberStmt->bind_param('i', $groupId);
-    $memberStmt->execute();
-    $memberResult = $memberStmt->get_result();
     $members = [];
-    while ($member = $memberResult->fetch_assoc()) {
+    while ($member = $memberStmt->fetch(PDO::FETCH_ASSOC)) {
         $members[] = [
             'company_id' => (string) $member['company_id'],
             'label' => (string) $member['label'],
         ];
     }
-    $memberStmt->close();
 
     return [
         'group_id' => (int) $row['group_id'],
@@ -343,7 +297,7 @@ function group_messaging_is_group_creator(array $meta, string $companyId): bool
     return ($meta['created_by_company_id'] ?? '') === $companyId;
 }
 
-function group_messaging_can_delete_group(mysqli $conn, int $groupId, string $actorId, int $actorRole): bool
+function group_messaging_can_delete_group(PDO $conn, int $groupId, string $actorId, int $actorRole): bool
 {
     if (!group_messaging_user_in_group($conn, $groupId, $actorId)) {
         return false;
@@ -354,51 +308,42 @@ function group_messaging_can_delete_group(mysqli $conn, int $groupId, string $ac
         return true;
     }
 
-    $stmt = $conn->prepare(
-        'SELECT created_by_company_id FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1'
+    $row = db_fetch_one(
+        $conn,
+        'SELECT created_by_company_id FROM message_groups WHERE group_id = ? AND is_active = 1 LIMIT 1',
+        'i',
+        [$groupId]
     );
-    if (!$stmt) {
-        return false;
-    }
 
-    $stmt->bind_param('i', $groupId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    return $row && (string) $row['created_by_company_id'] === $actorId;
+    return $row !== null && (string) $row['created_by_company_id'] === $actorId;
 }
 
 /** Delete all messages in a group; members remain. */
-function group_messaging_clear_history(mysqli $conn, int $groupId, string $actorId): bool
+function group_messaging_clear_history(PDO $conn, int $groupId, string $actorId): bool
 {
     if (!group_messaging_user_in_group($conn, $groupId, $actorId)) {
         return false;
     }
 
-    $conn->begin_transaction();
+    $conn->beginTransaction();
 
     try {
-        $del = $conn->prepare('DELETE FROM message_group_messages WHERE group_id = ?');
-        if (!$del || !$del->bind_param('i', $groupId) || !$del->execute()) {
+        if (!db_execute($conn, 'DELETE FROM message_group_messages WHERE group_id = ?', 'i', [$groupId])) {
             throw new RuntimeException('Could not clear messages');
         }
-        $del->close();
 
-        $read = $conn->prepare(
-            'UPDATE message_group_read_state SET last_read_message_id = NULL WHERE group_id = ?'
+        db_execute(
+            $conn,
+            'UPDATE message_group_read_state SET last_read_message_id = NULL WHERE group_id = ?',
+            'i',
+            [$groupId]
         );
-        if ($read) {
-            $read->bind_param('i', $groupId);
-            $read->execute();
-            $read->close();
-        }
 
         $conn->commit();
 
         return true;
     } catch (Throwable $e) {
-        $conn->rollback();
+        $conn->rollBack();
         error_log('group_messaging_clear_history: ' . $e->getMessage());
 
         return false;
@@ -406,40 +351,37 @@ function group_messaging_clear_history(mysqli $conn, int $groupId, string $actor
 }
 
 /** Remove member from group; deactivates group when empty. */
-function group_messaging_leave_group(mysqli $conn, int $groupId, string $companyId): bool
+function group_messaging_leave_group(PDO $conn, int $groupId, string $companyId): bool
 {
     if (!group_messaging_user_in_group($conn, $groupId, $companyId)) {
         return false;
     }
 
-    $conn->begin_transaction();
+    $conn->beginTransaction();
 
     try {
-        $stmt = $conn->prepare(
-            'DELETE FROM message_group_members WHERE group_id = ? AND company_id = ?'
-        );
-        if (!$stmt || !$stmt->bind_param('is', $groupId, $companyId) || !$stmt->execute()) {
+        if (!db_execute(
+            $conn,
+            'DELETE FROM message_group_members WHERE group_id = ? AND company_id = ?',
+            'is',
+            [$groupId, $companyId]
+        )) {
             throw new RuntimeException('Could not leave group');
         }
-        $stmt->close();
 
-        $read = $conn->prepare(
-            'DELETE FROM message_group_read_state WHERE group_id = ? AND company_id = ?'
+        db_execute(
+            $conn,
+            'DELETE FROM message_group_read_state WHERE group_id = ? AND company_id = ?',
+            'is',
+            [$groupId, $companyId]
         );
-        if ($read) {
-            $read->bind_param('is', $groupId, $companyId);
-            $read->execute();
-            $read->close();
-        }
 
-        $countStmt = $conn->prepare(
-            'SELECT COUNT(*) AS total FROM message_group_members WHERE group_id = ?'
+        $countRow = db_fetch_one(
+            $conn,
+            'SELECT COUNT(*) AS total FROM message_group_members WHERE group_id = ?',
+            'i',
+            [$groupId]
         );
-        if (!$countStmt || !$countStmt->bind_param('i', $groupId) || !$countStmt->execute()) {
-            throw new RuntimeException('Could not count members');
-        }
-        $countRow = $countStmt->get_result()->fetch_assoc();
-        $countStmt->close();
 
         if ((int) ($countRow['total'] ?? 0) === 0) {
             group_messaging_deactivate_group($conn, $groupId);
@@ -449,7 +391,7 @@ function group_messaging_leave_group(mysqli $conn, int $groupId, string $company
 
         return true;
     } catch (Throwable $e) {
-        $conn->rollback();
+        $conn->rollBack();
         error_log('group_messaging_leave_group: ' . $e->getMessage());
 
         return false;
@@ -457,13 +399,13 @@ function group_messaging_leave_group(mysqli $conn, int $groupId, string $company
 }
 
 /** Deactivate group and remove all data (admin/creator only). */
-function group_messaging_delete_group(mysqli $conn, int $groupId, string $actorId, int $actorRole): bool
+function group_messaging_delete_group(PDO $conn, int $groupId, string $actorId, int $actorRole): bool
 {
     if (!group_messaging_can_delete_group($conn, $groupId, $actorId, $actorRole)) {
         return false;
     }
 
-    $conn->begin_transaction();
+    $conn->beginTransaction();
 
     try {
         foreach (
@@ -473,46 +415,35 @@ function group_messaging_delete_group(mysqli $conn, int $groupId, string $actorI
                 'DELETE FROM message_group_members WHERE group_id = ?',
             ] as $sql
         ) {
-            $del = $conn->prepare($sql);
-            if (!$del || !$del->bind_param('i', $groupId) || !$del->execute()) {
+            if (!db_execute($conn, $sql, 'i', [$groupId])) {
                 throw new RuntimeException('Could not delete group data');
             }
-            $del->close();
         }
 
-        $stmt = $conn->prepare('UPDATE message_groups SET is_active = 0 WHERE group_id = ?');
-        if (!$stmt || !$stmt->bind_param('i', $groupId) || !$stmt->execute()) {
+        if (!db_execute($conn, 'UPDATE message_groups SET is_active = 0 WHERE group_id = ?', 'i', [$groupId])) {
             throw new RuntimeException('Could not delete group');
         }
-        $stmt->close();
 
         $conn->commit();
 
         return true;
     } catch (Throwable $e) {
-        $conn->rollback();
+        $conn->rollBack();
         error_log('group_messaging_delete_group: ' . $e->getMessage());
 
         return false;
     }
 }
 
-function group_messaging_deactivate_group(mysqli $conn, int $groupId): void
+function group_messaging_deactivate_group(PDO $conn, int $groupId): void
 {
-    $stmt = $conn->prepare('UPDATE message_groups SET is_active = 0 WHERE group_id = ?');
-    if (!$stmt) {
-        return;
-    }
-
-    $stmt->bind_param('i', $groupId);
-    $stmt->execute();
-    $stmt->close();
+    db_execute($conn, 'UPDATE message_groups SET is_active = 0 WHERE group_id = ?', 'i', [$groupId]);
 }
 
 /**
  * @return list<array{message_id:int,sender_company_id:string,sender_label:string,body_text:string,is_mine:bool,created_at:string}>
  */
-function group_messaging_fetch_messages(mysqli $conn, int $groupId, string $viewerId, int $limit = 200): array
+function group_messaging_fetch_messages(PDO $conn, int $groupId, string $viewerId, int $limit = 200): array
 {
     if (!group_messaging_user_in_group($conn, $groupId, $viewerId)) {
         return [];
@@ -538,18 +469,14 @@ function group_messaging_fetch_messages(mysqli $conn, int $groupId, string $view
             ORDER BY msg.created_at ASC
             LIMIT {$limit}";
 
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
+    $stmt = db_query($conn, $sql, 'i', [$groupId]);
+    if ($stmt === false) {
         return [];
     }
 
-    $stmt->bind_param('i', $groupId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
     $messages = [];
     $lastMessageId = 0;
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $messageId = (int) $row['message_id'];
         $lastMessageId = $messageId;
         $senderId = (string) $row['sender_company_id'];
@@ -562,7 +489,6 @@ function group_messaging_fetch_messages(mysqli $conn, int $groupId, string $view
             'created_at' => (string) $row['created_at'],
         ];
     }
-    $stmt->close();
 
     if ($lastMessageId > 0) {
         group_messaging_mark_read($conn, $groupId, $viewerId, $lastMessageId);
@@ -571,35 +497,31 @@ function group_messaging_fetch_messages(mysqli $conn, int $groupId, string $view
     return $messages;
 }
 
-function group_messaging_mark_read(mysqli $conn, int $groupId, string $companyId, int $lastMessageId): void
+function group_messaging_mark_read(PDO $conn, int $groupId, string $companyId, int $lastMessageId): void
 {
     if ($groupId < 1 || $companyId === '' || $lastMessageId < 1) {
         return;
     }
 
-    $stmt = $conn->prepare(
+    db_execute(
+        $conn,
         'INSERT INTO message_group_read_state (group_id, company_id, last_read_message_id)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE
             last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), VALUES(last_read_message_id)),
-            updated_at = CURRENT_TIMESTAMP'
+            updated_at = CURRENT_TIMESTAMP',
+        'isi',
+        [$groupId, $companyId, $lastMessageId]
     );
-    if (!$stmt) {
-        return;
-    }
-
-    $stmt->bind_param('isi', $groupId, $companyId, $lastMessageId);
-    $stmt->execute();
-    $stmt->close();
 }
 
-function group_messaging_send(mysqli $conn, int $groupId, string $senderId, string $body): bool
+function group_messaging_send(PDO $conn, int $groupId, string $senderId, string $body): bool
 {
     if (!message_groups_table_exists($conn)) {
         return false;
     }
 
-    $body = trim($body);
+    $body = xss_sanitize_plaintext(trim($body), 8000);
     if ($groupId < 1 || $senderId === '' || $body === '') {
         return false;
     }
@@ -608,18 +530,15 @@ function group_messaging_send(mysqli $conn, int $groupId, string $senderId, stri
         return false;
     }
 
-    $stmt = $conn->prepare(
+    $ok = db_execute(
+        $conn,
         'INSERT INTO message_group_messages (group_id, sender_company_id, body_text)
-         VALUES (?, ?, ?)'
+         VALUES (?, ?, ?)',
+        'iss',
+        [$groupId, $senderId, $body]
     );
-    if (!$stmt) {
-        return false;
-    }
 
-    $stmt->bind_param('iss', $groupId, $senderId, $body);
-    $ok = $stmt->execute();
-    $messageId = (int) $conn->insert_id;
-    $stmt->close();
+    $messageId = db_last_insert_id($conn);
 
     if ($ok && $messageId > 0) {
         group_messaging_mark_read($conn, $groupId, $senderId, $messageId);

@@ -41,9 +41,9 @@ if ($role === null) {
 $roleCol = auth_users_role_column($conn);
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-$exists = db_query($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$companyId]);
+$userExists = db_fetch_one($conn, 'SELECT Company_ID FROM users WHERE Company_ID = ? LIMIT 1', 's', [$companyId]) !== null;
 
-if ($exists && $exists->num_rows > 0) {
+if ($userExists) {
     $sql = "UPDATE users SET password_hash = ?, {$roleCol} = ?, Email = COALESCE(?, Email),
             is_active = 1, password_changed_at = NOW() WHERE Company_ID = ?";
     $ok = db_execute($conn, $sql, 'siss', [$hash, $role, $email, $companyId]);
@@ -56,5 +56,5 @@ if ($exists && $exists->num_rows > 0) {
 $roleName = auth_role_name($role);
 echo $ok
     ? "Saved {$companyId} as {$roleName} (role={$role}).\n"
-    : "Failed: {$conn->error}\n";
+    : "Failed to save user.\n";
 exit($ok ? 0 : 1);

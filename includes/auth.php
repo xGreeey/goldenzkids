@@ -45,6 +45,28 @@ function auth_username_valid(string $username): bool
     return (bool) preg_match('/^[A-Za-z0-9]{1,20}$/', $username);
 }
 
+function auth_profile_name_valid(string $name): bool
+{
+    $name = trim($name);
+
+    return $name !== ''
+        && strlen($name) <= 64
+        && (bool) preg_match("/^[\p{L}\p{M}'\-. ]+$/u", $name);
+}
+
+function auth_users_has_profile_names(PDO $conn): bool
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $cached = db_column_exists($conn, 'users', 'First_Name')
+        && db_column_exists($conn, 'users', 'Last_Name');
+
+    return $cached;
+}
+
 /** Guard roster / field ID format (e.g. ABC-2024-0021). */
 function auth_guard_company_id_valid(string $companyId): bool
 {
@@ -59,26 +81,24 @@ function auth_login_identifier_valid(string $identifier): bool
     return auth_username_valid($identifier) || auth_guard_company_id_valid($identifier);
 }
 
-function auth_guard_roster_has(mysqli $conn, string $companyId): bool
+function auth_guard_roster_has(PDO $conn, string $companyId): bool
 {
     if ($companyId === '') {
         return false;
     }
 
-    $row = db_query(
+    return db_fetch_one(
         $conn,
         'SELECT Company_ID FROM guards WHERE Company_ID = ? LIMIT 1',
         's',
         [$companyId]
-    );
-
-    return (bool) ($row && $row->num_rows > 0);
+    ) !== null;
 }
 
 /**
  * Decide portal destination after login (guard roster / role 0 -> guard module).
  */
-function auth_resolve_role_at_login(mysqli $conn, array $user): int
+function auth_resolve_role_at_login(PDO $conn, array $user): int
 {
     $companyId = (string) ($user['company_id'] ?? '');
     $stored = auth_normalize_role((int) ($user['role'] ?? AUTH_ROLE_ADMIN));
@@ -155,34 +175,30 @@ function auth_role_from_input(string $input): ?int
     };
 }
 
-function auth_users_table_supports_hashes(mysqli $conn): bool
+function auth_users_table_supports_hashes(PDO $conn): bool
 {
     static $cached = null;
     if ($cached !== null) {
         return $cached;
     }
 
-    $cols = $conn->query("SHOW COLUMNS FROM users LIKE 'password_hash'");
-    $cached = $cols && $cols->num_rows > 0;
+    $cached = db_column_exists($conn, 'users', 'password_hash');
 
     return $cached;
 }
 
-function auth_users_role_column(mysqli $conn): string
+function auth_users_role_column(PDO $conn): string
 {
     static $column = null;
     if ($column !== null) {
         return $column;
     }
 
-    $role = $conn->query("SHOW COLUMNS FROM users LIKE 'role'");
-    if ($role && $role->num_rows > 0) {
+    if (db_column_exists($conn, 'users', 'role')) {
         $column = 'role';
-        return $column;
+    } else {
+        $column = db_column_exists($conn, 'users', 'role_id') ? 'role_id' : 'role';
     }
-
-    $roleId = $conn->query("SHOW COLUMNS FROM users LIKE 'role_id'");
-    $column = ($roleId && $roleId->num_rows > 0) ? 'role_id' : 'role';
 
     return $column;
 }
@@ -252,7 +268,7 @@ function auth_map_user_row(array $row): array
     ];
 }
 
-function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
+function auth_find_user_by_company_id(PDO $conn, string $companyId): ?array
 {
     if (!auth_users_table_supports_hashes($conn)) {
         return null;
@@ -265,17 +281,9 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
             WHERE u.Company_ID = ? AND u.password_hash IS NOT NULL AND u.password_hash != ''
             LIMIT 1";
 
-    $stmt = $conn->prepare($sql);
-    if (!$stmt) {
-        return null;
-    }
+    $row = db_fetch_one($conn, $sql, 's', [$companyId]);
 
-    $stmt->bind_param('s', $companyId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$row || !(int) $row['is_active']) {
+    if ($row === null || !(int) $row['is_active']) {
         return null;
     }
 
@@ -286,23 +294,22 @@ function auth_find_user_by_company_id(mysqli $conn, string $companyId): ?array
     return auth_map_user_row($row);
 }
 
-function auth_is_deactivated_account(mysqli $conn, string $companyId): bool
+function auth_is_deactivated_account(PDO $conn, string $companyId): bool
 {
     if ($companyId === '') {
         return false;
     }
 
-    $row = db_query(
+    $record = db_fetch_one(
         $conn,
         'SELECT is_active FROM users WHERE Company_ID = ? LIMIT 1',
         's',
         [$companyId]
     );
-    if (!$row || $row->num_rows === 0) {
+
+    if ($record === null) {
         return false;
     }
-
-    $record = $row->fetch_assoc();
 
     return ((int) ($record['is_active'] ?? 1)) === 0;
 }
@@ -381,7 +388,7 @@ function auth_must_change_password(): bool
     return auth_is_logged_in() && (int) ($_SESSION['must_change_password'] ?? 0) === 1;
 }
 
-function auth_record_login(mysqli $conn, string $companyId): void
+function auth_record_login(PDO $conn, string $companyId): void
 {
     if ($companyId === '' || !auth_users_table_supports_hashes($conn)) {
         return;
@@ -395,7 +402,7 @@ function auth_record_login(mysqli $conn, string $companyId): void
     );
 }
 
-function auth_record_failed_login(mysqli $conn, string $companyId): void
+function auth_record_failed_login(PDO $conn, string $companyId): void
 {
     if ($companyId === '' || !auth_users_table_supports_hashes($conn)) {
         return;

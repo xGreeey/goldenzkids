@@ -19,7 +19,7 @@ auth_session_release_lock();
 if ($isAdminArea) {
     $query = db_query($conn, "SELECT COUNT(*) AS total FROM dgd WHERE Status = 'Pending'");
     if ($query) {
-        $row = $query->fetch_assoc();
+        $row = $query->fetch(PDO::FETCH_ASSOC);
         $alert_count = (int) ($row['total'] ?? 0);
     }
 } else {
@@ -30,7 +30,7 @@ if ($isAdminArea) {
         [$company_id]
     );
     if ($query) {
-        $row = $query->fetch_assoc();
+        $row = $query->fetch(PDO::FETCH_ASSOC);
         $alert_count = (int) ($row['total'] ?? 0);
     }
 }

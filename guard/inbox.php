@@ -40,7 +40,7 @@ $memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.Distribution_Protocol, 
             ORDER BY mr.is_read ASC, m.created_at DESC';
 $memoResult = db_query($conn, $memoSql, 's', [$companyId]);
 if ($memoResult) {
-    while ($r = $memoResult->fetch_assoc()) {
+    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
         $memos[] = $r;
     }
 }

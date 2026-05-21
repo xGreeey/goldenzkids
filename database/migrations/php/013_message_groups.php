@@ -4,9 +4,8 @@ declare(strict_types=1);
 /**
  * Group messaging: admin-created chats with selected head guards.
  */
-return static function (mysqli $conn): void {
-    $exists = $conn->query("SHOW TABLES LIKE 'message_groups'");
-    if ($exists && $exists->num_rows > 0) {
+return static function (PDO $conn): void {
+    if (db_table_exists($conn, 'message_groups')) {
         echo "  [skip] message_groups tables already exist.\n";
         return;
     }
@@ -70,9 +69,7 @@ return static function (mysqli $conn): void {
     ];
 
     foreach ($statements as $sql) {
-        if (!$conn->query($sql)) {
-            throw new RuntimeException('Could not create message group tables: ' . $conn->error);
-        }
+        $conn->exec($sql);
     }
 
     echo "  Created message_groups, message_group_members, message_group_messages, message_group_read_state.\n";

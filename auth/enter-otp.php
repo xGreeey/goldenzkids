@@ -28,21 +28,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['otp'])) {
         $otp_Err = 'Invalid verification code. Please try again.';
     } else {
         $email = (string) $_SESSION['password_reset_email'];
-        $stmt = $conn->prepare('SELECT Company_ID FROM users WHERE Email = ? LIMIT 1');
-        if (!$stmt) {
-            $otp_Err = 'Unable to process verification right now. Please try again.';
-            $match = false;
-        } else {
-            $stmt->bind_param('s', $email);
-            $stmt->execute();
-            $match = $stmt->get_result();
-            $stmt->close();
-        }
+        $row = db_fetch_one($conn, 'SELECT Company_ID FROM users WHERE Email = ? LIMIT 1', 's', [$email]);
 
-        if (!$match || $match->num_rows !== 1) {
+        if ($row === null) {
             $otp_Err = 'We could not verify this reset request. Please start again.';
         } else {
-            $row = $match->fetch_assoc();
             $_SESSION['password_reset_company_id'] = (string) ($row['Company_ID'] ?? '');
             $_SESSION['password_reset_verified'] = 1;
             unset($_SESSION['password_reset_otp'], $_SESSION['password_reset_otp_expires']);

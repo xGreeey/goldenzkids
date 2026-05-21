@@ -1222,6 +1222,10 @@ function guard_hub_scripts(): void
         if (chatScroll) {
             chatScroll.scrollTop = chatScroll.scrollHeight;
         }
+
+        if (typeof window.initMessagingBoard === 'function' && document.getElementById('messaging-board')) {
+            window.initMessagingBoard();
+        }
     }
 
     window.addEventListener('beforeunload', function () {

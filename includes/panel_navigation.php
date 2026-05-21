@@ -254,6 +254,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
         }
+        if (typeof window.initMessagingBoard === 'function' && document.getElementById('messaging-board')) {
+            window.initMessagingBoard();
+        }
         if (typeof window.initReportsModule === 'function' && doc.getElementById('reports-module')) {
             window.initReportsModule();
         }

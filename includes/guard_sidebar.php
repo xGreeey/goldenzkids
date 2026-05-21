@@ -17,7 +17,7 @@ $guardNavActive = $guardNavActive ?? 'dashboard';
             <i class="fa-solid fa-camera" aria-hidden="true"></i>
             Submit report
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
         </a>

@@ -227,7 +227,59 @@ function guard_hub_scripts(): void
         var video = qs('[data-guard-scanner-video]', form);
         var preview = qs('[data-guard-scanner-preview]', form);
         var hint = qs('[data-guard-scanner-hint]', form);
+        var torchBtn = qs('[data-guard-scanner-torch]', form);
         var stream = null;
+        var torchOn = false;
+        var torchSupported = false;
+
+        function getVideoTrack() {
+            if (!stream) {
+                return null;
+            }
+            var tracks = stream.getVideoTracks();
+            return tracks.length ? tracks[0] : null;
+        }
+
+        function syncTorchButton() {
+            if (!torchBtn) {
+                return;
+            }
+            var show = torchSupported && stream && scanner && !scanner.classList.contains('has-capture');
+            torchBtn.hidden = !show;
+            torchBtn.disabled = !show;
+            torchBtn.classList.toggle('is-on', torchOn);
+            torchBtn.setAttribute('aria-pressed', torchOn ? 'true' : 'false');
+            torchBtn.setAttribute('aria-label', torchOn ? 'Turn flashlight off' : 'Turn flashlight on');
+        }
+
+        function detectTorchSupport(track) {
+            if (!track || typeof track.getCapabilities !== 'function') {
+                return false;
+            }
+            var caps = track.getCapabilities();
+            return caps && caps.torch === true;
+        }
+
+        function setTorch(enabled) {
+            var track = getVideoTrack();
+            if (!track || !torchSupported) {
+                return Promise.resolve(false);
+            }
+            var constraints = { advanced: [{ torch: enabled }] };
+            return track.applyConstraints(constraints).then(function () {
+                torchOn = enabled;
+                syncTorchButton();
+                return true;
+            }).catch(function () {
+                return track.applyConstraints({ torch: enabled }).then(function () {
+                    torchOn = enabled;
+                    syncTorchButton();
+                    return true;
+                }).catch(function () {
+                    return false;
+                });
+            });
+        }
 
         function goStep(n) {
             current = n;
@@ -242,6 +294,9 @@ function guard_hub_scripts(): void
         }
 
         function stopCamera() {
+            torchOn = false;
+            torchSupported = false;
+            syncTorchButton();
             if (stream) {
                 stream.getTracks().forEach(function (t) { t.stop(); });
                 stream = null;
@@ -252,20 +307,38 @@ function guard_hub_scripts(): void
             if (!navigator.mediaDevices || !video) return;
             stopCamera();
             navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    aspectRatio: { ideal: 0.75 }
-                },
+                video: { facingMode: 'environment' },
                 audio: false
             })
                 .then(function (s) {
                     stream = s;
                     video.srcObject = s;
-                    video.play();
+                    video.playsInline = true;
+                    var track = getVideoTrack();
+                    torchSupported = detectTorchSupport(track);
+                    torchOn = false;
+                    syncTorchButton();
+                    return video.play();
                 })
                 .catch(function () {
+                    torchSupported = false;
+                    syncTorchButton();
                     if (hint) hint.textContent = 'Camera unavailable — use upload instead.';
                 });
+        }
+
+        if (torchBtn) {
+            torchBtn.addEventListener('click', function () {
+                if (!torchSupported || !stream) {
+                    window.guardShowToast('Flashlight is not available on this device.', 'error');
+                    return;
+                }
+                setTorch(!torchOn).then(function (ok) {
+                    if (!ok) {
+                        window.guardShowToast('Could not toggle flashlight.', 'error');
+                    }
+                });
+            });
         }
 
         var captureBtn = qs('[data-guard-scan-capture]', form);
@@ -296,6 +369,7 @@ function guard_hub_scripts(): void
                             }
                             scanner.classList.add('has-capture');
                             if (hint) hint.textContent = 'Report captured. Continue to evidences.';
+                            syncTorchButton();
                             stopCamera();
                         }, 'image/jpeg', 0.88);
                     }

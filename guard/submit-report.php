@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
 require_once __DIR__ . '/../includes/guard_portal.php';
+require_once __DIR__ . '/../includes/guard_ui_icons.php';
 
 auth_require_permission('guard.reports.submit');
 
@@ -80,6 +81,14 @@ guard_layout_head('Submit Report');
                     <div class="guard-scanner" data-guard-scanner>
                         <video class="guard-scanner__video" data-guard-scanner-video playsinline muted autoplay aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
+                        <button
+                            type="button"
+                            class="guard-scanner__torch"
+                            data-guard-scanner-torch
+                            aria-label="Toggle flashlight"
+                            aria-pressed="false"
+                            hidden
+                        ><?= guard_ui_icon('flashlight', 20) ?></button>
                         <div class="guard-scanner__frame" aria-hidden="true"></div>
                         <p class="guard-scanner__hint" data-guard-scanner-hint>Align document inside frame…</p>
                     </div>

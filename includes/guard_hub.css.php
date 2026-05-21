@@ -32,13 +32,17 @@ function guard_hub_styles(): void
             padding: 12px 14px;
         }
 
-        /* Page shell */
+        /* Page shell — keep scroll on canvas only (do not override overflow-y) */
         body.guard-portal .guard-app__scroll {
             display: flex;
             flex-direction: column;
             gap: var(--guard-gap-md, 12px);
             min-width: 0;
+            min-height: 0;
+            flex: 1 1 0;
             overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         body.guard-portal .guard-app__scroll .page-header {
@@ -529,11 +533,14 @@ function guard_hub_styles(): void
         body.guard-portal .guard-app__scroll .guard-scanner {
             position: relative;
             width: 100%;
+            max-width: min(280px, 100%);
+            margin-left: auto;
+            margin-right: auto;
             border-radius: 10px;
             overflow: hidden;
             background: #0f172a;
-            aspect-ratio: 4 / 3;
-            max-height: min(240px, 42vh);
+            aspect-ratio: 3 / 4;
+            max-height: min(420px, 52vh);
             border: 1px solid var(--guard-ui-border, #e2e8f0);
         }
 
@@ -568,7 +575,7 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-app__scroll .guard-scanner__frame {
             position: absolute;
-            inset: 12% 8%;
+            inset: 10% 12%;
             z-index: 1;
             border: 2px solid rgba(255, 255, 255, 0.85);
             border-radius: 8px;

@@ -547,17 +547,14 @@ function guard_hub_styles(): void
         body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            inset: 0;
             z-index: 0;
             display: block;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            max-width: none;
-            transform: translate(-50%, -50%);
-            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
             object-position: center center;
         }
 

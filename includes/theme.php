@@ -37,16 +37,57 @@ function ui_tooltip(string $label, string $position = ''): string
     return sprintf(' data-tip="%s"%s', e($label), $pos);
 }
 
-/** iOS-style light/dark pill switch markup. */
+/** Sun / moon SVG icons (16px) for theme switch. */
+function theme_toggle_icon_sun(): string
+{
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+}
+
+function theme_toggle_icon_moon(): string
+{
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+}
+
+/**
+ * Light/dark pill switch markup.
+ *
+ * showInactiveIcons: "next" — active icon in thumb; only the next mode shown on the track (default).
+ * showInactiveIcons: "all" — legacy dual-icon track with sliding white thumb.
+ */
 function theme_toggle_markup(array $options = []): string
 {
     $id = $options['id'] ?? 'themeToggle';
     $mode = ($options['mode'] ?? 'dark-class') === 'light-class' ? 'light-class' : 'dark-class';
     $title = $options['title'] ?? 'Toggle light or dark theme';
     $tipPos = isset($options['tipPosition']) && $options['tipPosition'] === 'bottom' ? 'bottom' : '';
+    $showInactive = $options['showInactiveIcons'] ?? 'next';
 
-    $sun = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-16a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm0 18a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1ZM3 11a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm16 0a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2h-2a1 1 0 0 1-1-1ZM5.64 5.64a1 1 0 0 1 1.41 0l1.42 1.42a1 1 0 1 1-1.41 1.41L5.64 7.05a1 1 0 0 1 0-1.41Zm12.7 12.7a1 1 0 0 1 1.42 0l1.41 1.41a1 1 0 0 1-1.41 1.42l-1.42-1.41a1 1 0 0 1 0-1.42ZM18.36 5.64a1 1 0 0 1 0 1.41l-1.42 1.42a1 1 0 1 1-1.41-1.41l1.41-1.42a1 1 0 0 1 1.42 0ZM7.05 18.36a1 1 0 0 1 0 1.42l-1.41 1.41a1 1 0 0 1-1.42-1.41l1.42-1.42a1 1 0 0 1 1.41 0Z"/></svg>';
-    $moon = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5Z"/></svg>';
+    $sun = theme_toggle_icon_sun();
+    $moon = theme_toggle_icon_moon();
+
+    if ($showInactive === 'next') {
+        return sprintf(
+            '<button type="button" id="%s" class="theme-switch theme-switch--show-next" role="switch" aria-checked="false" aria-label="%s"%s data-theme-mode="%s">'
+            . '<span class="theme-switch__track">'
+            . '<span class="theme-switch__icon theme-switch__icon--sun">%s</span>'
+            . '<span class="theme-switch__icon theme-switch__icon--moon">%s</span>'
+            . '<span class="theme-switch__thumb" aria-hidden="true">'
+            . '<span class="theme-switch__thumb-icon theme-switch__thumb-icon--sun">%s</span>'
+            . '<span class="theme-switch__thumb-icon theme-switch__thumb-icon--moon">%s</span>'
+            . '</span></span></button>',
+            e($id),
+            e($title),
+            ui_tooltip($title, $tipPos),
+            e($mode),
+            $sun,
+            $moon,
+            $sun,
+            $moon
+        );
+    }
+
+    $sunFill = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-16a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm0 18a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1ZM3 11a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm16 0a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2h-2a1 1 0 0 1-1-1ZM5.64 5.64a1 1 0 0 1 1.41 0l1.42 1.42a1 1 0 1 1-1.41 1.41L5.64 7.05a1 1 0 0 1 0-1.41Zm12.7 12.7a1 1 0 0 1 1.42 0l1.41 1.41a1 1 0 0 1-1.41 1.42l-1.42-1.41a1 1 0 0 1 0-1.42ZM18.36 5.64a1 1 0 0 1 0 1.41l-1.42 1.42a1 1 0 1 1-1.41-1.41l1.41-1.42a1 1 0 0 1 1.42 0ZM7.05 18.36a1 1 0 0 1 0 1.42l-1.41 1.41a1 1 0 0 1-1.42-1.41l1.42-1.42a1 1 0 0 1 1.41 0Z"/></svg>';
+    $moonFill = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5Z"/></svg>';
 
     return sprintf(
         '<button type="button" id="%s" class="theme-switch" role="switch" aria-checked="false" aria-label="%s"%s data-theme-mode="%s">'
@@ -56,12 +97,63 @@ function theme_toggle_markup(array $options = []): string
         e($title),
         ui_tooltip($title, $tipPos),
         e($mode),
-        $sun,
-        $moon
+        $sunFill,
+        $moonFill
     );
 }
 
-/** Theme toggle script â€” output before </body>. */
+/**
+ * Apply saved theme on <body> and sync the sidebar toggle (call once after footer toggle markup).
+ */
+function theme_sidebar_boot_script(string $mode = 'light-class'): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    $mode = $mode === 'dark-class' ? 'dark-class' : 'light-class';
+    ?>
+<script>
+(function () {
+    var key = 'abc_theme';
+    var mode = <?= json_encode($mode, JSON_THROW_ON_ERROR) ?>;
+    var saved = localStorage.getItem(key);
+    var body = document.body;
+    if (!body) return;
+    var dark = saved === 'dark'
+        ? true
+        : saved === 'light'
+            ? false
+            : mode === 'light-class'
+                ? false
+                : body.classList.contains('dark-mode');
+    if (mode === 'dark-class') {
+        body.classList.toggle('dark-mode', dark);
+    } else {
+        body.classList.toggle('light-mode', !dark);
+    }
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+    var tip = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    document.querySelectorAll('.theme-switch').forEach(function (toggle) {
+        toggle.setAttribute('aria-checked', dark ? 'true' : 'false');
+        toggle.dataset.tip = tip;
+        if (toggle.id === 'sidebarThemeToggle') {
+            toggle.setAttribute('aria-labelledby', 'sidebarThemeLabel');
+        }
+    });
+})();
+</script>
+    <?php
+}
+
+/** @deprecated Use theme_sidebar_boot_script() after sidebar toggle markup. */
+function theme_early_init_script(string $mode = 'light-class'): void
+{
+    theme_sidebar_boot_script($mode);
+}
+
+/** Theme toggle script — output before </body>. */
 function theme_toggle_script(): void
 {
     ?>
@@ -83,6 +175,7 @@ function theme_toggle_script(): void
 
         function syncToggles(dark) {
             const tip = dark ? 'Switch to light mode' : 'Switch to dark mode';
+            document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
             toggles.forEach(function (toggle) {
                 toggle.setAttribute('aria-checked', dark ? 'true' : 'false');
                 toggle.dataset.tip = tip;
@@ -105,9 +198,9 @@ function theme_toggle_script(): void
         } else if (saved === 'light') {
             applyTheme(false);
         } else if (mode === 'light-class') {
-            applyTheme(true);
+            applyTheme(!body.classList.contains('light-mode'));
         } else {
-            applyTheme(false);
+            applyTheme(body.classList.contains('dark-mode'));
         }
 
         toggles.forEach(function (toggle) {
@@ -133,48 +226,50 @@ function theme_toggle_script(): void
 function theme_render_css(): void
 {
     ?>
-/* --- Brand: primary navy #003049 · secondary gold #ffdd00 --- */
+/* --- Brand: soft system blue · secondary gold #ffdd00 --- */
         :root {
-            --color-primary: #003049;
+            --color-primary: #4a6274;
+            --color-primary-deep: #3a5263;
+            --color-primary-deeper: #2f4354;
             --color-secondary: #ffdd00;
             --color-secondary-text: #9a8200;
             --color-secondary-text-hover: #7a6600;
             --color-white: #ffffff;
-            --color-primary-rgb: 0, 48, 73;
+            --color-primary-rgb: 74, 98, 116;
             --color-secondary-rgb: 255, 221, 0;
             --color-secondary-text-rgb: 154, 130, 0;
             --color-secondary-text-soft: rgba(154, 130, 0, 0.14);
-            --gradient-accent-bar-text: linear-gradient(90deg, #003049 0%, #9a8200 50%, #003049 100%);
+            --gradient-accent-bar-text: linear-gradient(90deg, var(--color-primary-deep) 0%, #9a8200 50%, var(--color-primary-deep) 100%);
             --gradient-brand-bg: linear-gradient(
                 155deg,
-                #003049 0%,
-                #003049 38%,
-                color-mix(in srgb, #003049 82%, #ffdd00) 72%,
-                color-mix(in srgb, #003049 62%, #ffdd00) 100%
+                var(--color-primary-deep) 0%,
+                var(--color-primary-deep) 38%,
+                color-mix(in srgb, var(--color-primary-deep) 82%, #ffdd00) 72%,
+                color-mix(in srgb, var(--color-primary-deep) 62%, #ffdd00) 100%
             );
             --gradient-brand-deep: linear-gradient(
                 140deg,
-                #003049 0%,
-                color-mix(in srgb, #003049 78%, #ffdd00) 55%,
-                color-mix(in srgb, #003049 58%, #ffdd00) 100%
+                var(--color-primary-deep) 0%,
+                color-mix(in srgb, var(--color-primary-deep) 78%, #ffdd00) 55%,
+                color-mix(in srgb, var(--color-primary-deep) 58%, #ffdd00) 100%
             );
             --gradient-light-surface: linear-gradient(
                 165deg,
                 #ffffff 0%,
-                color-mix(in srgb, #ffffff 86%, #ffdd00) 32%,
+                color-mix(in srgb, #ffffff 90%, var(--color-primary)) 32%,
                 #ffffff 62%,
-                color-mix(in srgb, #ffffff 94%, #003049) 100%
+                color-mix(in srgb, #ffffff 96%, var(--color-primary)) 100%
             );
             --gradient-primary-btn: linear-gradient(
                 165deg,
-                color-mix(in srgb, #003049 88%, #ffffff) 0%,
-                #003049 42%,
-                color-mix(in srgb, #003049 70%, #ffdd00) 100%
+                color-mix(in srgb, var(--color-primary-deep) 88%, #ffffff) 0%,
+                var(--color-primary-deep) 42%,
+                color-mix(in srgb, var(--color-primary-deep) 70%, #ffdd00) 100%
             );
             --gradient-secondary-btn: linear-gradient(
                 165deg,
                 #ffdd00 0%,
-                color-mix(in srgb, #ffdd00 82%, #003049) 100%
+                color-mix(in srgb, #ffdd00 82%, var(--color-primary-deep)) 100%
             );
             --gradient-signin-btn: linear-gradient(
                 135deg,
@@ -195,23 +290,23 @@ function theme_render_css(): void
             --gradient-auth-blue-light: linear-gradient(
                 165deg,
                 #ffffff 0%,
-                #f5f9fc 40%,
-                #ecf3f8 72%,
-                color-mix(in srgb, #ffffff 90%, #003049) 100%
+                #f6f8fb 40%,
+                #eef2f6 72%,
+                color-mix(in srgb, #ffffff 92%, var(--color-primary)) 100%
             );
             --gradient-auth-blue-dark: linear-gradient(
                 155deg,
-                #003049 0%,
-                #002a42 48%,
-                #001e30 100%
+                var(--color-primary-deep) 0%,
+                var(--color-primary-deeper) 48%,
+                #252f3a 100%
             );
-            --gradient-accent-bar: linear-gradient(90deg, #003049 0%, #ffdd00 48%, #ffdd00 52%, #003049 100%);
+            --gradient-accent-bar: linear-gradient(90deg, var(--color-primary-deep) 0%, #ffdd00 48%, #ffdd00 52%, var(--color-primary-deep) 100%);
             --gradient-sidebar: linear-gradient(
                 185deg,
-                #003049 0%,
-                color-mix(in srgb, #003049 84%, #ffdd00) 100%
+                var(--color-primary-deep) 0%,
+                color-mix(in srgb, var(--color-primary-deep) 90%, #5a7a92) 100%
             );
-            --gradient-ring: linear-gradient(140deg, #003049 0%, #ffdd00 100%);
+            --gradient-ring: linear-gradient(140deg, var(--color-primary-deep) 0%, #ffdd00 100%);
             --gradient-panel: linear-gradient(
                 180deg,
                 #ffffff 0%,
@@ -221,7 +316,7 @@ function theme_render_css(): void
             --trivium-secondary: var(--color-secondary);
             --trivium-paper: var(--color-white);
             --trivium-ink: var(--color-primary);
-            --trivium-ink-muted: rgba(var(--color-primary-rgb), 0.78);
+            --trivium-ink-muted: rgba(var(--color-primary-rgb), 0.68);
             --trivium-charcoal: var(--color-primary);
             --trivium-gold: var(--color-secondary);
             --trivium-gold-hover: var(--color-secondary);
@@ -242,45 +337,48 @@ function theme_render_css(): void
             --trivium-ops-btn-light-hover: var(--color-primary);
 
             /* App surfaces — canvas (main) · sidebar · panels */
-            --app-canvas-light: #e3ecf3;
+            --app-canvas-light: #f3f6f9;
             --app-canvas-light-gradient: linear-gradient(
                 168deg,
-                #e9f1f8 0%,
-                #e2ebf3 42%,
-                #d8e5ef 100%
+                #f6f8fb 0%,
+                #f1f4f8 42%,
+                #ebeff3 100%
             );
-            --app-canvas-dark: #000e16;
+            --app-canvas-dark: #1a222c;
             --app-canvas-dark-gradient: linear-gradient(
                 168deg,
-                #001320 0%,
-                #000c14 52%,
-                #000810 100%
+                #1e2732 0%,
+                #1a222c 52%,
+                #161c24 100%
             );
             --app-sidebar-light: #ffffff;
-            --app-sidebar-dark: #003a5c;
+            --app-sidebar-dark: #2d3d4d;
             --app-panel-light: #ffffff;
-            --app-panel-dark: #002534;
+            --app-panel-dark: #252f3a;
             --app-canvas-bg: var(--app-canvas-dark-gradient);
             --app-sidebar-surface: var(--app-sidebar-dark);
             --app-page-bg-light: var(--app-canvas-light-gradient);
             --app-page-bg-dark: var(--app-canvas-dark-gradient);
-            --app-ink-deep: #001e30;
-            --app-ink-mid: #002a42;
+            --app-ink-deep: #2c3e4f;
+            --app-ink-mid: #3d5266;
             --app-card-bg: var(--color-white);
             --app-ink: var(--color-primary);
             --app-ink-muted: var(--trivium-ink-muted);
-            --app-ink-soft: rgba(var(--color-primary-rgb), 0.76);
+            --app-ink-soft: rgba(var(--color-primary-rgb), 0.52);
             --app-ink-on-dark: var(--color-white);
             --app-ink-muted-on-dark: rgba(255, 255, 255, 0.9);
             --app-ink-soft-on-dark: rgba(255, 255, 255, 0.76);
-            --app-border: rgba(var(--color-primary-rgb), 0.12);
+            --app-border: rgba(var(--color-primary-rgb), 0.14);
             --app-border-subtle: rgba(var(--color-primary-rgb), 0.08);
-            --app-border-strong: rgba(var(--color-primary-rgb), 0.2);
+            --app-border-strong: rgba(var(--color-primary-rgb), 0.22);
             --app-border-on-dark: rgba(255, 255, 255, 0.1);
             --app-accent: var(--color-secondary);
             --app-accent-text: var(--color-secondary-text);
             --app-accent-soft: var(--color-secondary-text-soft);
             --app-accent-glow: var(--trivium-gold-soft);
+            --app-input-bg: #ffffff;
+            --app-input-text: var(--color-primary);
+            --app-input-border: var(--app-border);
             --app-shadow-sm: 0 1px 3px rgba(var(--color-primary-rgb), 0.06);
             --app-btn-gold: var(--gradient-signin-btn);
             --app-btn-gold-hover: var(--gradient-signin-btn-hover);
@@ -288,13 +386,35 @@ function theme_render_css(): void
             --app-sidebar-bg-light: var(--app-sidebar-light);
         }
 
-        /* Active theme surfaces (admin · auth) */
+        html {
+            color-scheme: light dark;
+        }
+
+        body.light-mode {
+            color-scheme: light;
+        }
+
+        body:not(.light-mode) {
+            color-scheme: dark;
+        }
+
+        /* Active theme surfaces + readable ink (admin · auth) */
         body.light-mode {
             --app-canvas-bg: var(--app-canvas-light-gradient);
             --app-sidebar-surface: var(--app-sidebar-light);
             --app-card-bg: var(--app-panel-light);
             --app-sidebar-bg: var(--app-sidebar-light);
             --app-page-bg-light: var(--app-canvas-light-gradient);
+            --app-ink: var(--color-primary);
+            --app-ink-muted: var(--trivium-ink-muted);
+            --app-ink-soft: rgba(var(--color-primary-rgb), 0.52);
+            --app-ink-deep: #2c3e4f;
+            --app-input-bg: #ffffff;
+            --app-input-text: var(--color-primary);
+            --app-input-border: var(--app-border);
+            --app-accent-text: var(--color-secondary-text);
+            --color-secondary-text: #9a8200;
+            --color-secondary-text-hover: #7a6600;
         }
 
         body:not(.light-mode) {
@@ -303,10 +423,22 @@ function theme_render_css(): void
             --app-card-bg: var(--app-panel-dark);
             --app-sidebar-bg: var(--app-sidebar-dark);
             --app-page-bg-dark: var(--app-canvas-dark-gradient);
+            --app-ink: var(--app-ink-on-dark);
+            --app-ink-muted: var(--app-ink-muted-on-dark);
+            --app-ink-soft: var(--app-ink-soft-on-dark);
+            --app-ink-deep: #f0f7fc;
+            --app-input-bg: rgba(255, 255, 255, 0.07);
+            --app-input-text: var(--app-ink-on-dark);
+            --app-input-border: rgba(255, 255, 255, 0.18);
+            --app-accent-text: #e8c800;
+            --app-accent-soft: rgba(var(--color-secondary-rgb), 0.22);
             --app-border: rgba(255, 255, 255, 0.14);
             --app-border-subtle: rgba(255, 255, 255, 0.08);
             --app-border-strong: rgba(255, 255, 255, 0.22);
             --app-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
+            --color-secondary-text: #e8c800;
+            --color-secondary-text-hover: #ffdd00;
+            --trivium-ink-muted: rgba(255, 255, 255, 0.78);
         }
 
         /* Auth uses dark-mode class on body */
@@ -314,6 +446,19 @@ function theme_render_css(): void
         body.auth-shell.dark-mode {
             --app-canvas-bg: var(--app-canvas-dark-gradient);
             --app-page-bg-dark: var(--app-canvas-dark-gradient);
+            --app-card-bg: var(--app-panel-dark);
+            --app-ink: var(--app-ink-on-dark);
+            --app-ink-muted: var(--app-ink-muted-on-dark);
+            --app-ink-soft: var(--app-ink-soft-on-dark);
+            --app-ink-deep: #f0f7fc;
+            --app-input-bg: rgba(255, 255, 255, 0.07);
+            --app-input-text: var(--app-ink-on-dark);
+            --app-input-border: rgba(255, 255, 255, 0.18);
+            --app-accent-text: #e8c800;
+            --app-border: rgba(255, 255, 255, 0.14);
+            --app-border-subtle: rgba(255, 255, 255, 0.08);
+            --app-border-strong: rgba(255, 255, 255, 0.22);
+            color-scheme: dark;
         }
 
         body.auth-shell.auth-sign-in:not(.dark-mode) {
@@ -469,6 +614,62 @@ function theme_render_css(): void
         }
 
         .theme-switch[aria-checked="true"] .theme-switch__thumb { transform: translateX(24px); }
+
+        /* Show only next inactive icon — active mode in thumb, next mode on track */
+        .theme-switch--show-next .theme-switch__thumb {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #18181b;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+        }
+
+        .theme-switch--show-next[aria-checked="true"] .theme-switch__thumb {
+            background: #18181b;
+        }
+
+        .theme-switch--show-next .theme-switch__thumb-icon {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            color: #fafafa;
+        }
+
+        .theme-switch--show-next .theme-switch__thumb-icon svg {
+            width: 16px;
+            height: 16px;
+            display: block;
+        }
+
+        .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__thumb-icon--sun {
+            display: flex;
+        }
+
+        .theme-switch--show-next[aria-checked="true"] .theme-switch__thumb-icon--moon {
+            display: flex;
+        }
+
+        .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__icon--sun {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__icon--moon {
+            opacity: 1;
+            color: rgba(var(--color-primary-rgb), 0.38);
+        }
+
+        .theme-switch--show-next[aria-checked="true"] .theme-switch__icon--moon {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .theme-switch--show-next[aria-checked="true"] .theme-switch__icon--sun {
+            opacity: 1;
+            color: rgba(255, 255, 255, 0.55);
+        }
 
 /* --- Auth shell (sign-in, forgot password, OTP) â€” use <body class="auth-shell"> --- */
         body.auth-shell,

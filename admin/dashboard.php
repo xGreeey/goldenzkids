@@ -172,16 +172,16 @@ $adminNavActive = 'dashboard';
                 light: {
                     pending: '#e85d04',
                     today: '#f5c400',
-                    weekly: '#003049',
-                    ring: 'rgba(0, 48, 73, 0.08)',
+                    weekly: '#4a6274',
+                    ring: 'rgba(74, 98, 116, 0.08)',
                     border: '#ffffff'
                 },
                 dark: {
                     pending: '#ff8c42',
                     today: '#ffdd00',
-                    weekly: '#4da3c7',
+                    weekly: '#7a9bb3',
                     ring: 'rgba(255, 255, 255, 0.06)',
-                    border: '#002534'
+                    border: '#252f3a'
                 }
             };
 

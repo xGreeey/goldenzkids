@@ -87,6 +87,10 @@ function auth_resolve_role_at_login(mysqli $conn, array $user): int
         return AUTH_ROLE_SUPERADMIN;
     }
 
+    if ($stored === AUTH_ROLE_ADMIN) {
+        return AUTH_ROLE_ADMIN;
+    }
+
     if ($stored === AUTH_ROLE_GUARD || auth_guard_roster_has($conn, $companyId)) {
         return AUTH_ROLE_GUARD;
     }
@@ -340,13 +344,14 @@ function auth_session_release_lock(): void
     }
 }
 
-function auth_login_session(array $user, array $permissions): void
+/**
+ * @param array{company_id:string,role:int,role_name?:string,password_changed_at?:?string} $user
+ * @param list<string> $permissions
+ */
+function auth_update_session_access(array $user, array $permissions): void
 {
-    regenerate_session();
-
     $role = auth_normalize_role($user['role']);
 
-    $_SESSION['company_id'] = $user['company_id'];
     $_SESSION['role'] = $role;
     $_SESSION['role_name'] = $user['role_name'] ?? auth_role_name($role);
     $_SESSION['permissions'] = $permissions;
@@ -359,6 +364,38 @@ function auth_login_session(array $user, array $permissions): void
         AUTH_ROLE_GUARD => 'GUARD',
         default => 'ADMIN',
     };
+}
+
+function auth_login_session(array $user, array $permissions): void
+{
+    regenerate_session();
+
+    $_SESSION['company_id'] = $user['company_id'];
+    auth_update_session_access($user, $permissions);
+}
+
+/**
+ * Keep session role/permissions aligned with the database (role changes, new permission slugs).
+ */
+function auth_sync_session_access(mysqli $conn): void
+{
+    if (!auth_is_logged_in()) {
+        return;
+    }
+
+    $companyId = (string) $_SESSION['company_id'];
+    $user = auth_find_user_by_company_id($conn, $companyId);
+    if ($user === null) {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+        header('Location: ' . app_url('index.php'));
+        exit();
+    }
+
+    $user['role'] = auth_resolve_role_at_login($conn, $user);
+    auth_update_session_access($user, auth_permissions_for_role((int) $user['role']));
 }
 
 function auth_login_redirect_url(int $role): string
@@ -480,6 +517,11 @@ function auth_enforce_area_access(): void
 {
     if (!isset($_SESSION['company_id'])) {
         return;
+    }
+
+    global $conn;
+    if (isset($conn) && $conn instanceof mysqli) {
+        auth_sync_session_access($conn);
     }
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));

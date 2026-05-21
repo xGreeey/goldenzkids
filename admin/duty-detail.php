@@ -31,23 +31,39 @@ $adminNavActive = 'duty';
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
     <main class="app-main">
-        <header class="page-header">
+        <header class="page-header page-header--inline">
             <h1 class="page-title">Duty detail</h1>
-            <p class="page-subtitle">Field personnel roster with assigned posts, rank, and supervising head.</p>
+            <p class="page-subtitle">Security personnel roster and post assignments for operations.</p>
         </header>
 
-        <section class="panel" aria-labelledby="duty-roster-heading">
-            <div class="panel-head">
-                <h2 id="duty-roster-heading" class="panel-title">
-                    <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
-                    Security personnel &amp; duty posts
-                </h2>
-                <span class="panel-badge">Full roster</span>
-            </div>
+        <section class="panel panel--duty" aria-labelledby="duty-roster-heading">
+            <header class="panel-head panel-head--registry">
+                <div class="panel-head__head">
+                    <div class="panel-head__intro">
+                        <h2 id="duty-roster-heading" class="panel-title panel-title--registry">
+                            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                            Duty detail
+                        </h2>
+                        <div class="panel-head__subrow">
+                            <p class="panel-head__note">Field personnel roster with assigned posts, rank, and supervising head.</p>
+                            <div class="panel-head__table-labels panel-head__table-labels--desktop" id="duty-table-labels">
+                                <span>Employee ID</span>
+                                <span>Last name</span>
+                                <span>First name</span>
+                                <span>Middle name</span>
+                                <span>Rank</span>
+                                <span>Post assigned</span>
+                                <span>Head ID</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="panel-badge">Full roster</span>
+                </div>
+            </header>
             <div class="panel-body" style="padding: 0;">
                 <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
+                    <table class="data-table" aria-describedby="duty-table-labels">
+                        <thead class="data-table__head--compact">
                             <tr>
                                 <th scope="col">Employee ID</th>
                                 <th scope="col">Last name</th>

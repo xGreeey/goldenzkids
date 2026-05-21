@@ -51,7 +51,139 @@
         }
     }
 
+    var activeReportCard = null;
+
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function setOcrStatus(message, state) {
+        var el = document.getElementById('ocrStatus');
+        if (!el) {
+            return;
+        }
+        el.textContent = message || '';
+        el.className = 'ocr-status' + (state ? ' is-' + state : '');
+    }
+
+    function renderOcrText(text) {
+        var aiTextDisplay = document.getElementById('modalAiText');
+        if (!aiTextDisplay) {
+            return;
+        }
+        var value = String(text || '').trim();
+        if (value === '') {
+            aiTextDisplay.textContent = 'Open a report and run OCR to extract Name, Date, incident notes, or attendance rows.';
+            return;
+        }
+        aiTextDisplay.textContent = value;
+        aiTextDisplay.innerHTML = aiTextDisplay.innerHTML.replace(/\n/g, '<br>');
+    }
+
+    function syncOcrReference(reportType, referenceUrl) {
+        var figure = document.getElementById('ocrReference');
+        var refImg = document.getElementById('ocrReferenceImg');
+        if (!figure || !refImg) {
+            return;
+        }
+        if (!referenceUrl) {
+            figure.hidden = true;
+            refImg.removeAttribute('src');
+            refImg.alt = '';
+            return;
+        }
+        figure.hidden = false;
+        refImg.src = referenceUrl;
+        refImg.alt = (reportType || 'Reference form') + ' template';
+    }
+
+    function bindOcrButton() {
+        var btn = document.getElementById('btnRunOcr');
+        var modal = document.getElementById('reportModal');
+        if (!btn || !modal || btn.dataset.inboxBound === '1') {
+            return;
+        }
+        btn.dataset.inboxBound = '1';
+        btn.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            runReportOcr();
+        });
+    }
+
+    function runReportOcr() {
+        var card = activeReportCard;
+        var modal = document.getElementById('reportModal');
+        var btn = document.getElementById('btnRunOcr');
+        if (!card || !modal) {
+            return;
+        }
+        if (modal.getAttribute('data-ocr-enabled') !== '1') {
+            setOcrStatus('Document AI is not configured on the server.', 'error');
+            return;
+        }
+
+        var apiUrl = modal.getAttribute('data-ocr-api') || '';
+        if (!apiUrl) {
+            setOcrStatus('OCR endpoint is unavailable.', 'error');
+            return;
+        }
+
+        var guardId = card.getAttribute('data-id') || '';
+        var reportTime = card.getAttribute('data-time') || '';
+        var reportType = card.getAttribute('data-report-type') || '';
+
+        if (!guardId || !reportTime) {
+            setOcrStatus('Missing report identifiers.', 'error');
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('_csrf', csrfToken());
+        fd.append('guard_id', guardId);
+        fd.append('report_time', reportTime);
+        fd.append('report_type', reportType);
+
+        if (btn) {
+            btn.disabled = true;
+        }
+        setOcrStatus('Running OCR on the submitted scan…', 'loading');
+
+        fetch(apiUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrfToken() }
+        })
+            .then(function (res) {
+                return res.json().then(function (data) {
+                    return { ok: res.ok, data: data };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok || !result.data || !result.data.ok) {
+                    var err = (result.data && result.data.error) ? result.data.error : 'OCR request failed.';
+                    throw new Error(err);
+                }
+                var formatted = result.data.formatted || '';
+                renderOcrText(formatted);
+                card.setAttribute('data-aitext', formatted);
+                card.setAttribute('data-has-ocr', formatted ? '1' : '0');
+                setOcrStatus('OCR completed and saved.', 'success');
+            })
+            .catch(function (err) {
+                setOcrStatus(err.message || 'OCR failed.', 'error');
+            })
+            .finally(function () {
+                if (btn) {
+                    btn.disabled = modal.getAttribute('data-ocr-enabled') !== '1';
+                }
+            });
+    }
+
     function openReportModal(card) {
+        activeReportCard = card;
         var guard = card.getAttribute('data-guard');
         var guardId = card.getAttribute('data-id');
         var est = card.getAttribute('data-est');
@@ -60,6 +192,9 @@
         var reportType = card.getAttribute('data-report-type') || 'Guard report';
         var tempPath = cleanTemplatePath(card.getAttribute('data-template'));
         var aiText = card.getAttribute('data-aitext') || '';
+        var referenceUrl = card.getAttribute('data-reference-img') || '';
+        var modal = document.getElementById('reportModal');
+        var btnRunOcr = document.getElementById('btnRunOcr');
 
         document.getElementById('modalTitle').textContent = reportType;
         document.getElementById('modalTimestamp').textContent = est + ' · Logged ' + time;
@@ -85,14 +220,16 @@
             '<p><strong>Post / establishment:</strong> ' + est + '</p>' +
             '<p><strong>Status:</strong> ' + status + '</p>';
 
-        var aiContainer = document.getElementById('aiTextContainer');
-        var aiTextDisplay = document.getElementById('modalAiText');
-        if (aiText.trim() !== '') {
-            aiTextDisplay.textContent = aiText;
-            aiTextDisplay.innerHTML = aiTextDisplay.innerHTML.replace(/\n/g, '<br>');
-            aiContainer.style.display = 'block';
-        } else {
-            aiContainer.style.display = 'none';
+        renderOcrText(aiText);
+        syncOcrReference(reportType, referenceUrl);
+        setOcrStatus(
+            card.getAttribute('data-has-ocr') === '1'
+                ? 'Saved OCR available. Run again to refresh.'
+                : 'No OCR saved yet. Click Run OCR to extract handwritten fields.'
+        );
+
+        if (btnRunOcr) {
+            btnRunOcr.disabled = modal && modal.getAttribute('data-ocr-enabled') !== '1';
         }
 
         document.getElementById('formTime').value = time;
@@ -105,6 +242,7 @@
         if (modal) {
             modal.style.display = 'none';
         }
+        activeReportCard = null;
     }
 
     function dismiss(event, btn) {
@@ -289,6 +427,7 @@
         uploadsBase = '';
         bindReportModal();
         bindImageViewer();
+        bindOcrButton();
         bindNotifCards();
         bindMemoForm();
         if (document.getElementById('memoForm')) {

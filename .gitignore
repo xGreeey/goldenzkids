@@ -1,0 +1,4 @@
+.env
+config/google-document-ai.json
+vendor/
+uploads/

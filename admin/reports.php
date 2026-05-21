@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_portal.php';
+require_once __DIR__ . '/../includes/document_ai.php';
 
 auth_require_permission('admin.reports.view');
+
+$documentAiReady = document_ai_is_configured();
+$ocrApiUrl = app_url('admin/api/report-ocr.php');
 
 $company_id = (string) $_SESSION['company_id'];
 $error = null;
@@ -42,6 +46,7 @@ $adminNavActive = 'reports';
     <meta charset="UTF-8">
     <?= mobile_meta_tags() ?>
     <title><?= e(app_agency_name()) ?> | Reports</title>
+    <meta name="csrf-token" content="<?= e_attr(csrf_token()) ?>">
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
     <?= app_fonts_link() ?>
     <style>
@@ -76,12 +81,6 @@ $adminNavActive = 'reports';
                         ? (openssl_decrypt((string) $row['Template_Path'], $cipher_algo, $master_key, 0, $iv) ?: '')
                         : '';
 
-                    $encrypted_ai = $row['AI_Extracted_Text'] ?? '';
-                    $decrypted_ai = '';
-                    if ($encrypted_ai !== '' && $iv !== '') {
-                        $decrypted_ai = openssl_decrypt((string) $encrypted_ai, $cipher_algo, $master_key, 0, $iv) ?: '';
-                    }
-
                     $guard_id = (string) $row['Company_ID'];
                     $guard_name = $guard_dict[$guard_id] ?? 'Unknown personnel';
                     $time_sent = (string) $row['Time_of_Report'];
@@ -89,6 +88,15 @@ $adminNavActive = 'reports';
                     $status_text = strtoupper($status);
                     $report_type_label = guard_portal_report_type_label((string) ($row['Template'] ?? ''));
                     $report_type_icon = guard_portal_report_type_icon($report_type_label);
+
+                    $encrypted_ai = $row['AI_Extracted_Text'] ?? '';
+                    $decrypted_ai = '';
+                    $ocr_formatted = '';
+                    if ($encrypted_ai !== '' && $iv !== '') {
+                        $decrypted_ai = openssl_decrypt((string) $encrypted_ai, $cipher_algo, $master_key, 0, $iv) ?: '';
+                        $ocr_formatted = document_ai_decode_stored($decrypted_ai)['formatted'];
+                    }
+                    $reference_img = document_ai_reference_image_url($report_type_label);
 
                     $badge_bg = 'var(--accent-blue-soft)';
                     $badge_color = 'var(--accent-blue)';
@@ -111,7 +119,9 @@ $adminNavActive = 'reports';
                      data-template="<?= htmlspecialchars($decrypted_template, ENT_QUOTES, 'UTF-8') ?>"
                      data-report-type="<?= htmlspecialchars($report_type_label, ENT_QUOTES, 'UTF-8') ?>"
                      data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"
-                     data-aitext="<?= htmlspecialchars($decrypted_ai, ENT_QUOTES, 'UTF-8') ?>">
+                     data-aitext="<?= htmlspecialchars($ocr_formatted !== '' ? $ocr_formatted : $decrypted_ai, ENT_QUOTES, 'UTF-8') ?>"
+                     data-reference-img="<?= htmlspecialchars($reference_img, ENT_QUOTES, 'UTF-8') ?>"
+                     data-has-ocr="<?= $ocr_formatted !== '' ? '1' : '0' ?>">
                 <div class="icon-box" aria-hidden="true"><i class="fa-solid <?= e($report_type_icon) ?>"></i></div>
                 <div class="content-box">
                     <div class="notif-title">
@@ -140,20 +150,41 @@ $adminNavActive = 'reports';
     </main>
 </div>
 
-<div id="reportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-content" onclick="event.stopPropagation()">
+<div id="reportModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+     data-ocr-api="<?= e($ocrApiUrl) ?>"
+     data-ocr-enabled="<?= $documentAiReady ? '1' : '0' ?>">
+    <div class="modal-content modal-content--report" onclick="event.stopPropagation()">
         <button type="button" class="close-modal" onclick="closeModal()" aria-label="Close"<?= ui_tooltip('Close') ?>>&times;</button>
         <div class="modal-header">
             <h2 id="modalTitle">Report details</h2>
             <div id="modalTimestamp" class="modal-subtitle"></div>
         </div>
         <div class="modal-body">
-            <p class="modal-scan-label">Scanned form (click to enlarge)</p>
-            <img id="imgTemp" class="modal-scan-img" src="" alt="Report scan" role="presentation">
-            <div class="modal-info" id="modalInfo"></div>
-            <div id="aiTextContainer" class="ai-text-box" style="display:none;">
-                <div class="ai-text-header"><i class="fa-solid fa-robot" aria-hidden="true"></i> Extracted text</div>
-                <div id="modalAiText" class="ai-text-content"></div>
+            <div class="modal-report-layout">
+                <section class="modal-report-scan" aria-label="Submitted scan">
+                    <p class="modal-scan-label">Submitted scan (click to enlarge)</p>
+                    <img id="imgTemp" class="modal-scan-img" src="" alt="Report scan" role="presentation">
+                    <div class="modal-info" id="modalInfo"></div>
+                </section>
+                <aside class="modal-report-ocr" aria-label="OCR extraction">
+                    <div class="ocr-panel-header">
+                        <span class="ocr-panel-title"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> OCR extraction</span>
+                        <button type="button" class="ocr-run-btn" id="btnRunOcr"<?= ui_tooltip('Run Google Document AI on this scan') ?>>Run OCR</button>
+                    </div>
+                    <p class="ocr-panel-hint">Reads handwritten fields from the Incident Report or Daily Attendance Document (DAD) template.</p>
+                    <?php if (!$documentAiReady): ?>
+                        <p class="ocr-panel-warning" role="status">Document AI is not configured. Copy <code>config/google-document-ai.json.example</code> to <code>config/google-document-ai.json</code>.</p>
+                    <?php endif; ?>
+                    <figure class="ocr-reference" id="ocrReference" hidden>
+                        <figcaption>Reference form</figcaption>
+                        <img id="ocrReferenceImg" src="" alt="" loading="lazy">
+                    </figure>
+                    <div id="ocrStatus" class="ocr-status" aria-live="polite"></div>
+                    <div id="aiTextContainer" class="ai-text-box ocr-output-box">
+                        <div class="ai-text-header"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Extracted fields</div>
+                        <div id="modalAiText" class="ai-text-content">Open a report and run OCR to extract Name, Date, incident notes, or attendance rows.</div>
+                    </div>
+                </aside>
             </div>
             <form method="POST" id="remarking" class="modal-form-divider">
                 <?= csrf_field() ?>

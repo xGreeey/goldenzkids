@@ -195,6 +195,8 @@ function auth_permissions_for_role(int $role): array
     $admin = [
         'admin.dashboard.view',
         'admin.inbox.manage',
+        'admin.reports.view',
+        'admin.duty.view',
         'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',

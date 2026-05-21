@@ -14,9 +14,17 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Messaging board and guard reports') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Internal communications and messaging') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
+        </a>
+        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard report review') ?>>
+            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+            Reports
+        </a>
+        <a href="duty-detail.php" class="sidebar-link<?= $adminNavActive === 'duty' ? ' active' : '' ?>"<?= $adminNavActive === 'duty' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Duty posts and personnel assignments') ?>>
+            <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+            Duty detail
         </a>
     </nav>
 

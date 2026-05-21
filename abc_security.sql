@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 21, 2026 at 09:42 AM
+-- Generation Time: May 21, 2026 at 12:22 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -43,7 +43,7 @@ CREATE TABLE `callout_head_guards` (
 --
 
 INSERT INTO `callout_head_guards` (`head_guard_id`, `company_id`, `first_name`, `middle_name`, `last_name`, `display_name`, `is_active`, `created_at`) VALUES
-(1, NULL, 'Jose', 'Abad', 'Cruz', 'Jose Abad Cruz', 1, '2026-05-21 07:25:08'),
+(1, 'ABC-2024-0021', 'Jose', 'Abad', 'Cruz', 'Jose Abad Cruz', 1, '2026-05-21 07:25:08'),
 (2, NULL, 'Lucy', NULL, 'Heartfillia', 'Lucy Heartfillia', 1, '2026-05-21 07:25:08'),
 (3, NULL, 'James', NULL, 'Harbor', 'James Harbor', 1, '2026-05-21 07:25:08'),
 (4, NULL, 'Sova Russ', NULL, 'Del Rosario Jr.', 'Sova Russ Del Rosario Jr.', 1, '2026-05-21 07:25:08');
@@ -164,7 +164,9 @@ CREATE TABLE `internal_messages` (
 --
 
 INSERT INTO `internal_messages` (`message_id`, `sender_company_id`, `recipient_company_id`, `body_text`, `is_read`, `created_at`) VALUES
-(1, 'grey', 'ABC-2024-0001', 'sadf', 0, '2026-05-20 10:48:29');
+(1, 'grey', 'ABC-2024-0001', 'sadf', 0, '2026-05-20 10:48:29'),
+(3, 'grey', 'amor', 'asdf', 0, '2026-05-21 08:36:05'),
+(4, 'grey', 'amor', 'aaa', 0, '2026-05-21 08:36:08');
 
 -- --------------------------------------------------------
 
@@ -209,6 +211,13 @@ CREATE TABLE `message_groups` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `message_groups`
+--
+
+INSERT INTO `message_groups` (`group_id`, `group_name`, `created_by_company_id`, `is_active`, `created_at`) VALUES
+(1, 'SM Meygamowl', 'grey', 1, '2026-05-21 08:43:00');
+
 -- --------------------------------------------------------
 
 --
@@ -221,6 +230,14 @@ CREATE TABLE `message_group_members` (
   `company_id` varchar(13) NOT NULL,
   `joined_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `message_group_members`
+--
+
+INSERT INTO `message_group_members` (`member_id`, `group_id`, `company_id`, `joined_at`) VALUES
+(2, 1, 'amor', '2026-05-21 08:43:00'),
+(3, 1, 'ABC-2024-0021', '2026-05-21 08:43:00');
 
 -- --------------------------------------------------------
 
@@ -354,7 +371,17 @@ INSERT INTO `recording` (`id`, `Company_ID`, `actor_company_id`, `Designation`, 
 (82, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 15:18:11'),
 (83, 'grey', NULL, 'GUARD', 'LOGIN', NULL, '2026-05-21 15:18:36'),
 (84, 'grey', NULL, 'GUARD', 'LOGOUT', NULL, '2026-05-21 15:30:51'),
-(85, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 15:31:05');
+(85, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 15:31:05'),
+(86, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 17:04:23'),
+(87, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 17:04:29'),
+(88, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 17:07:26'),
+(89, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 17:07:32'),
+(90, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 17:12:06'),
+(91, 'grey', NULL, 'SUPERADMIN', 'LOGIN', NULL, '2026-05-21 17:12:23'),
+(92, 'grey', NULL, 'SUPERADMIN', 'LOGOUT', NULL, '2026-05-21 18:00:40'),
+(93, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:00:54'),
+(94, 'grey', NULL, 'ADMIN', 'LOGOUT', NULL, '2026-05-21 18:01:10'),
+(95, 'grey', NULL, 'ADMIN', 'LOGIN', NULL, '2026-05-21 18:01:14');
 
 -- --------------------------------------------------------
 
@@ -387,7 +414,10 @@ INSERT INTO `schema_migrations` (`id`, `migration`, `batch`, `executed_at`) VALU
 (11, 'php/010_internal_messages.php', 3, '2026-05-20 06:08:23'),
 (13, '012_callout_posts_head_guards.sql', 4, '2026-05-21 07:37:15'),
 (14, 'php/011_retire_headguard_role.php', 4, '2026-05-21 07:37:15'),
-(15, 'php/013_message_groups.php', 4, '2026-05-21 07:37:15');
+(15, 'php/013_message_groups.php', 4, '2026-05-21 07:37:15'),
+(16, '014_link_callout_head_guard_accounts.sql', 5, '2026-05-21 08:22:59'),
+(17, '015_users_profile_names.sql', 6, '2026-05-21 09:51:00'),
+(18, 'php/015_users_profile_names.php', 6, '2026-05-21 09:51:00');
 
 -- --------------------------------------------------------
 
@@ -398,6 +428,8 @@ INSERT INTO `schema_migrations` (`id`, `migration`, `batch`, `executed_at`) VALU
 CREATE TABLE `users` (
   `Company_ID` varchar(13) NOT NULL,
   `Email` varchar(255) NOT NULL,
+  `First_Name` varchar(64) DEFAULT NULL,
+  `Last_Name` varchar(64) DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
   `role_id` tinyint(3) UNSIGNED DEFAULT NULL,
   `role` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT '0=headguard,1=admin,2=superadmin',
@@ -414,11 +446,11 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`Company_ID`, `Email`, `password_hash`, `role_id`, `role`, `is_active`, `failed_login_attempts`, `locked_until`, `last_login_at`, `password_changed_at`, `created_at`, `updated_at`) VALUES
-('ABC-2024-0001', 'abc.admin0001@gmail.com', '$2y$10$JPAGPhDLQogMxfQDxxQeoeE2Zv4/IOb1K72rKzdqRbTiU4weISmOS', NULL, 2, 1, 0, NULL, '2026-05-20 16:54:47', '2026-05-20 09:12:51', '2026-05-20 01:12:51', '2026-05-20 08:54:47'),
-('ABC-2024-0021', 'abc.guard0021@gmail.com', '$2y$10$sEC7yFme4cLMi//zlSTNpucul1BB9LqxXOojhNl/PUJa.ro6BSPNi', NULL, 0, 1, 0, NULL, NULL, '2026-05-20 09:12:56', '2026-05-20 01:12:56', '2026-05-20 01:12:56'),
-('amor', 'christian5787264@gmail.com', '$2y$10$KSOWzWbMYeNhGZDR83.bwetV6vKTRE9cx3hSMSCeoonmLWWqx4c0a', NULL, 0, 0, 0, NULL, '2026-05-20 17:44:37', '2026-05-20 17:44:46', '2026-05-20 09:43:53', '2026-05-20 09:44:55'),
-('grey', 'aldrininocencio212527@gmail.com', '$2y$10$DT29ptsKGboY3CT/TGjbmeAbWRM2A7F2RJjT3LfA7ifY/ZMgzNZM.', NULL, 1, 1, 0, NULL, '2026-05-21 15:31:05', '2026-05-20 18:26:02', '2026-05-20 09:07:40', '2026-05-21 07:31:05');
+INSERT INTO `users` (`Company_ID`, `Email`, `First_Name`, `Last_Name`, `password_hash`, `role_id`, `role`, `is_active`, `failed_login_attempts`, `locked_until`, `last_login_at`, `password_changed_at`, `created_at`, `updated_at`) VALUES
+('ABC-2024-0001', 'abc.admin0001@gmail.com', NULL, NULL, '$2y$10$JPAGPhDLQogMxfQDxxQeoeE2Zv4/IOb1K72rKzdqRbTiU4weISmOS', NULL, 2, 1, 0, NULL, '2026-05-20 16:54:47', '2026-05-20 09:12:51', '2026-05-20 01:12:51', '2026-05-20 08:54:47'),
+('ABC-2024-0021', 'abc.guard0021@gmail.com', NULL, NULL, '$2y$10$sEC7yFme4cLMi//zlSTNpucul1BB9LqxXOojhNl/PUJa.ro6BSPNi', NULL, 0, 1, 0, NULL, NULL, '2026-05-20 09:12:56', '2026-05-20 01:12:56', '2026-05-20 01:12:56'),
+('amor', 'christian5787264@gmail.com', NULL, NULL, '$2y$10$KSOWzWbMYeNhGZDR83.bwetV6vKTRE9cx3hSMSCeoonmLWWqx4c0a', NULL, 0, 1, 0, NULL, '2026-05-20 17:44:37', '2026-05-20 17:44:46', '2026-05-20 09:43:53', '2026-05-21 08:25:36'),
+('grey', 'aldrininocencio212527@gmail.com', 'Aldrin', 'Inocencio', '$2y$10$DT29ptsKGboY3CT/TGjbmeAbWRM2A7F2RJjT3LfA7ifY/ZMgzNZM.', NULL, 1, 1, 0, NULL, '2026-05-21 18:01:14', '2026-05-20 18:26:02', '2026-05-20 09:07:40', '2026-05-21 10:01:14');
 
 --
 -- Indexes for dumped tables
@@ -585,7 +617,7 @@ ALTER TABLE `establishments`
 -- AUTO_INCREMENT for table `internal_messages`
 --
 ALTER TABLE `internal_messages`
-  MODIFY `message_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `message_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `memos`
@@ -603,13 +635,13 @@ ALTER TABLE `memo_recipients`
 -- AUTO_INCREMENT for table `message_groups`
 --
 ALTER TABLE `message_groups`
-  MODIFY `group_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `group_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `message_group_members`
 --
 ALTER TABLE `message_group_members`
-  MODIFY `member_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `member_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `message_group_messages`
@@ -621,13 +653,13 @@ ALTER TABLE `message_group_messages`
 -- AUTO_INCREMENT for table `recording`
 --
 ALTER TABLE `recording`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
 
 --
 -- AUTO_INCREMENT for table `schema_migrations`
 --
 ALTER TABLE `schema_migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- Constraints for dumped tables

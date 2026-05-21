@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/guard_layout.php';
+require_once APP_ROOT . '/includes/group_messaging.php';
 
 auth_require_permission('guard.inbox.view');
 
@@ -41,6 +42,44 @@ if ($memoResult) {
     while ($r = $memoResult->fetch_assoc()) {
         $memos[] = $r;
     }
+}
+
+$messagingAvailable = false;
+$messagingViewerId = $companyId;
+$messagingContacts = [];
+$messagingActivePeer = null;
+$messagingThread = [];
+$messagingPostUrl = '';
+$messagingReturnUrl = 'inbox.php';
+$messagingMode = 'group';
+$messagingGroups = [];
+$messagingActiveGroupId = null;
+$messagingGroupThread = [];
+$messagingGroupMeta = null;
+$messagingCanCreateGroups = false;
+$messagingHeadGuardOptions = [];
+$messagingGroupPostUrl = 'send-group-message.php';
+$messagingShowDirect = false;
+$groupsAvailable = false;
+
+try {
+    $groupsAvailable = message_groups_table_exists($conn);
+    if ($groupsAvailable) {
+        $messagingAvailable = true;
+        $messagingGroups = group_messaging_list_groups_for_user($conn, $messagingViewerId);
+        $groupParam = isset($_GET['group']) ? (int) $_GET['group'] : 0;
+        if ($groupParam > 0 && group_messaging_user_in_group($conn, $groupParam, $messagingViewerId)) {
+            $messagingActiveGroupId = $groupParam;
+            $messagingGroupMeta = group_messaging_get_group_meta($conn, $groupParam, $messagingViewerId);
+            $messagingGroupThread = group_messaging_fetch_messages($conn, $groupParam, $messagingViewerId);
+        } elseif ($messagingGroups !== []) {
+            $messagingActiveGroupId = $messagingGroups[0]['group_id'];
+            $messagingGroupMeta = group_messaging_get_group_meta($conn, $messagingActiveGroupId, $messagingViewerId);
+            $messagingGroupThread = group_messaging_fetch_messages($conn, $messagingActiveGroupId, $messagingViewerId);
+        }
+    }
+} catch (Throwable $e) {
+    error_log('guard/inbox messaging: ' . $e->getMessage());
 }
 
 $guardNavActive = 'inbox';
@@ -92,6 +131,11 @@ guard_layout_head('Inbox');
                 </ul>
             <?php endif; ?>
         </section>
+
+        <?php if ($groupsAvailable): ?>
+            <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
+        <?php endif; ?>
+
         <style>
             .guard-memo-list {
                 list-style: none;

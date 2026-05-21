@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/internal_messaging.php';
+require_once APP_ROOT . '/includes/group_messaging.php';
 
 auth_require_permission('admin.inbox.manage');
 
@@ -15,6 +16,17 @@ $messagingActivePeer = null;
 $messagingThread = [];
 $messagingPostUrl = 'send-internal-message.php';
 $messagingReturnUrl = 'inbox.php';
+$messagingMode = 'direct';
+$messagingGroups = [];
+$messagingActiveGroupId = null;
+$messagingGroupThread = [];
+$messagingGroupMeta = null;
+$messagingCanCreateGroups = false;
+$messagingHeadGuardOptions = [];
+$messagingGroupPostUrl = 'send-group-message.php';
+$messagingCreateGroupUrl = 'create-message-group.php';
+$groupsAvailable = false;
+$messagingShowDirect = true;
 
 try {
     $messagingAvailable = internal_messages_table_exists($conn);
@@ -24,11 +36,32 @@ try {
         && !internal_messaging_validate_peer($conn, $messagingActivePeer, internal_messaging_peer_role(auth_user_role()))) {
         $messagingActivePeer = null;
     }
-    if (($messagingActivePeer === null || $messagingActivePeer === '') && count($messagingContacts) === 1) {
-        $messagingActivePeer = $messagingContacts[0]['company_id'];
+
+    $groupsAvailable = message_groups_table_exists($conn);
+    if ($groupsAvailable) {
+        $messagingGroups = group_messaging_list_groups_for_user($conn, $messagingViewerId);
+        $messagingCanCreateGroups = auth_can('admin.messaging.send');
+        $messagingHeadGuardOptions = $messagingCanCreateGroups
+            ? group_messaging_list_head_guard_options($conn)
+            : [];
+
+        $groupParam = isset($_GET['group']) ? (int) $_GET['group'] : 0;
+        if ($groupParam > 0 && group_messaging_user_in_group($conn, $groupParam, $messagingViewerId)) {
+            $messagingMode = 'group';
+            $messagingActiveGroupId = $groupParam;
+            $messagingActivePeer = null;
+            $messagingGroupMeta = group_messaging_get_group_meta($conn, $groupParam, $messagingViewerId);
+            $messagingGroupThread = group_messaging_fetch_messages($conn, $groupParam, $messagingViewerId);
+        }
     }
-    if ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '') {
-        $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer);
+
+    if ($messagingMode === 'direct') {
+        if (($messagingActivePeer === null || $messagingActivePeer === '') && count($messagingContacts) === 1) {
+            $messagingActivePeer = $messagingContacts[0]['company_id'];
+        }
+        if ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '') {
+            $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer);
+        }
     }
 } catch (Throwable $e) {
     error_log('admin/inbox messaging: ' . $e->getMessage());

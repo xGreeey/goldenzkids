@@ -79,7 +79,7 @@ guard_layout_head('Submit Report');
                         </div>
                     </div>
                     <div class="guard-scanner" data-guard-scanner>
-                        <video class="guard-scanner__video" data-guard-scanner-video playsinline muted autoplay aria-label="Camera preview"></video>
+                        <video class="guard-scanner__video" data-guard-scanner-video playsinline muted aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
                         <button
                             type="button"
@@ -90,7 +90,7 @@ guard_layout_head('Submit Report');
                             hidden
                         ><?= guard_ui_icon('flashlight', 20) ?></button>
                         <div class="guard-scanner__frame" aria-hidden="true"></div>
-                        <p class="guard-scanner__hint" data-guard-scanner-hint>Align document inside frame…</p>
+                        <p class="guard-scanner__hint" data-guard-scanner-hint>Tap Smart scan to open the camera.</p>
                     </div>
                     <div class="guard-scanner__actions">
                         <button type="button" class="btn-primary" data-guard-scan-capture>

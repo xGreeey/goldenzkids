@@ -244,7 +244,9 @@ function guard_hub_scripts(): void
             if (!torchBtn) {
                 return;
             }
-            var show = torchSupported && stream && scanner && !scanner.classList.contains('has-capture');
+            var show = torchSupported && stream && scanner
+                && scanner.classList.contains('is-live')
+                && !scanner.classList.contains('has-capture');
             torchBtn.hidden = !show;
             torchBtn.disabled = !show;
             torchBtn.classList.toggle('is-on', torchOn);
@@ -293,6 +295,62 @@ function guard_hub_scripts(): void
             });
         }
 
+        function isMobileScanner() {
+            return window.matchMedia('(max-width: 639px)').matches;
+        }
+
+        function getCameraVideoConstraints() {
+            if (isMobileScanner()) {
+                return {
+                    facingMode: 'environment',
+                    width: { ideal: 1080 },
+                    height: { ideal: 1920 },
+                    aspectRatio: { ideal: 9 / 16 }
+                };
+            }
+            return { facingMode: 'environment' };
+        }
+
+        function isScannerFullscreen() {
+            return document.body.classList.contains('guard-scan-fullscreen');
+        }
+
+        function setScannerFullscreen(on) {
+            document.body.classList.toggle('guard-scan-fullscreen', !!on);
+        }
+
+        function layoutScannerFromVideo() {
+            if (!scanner) {
+                return;
+            }
+            if (scanner.classList.contains('is-live') && isScannerFullscreen()) {
+                scanner.style.aspectRatio = '';
+                return;
+            }
+            if (preview && scanner.classList.contains('has-capture') && preview.naturalWidth && preview.naturalHeight) {
+                scanner.style.aspectRatio = preview.naturalWidth + ' / ' + preview.naturalHeight;
+                return;
+            }
+            if (video && video.videoWidth && video.videoHeight) {
+                scanner.style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
+            }
+        }
+
+        function bindScannerLayoutEvents() {
+            if (!video || video._guardLayoutBound) {
+                return;
+            }
+            video._guardLayoutBound = true;
+            video.addEventListener('loadedmetadata', layoutScannerFromVideo);
+            if (preview) {
+                preview.addEventListener('load', layoutScannerFromVideo);
+            }
+            window.addEventListener('resize', layoutScannerFromVideo);
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', layoutScannerFromVideo);
+            }
+        }
+
         function stopCamera() {
             torchOn = false;
             torchSupported = false;
@@ -301,13 +359,20 @@ function guard_hub_scripts(): void
                 stream.getTracks().forEach(function (t) { t.stop(); });
                 stream = null;
             }
+            if (scanner) {
+                scanner.style.aspectRatio = '';
+            }
+            setScannerFullscreen(false);
         }
 
         function startCamera() {
-            if (!navigator.mediaDevices || !video) return;
+            bindScannerLayoutEvents();
+            if (!navigator.mediaDevices || !video) {
+                return Promise.reject(new Error('no-camera'));
+            }
             stopCamera();
-            navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
+            return navigator.mediaDevices.getUserMedia({
+                video: getCameraVideoConstraints(),
                 audio: false
             })
                 .then(function (s) {
@@ -320,10 +385,78 @@ function guard_hub_scripts(): void
                     syncTorchButton();
                     return video.play();
                 })
+                .then(function () {
+                    layoutScannerFromVideo();
+                })
                 .catch(function () {
                     torchSupported = false;
                     syncTorchButton();
                     if (hint) hint.textContent = 'Camera unavailable — use upload instead.';
+                    throw new Error('camera-failed');
+                });
+        }
+
+        function runCaptureCountdown() {
+            if (!scanner || !video) {
+                return;
+            }
+            if (!video.videoWidth) {
+                window.guardShowToast('Camera not ready. Try again.', 'error');
+                return;
+            }
+            scanner.classList.add('is-capturing');
+            var count = 3;
+            if (hint) hint.textContent = 'Align document inside frame…';
+            var tick = setInterval(function () {
+                if (hint) hint.textContent = 'Capturing in ' + count + 's…';
+                count--;
+                if (count < 0) {
+                    clearInterval(tick);
+                    scanner.classList.remove('is-capturing');
+                    var canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    canvas.toBlob(function (blob) {
+                        if (!blob) return;
+                        reportFile = new File([blob], 'scan-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                        if (preview) {
+                            preview.src = URL.createObjectURL(blob);
+                            preview.onload = layoutScannerFromVideo;
+                            layoutScannerFromVideo();
+                        }
+                        scanner.classList.remove('is-live');
+                        setScannerFullscreen(false);
+                        scanner.classList.add('has-capture');
+                        if (hint) hint.textContent = 'Report captured. Continue to evidences.';
+                        syncTorchButton();
+                        stopCamera();
+                    }, 'image/jpeg', 0.88);
+                }
+            }, 700);
+        }
+
+        function openSmartScan() {
+            if (!scanner) {
+                return;
+            }
+            scanner.classList.remove('has-capture');
+            scanner.classList.add('is-live');
+            setScannerFullscreen(true);
+            if (hint) hint.textContent = 'Starting camera…';
+            if (stream && video.videoWidth) {
+                runCaptureCountdown();
+                return;
+            }
+            startCamera()
+                .then(function () {
+                    runCaptureCountdown();
+                })
+                .catch(function () {
+                    scanner.classList.remove('is-live');
+                    setScannerFullscreen(false);
+                    window.guardShowToast('Camera unavailable — use upload instead.', 'error');
+                    if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
                 });
         }
 
@@ -344,36 +477,7 @@ function guard_hub_scripts(): void
         var captureBtn = qs('[data-guard-scan-capture]', form);
         if (captureBtn && scanner) {
             captureBtn.addEventListener('click', function () {
-                if (!video || !video.videoWidth) {
-                    window.guardShowToast('Start camera or upload a photo first.', 'error');
-                    return;
-                }
-                scanner.classList.add('is-capturing');
-                var count = 3;
-                if (hint) hint.textContent = 'Align document inside frame…';
-                var tick = setInterval(function () {
-                    if (hint) hint.textContent = 'Capturing in ' + count + 's…';
-                    count--;
-                    if (count < 0) {
-                        clearInterval(tick);
-                        scanner.classList.remove('is-capturing');
-                        var canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        canvas.getContext('2d').drawImage(video, 0, 0);
-                        canvas.toBlob(function (blob) {
-                            if (!blob) return;
-                            reportFile = new File([blob], 'scan-' + Date.now() + '.jpg', { type: 'image/jpeg' });
-                            if (preview) {
-                                preview.src = URL.createObjectURL(blob);
-                            }
-                            scanner.classList.add('has-capture');
-                            if (hint) hint.textContent = 'Report captured. Continue to evidences.';
-                            syncTorchButton();
-                            stopCamera();
-                        }, 'image/jpeg', 0.88);
-                    }
-                }, 700);
+                openSmartScan();
             });
         }
 
@@ -385,7 +489,10 @@ function guard_hub_scripts(): void
                 reportFile = f;
                 if (preview && scanner) {
                     preview.src = URL.createObjectURL(f);
+                    scanner.classList.remove('is-live');
                     scanner.classList.add('has-capture');
+                    preview.onload = layoutScannerFromVideo;
+                    layoutScannerFromVideo();
                 }
                 if (hint) hint.textContent = 'File ready: ' + f.name;
                 stopCamera();
@@ -396,10 +503,13 @@ function guard_hub_scripts(): void
         if (retake) {
             retake.addEventListener('click', function () {
                 reportFile = null;
-                if (scanner) scanner.classList.remove('has-capture');
+                if (scanner) {
+                    scanner.classList.remove('has-capture', 'is-live', 'is-capturing');
+                }
+                setScannerFullscreen(false);
                 if (preview) preview.removeAttribute('src');
-                startCamera();
-                if (hint) hint.textContent = 'Align document inside frame…';
+                stopCamera();
+                if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
             });
         }
 
@@ -491,8 +601,9 @@ function guard_hub_scripts(): void
                     }
                 }
                 goStep(target);
-                if (target === 1) startCamera();
-                else stopCamera();
+                if (target !== 1) {
+                    stopCamera();
+                }
                 if (target === 3) syncReportTypeSummary();
             });
         });
@@ -547,7 +658,11 @@ function guard_hub_scripts(): void
                         evidences = [];
                         renderEvidence();
                         form.reset();
-                        if (scanner) scanner.classList.remove('has-capture');
+                        if (scanner) {
+                            scanner.classList.remove('has-capture', 'is-live', 'is-capturing');
+                        }
+                        setScannerFullscreen(false);
+                        if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
                         goStep(1);
                         setTimeout(function () {
                             window.location.href = 'submit-report.php?view=history';
@@ -568,8 +683,8 @@ function guard_hub_scripts(): void
                 });
         });
 
+        bindScannerLayoutEvents();
         goStep(1);
-        if (scanner && video) startCamera();
     }
 
     function initCornerClickables(root) {

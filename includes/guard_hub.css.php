@@ -533,28 +533,113 @@ function guard_hub_styles(): void
         body.guard-portal .guard-app__scroll .guard-scanner {
             position: relative;
             width: 100%;
-            max-width: min(320px, 100%);
+            max-width: min(360px, 100%);
             margin-left: auto;
             margin-right: auto;
-            border-radius: 10px;
+            aspect-ratio: 3 / 4;
             overflow: hidden;
             background: #000;
             line-height: 0;
+            border-radius: 10px;
             border: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner:not(.is-live):not(.has-capture) {
+            display: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
-            position: relative;
+            position: absolute;
+            inset: 0;
             z-index: 0;
             display: block;
             width: 100%;
-            height: auto;
-            max-height: min(70vh, 560px);
+            height: 100%;
             margin: 0;
-            object-fit: none;
+            object-fit: contain;
             object-position: center center;
-            vertical-align: top;
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-app__scroll .guard-wizard__pane .guard-scanner.has-capture {
+                width: calc(100% + (2 * var(--guard-ui-pad, 16px)));
+                max-width: none;
+                margin-left: calc(-1 * var(--guard-ui-pad, 16px));
+                margin-right: calc(-1 * var(--guard-ui-pad, 16px));
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+                min-height: min(52dvh, 520px);
+                max-height: min(72dvh, calc(100dvh - 220px));
+                aspect-ratio: 9 / 16;
+            }
+        }
+
+        /* Smart scan — maximized portrait camera (viewport overlay) */
+        body.guard-portal.guard-scan-fullscreen {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            width: 100dvw;
+            height: 100%;
+            height: 100dvh;
+            max-width: none;
+            max-height: none;
+            min-height: 0;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            z-index: 10050;
+            aspect-ratio: auto;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__video {
+            object-fit: cover;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__torch {
+            top: max(12px, env(safe-area-inset-top, 0px));
+            right: max(12px, env(safe-area-inset-right, 0px));
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__hint {
+            padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+            font-size: 0.8125rem;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10051;
+            margin: 0;
+            padding: 14px var(--guard-ui-pad, 16px);
+            padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 28%, rgba(0, 0, 0, 0.82) 100%);
+            gap: 10px;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-primary,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-ghost,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions label.btn-ghost {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active > .btn-primary[data-wizard-next],
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__pane-title,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__report-type {
+            visibility: hidden;
+            pointer-events: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__preview {

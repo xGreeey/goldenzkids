@@ -18,28 +18,27 @@ function admin_sidebar_profile(): array
     $name = '';
     $email = '';
 
-    if ($companyId !== '' && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) {
+    if ($companyId !== '' && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO) {
         $conn = $GLOBALS['conn'];
-        $stmt = $conn->prepare(
-            'SELECT u.Email, u.role, g.First_Name, g.Last_Name
-             FROM users u
-             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
-             WHERE u.Company_ID = ?
-             LIMIT 1'
-        );
-        if ($stmt) {
-            $stmt->bind_param('s', $companyId);
-            $stmt->execute();
-            $row = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            if ($row) {
-                $email = (string) ($row['Email'] ?? '');
-                $first = trim((string) ($row['First_Name'] ?? ''));
-                $last = trim((string) ($row['Last_Name'] ?? ''));
-                $name = trim($first . ' ' . $last);
-                if (isset($row['role'])) {
-                    $role = auth_role_name((int) $row['role']);
-                }
+        $roleCol = auth_users_role_column($conn);
+        $hasUserNames = auth_users_has_profile_names($conn);
+        $nameSelect = $hasUserNames
+            ? "COALESCE(NULLIF(TRIM(u.First_Name), ''), g.First_Name) AS First_Name,
+               COALESCE(NULLIF(TRIM(u.Last_Name), ''), g.Last_Name) AS Last_Name"
+            : 'g.First_Name, g.Last_Name';
+        $sql = "SELECT u.Email, u.{$roleCol} AS role, {$nameSelect}
+                FROM users u
+                LEFT JOIN guards g ON g.Company_ID = u.Company_ID
+                WHERE u.Company_ID = ?
+                LIMIT 1";
+        $row = db_fetch_one($conn, $sql, 's', [$companyId]);
+        if ($row !== null) {
+            $email = (string) ($row['Email'] ?? '');
+            $first = trim((string) ($row['First_Name'] ?? ''));
+            $last = trim((string) ($row['Last_Name'] ?? ''));
+            $name = trim($first . ' ' . $last);
+            if (isset($row['role'])) {
+                $role = auth_role_name((int) $row['role']);
             }
         }
     }
@@ -879,8 +878,15 @@ document.addEventListener('DOMContentLoaded', function () {
     panel_navigation_script();
     superadmin_modal_script();
     theme_toggle_script();
+    if (function_exists('app_notify_footer')) {
+        app_notify_footer();
+    }
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
+<<<<<<< HEAD
         echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
+=======
+        echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
+>>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Idempotent upgrade for legacy users table (skipped when columns already exist).
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $tableCheck = $conn->query("SHOW TABLES LIKE 'users'");
     if (!$tableCheck || $tableCheck->num_rows === 0) {
         echo "  [skip] users table not found.\n";
@@ -13,11 +13,11 @@ return static function (mysqli $conn): void {
 
     $cols = $conn->query('SHOW COLUMNS FROM users');
     $colNames = [];
-    while ($c = $cols->fetch_assoc()) {
+    while ($c = $cols->fetch(PDO::FETCH_ASSOC)) {
         $colNames[] = strtolower((string) $c['Field']);
     }
 
-    $addColumn = static function (mysqli $conn, string $sql, string $label) use ($colNames): void {
+    $addColumn = static function (PDO $conn, string $sql, string $label) use ($colNames): void {
         if (preg_match('/ADD COLUMN\s+`?(\w+)`?/i', $sql, $m)) {
             $name = strtolower($m[1]);
             if (in_array($name, $colNames, true)) {

@@ -76,8 +76,8 @@ $adminNavActive = 'duty';
                         </thead>
                         <tbody>
                             <?php
-                            if ($roster_query && $roster_query->num_rows > 0) {
-                                while ($guard = $roster_query->fetch_assoc()) {
+                            if ($roster_query) {
+                                while ($guard = $roster_query->fetch(PDO::FETCH_ASSOC)) {
                                     ?>
                             <tr>
                                 <td><?= e((string) $guard['Company_ID']) ?></td>

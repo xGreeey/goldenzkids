@@ -1,45 +1,33 @@
-.inbox-top-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: clamp(20px, 2.5vw, 28px);
+.inbox-messaging-solo {
     margin-bottom: clamp(24px, 3vw, 36px);
-    align-items: stretch;
 }
 
-@media (min-width: 1100px) {
-    .inbox-top-grid {
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    }
-}
-
-.inbox-top-grid > .panel--inbox,
-.inbox-top-grid > .messaging-board {
+.inbox-messaging-solo .messaging-board {
     min-width: 0;
-    min-height: 0;
-    height: 100%;
+    min-height: clamp(480px, 70vh, 720px);
     display: flex;
     flex-direction: column;
 }
 
-.inbox-top-grid .panel--inbox {
+.inbox-messaging-solo .messaging-board__layout {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.inbox-messaging-solo .messaging-board__thread {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.announcement-layout {
+    margin-bottom: clamp(24px, 3vw, 36px);
+    max-width: 720px;
+}
+
+.announcement-layout .panel--inbox {
     align-self: stretch;
     position: static;
     top: auto;
-}
-
-.inbox-top-grid .panel--inbox .panel-body {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-.inbox-top-grid .messaging-board__layout {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-.inbox-top-grid .messaging-board__thread {
-    flex: 1 1 auto;
-    min-height: 0;
 }
 
 .panel--inbox {
@@ -56,6 +44,18 @@ body.light-mode .messaging-board {
 body.light-mode .messaging-board__title,
 body.light-mode .panel--inbox .panel-title {
     color: var(--app-ink-deep);
+}
+
+body:not(.light-mode) .panel--inbox,
+body:not(.light-mode) .messaging-board {
+    background: var(--app-card-bg);
+    border-color: var(--app-border-on-dark);
+    color: var(--app-ink-on-dark);
+}
+
+body:not(.light-mode) .messaging-board__title,
+body:not(.light-mode) .panel--inbox .panel-title {
+    color: var(--app-ink-on-dark);
 }
 
 .notif-list { display: flex; flex-direction: column; gap: 12px; }

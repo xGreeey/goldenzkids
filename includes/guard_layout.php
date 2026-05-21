@@ -1,37 +1,114 @@
 <?php
+
 declare(strict_types=1);
+
+
 
 require_once __DIR__ . '/superadmin_page.css.php';
 
+require_once __DIR__ . '/guard_page.css.php';
+
+require_once __DIR__ . '/guard_ui.css.php';
+
+require_once __DIR__ . '/guard_ui_icons.php';
+
+require_once __DIR__ . '/guard_ui_shell.php';
+
+require_once __DIR__ . '/guard_ui.js.php';
+
+require_once __DIR__ . '/guard_hub.css.php';
+
+require_once __DIR__ . '/guard_hub.js.php';
+
+
+
 /**
- * Guard portal layout — same shell, sidebar, and theme tokens as admin / superadmin.
+
+ * Guard portal — full-viewport mobile shell (topbar + scroll, no extra wrapper).
+
  */
-function guard_layout_head(string $documentTitle): void
+
+function guard_layout_head(string $documentTitle, ?string $navActive = null): void
+
 {
+
+    global $guardNavActive;
+
+    $navActive = $navActive ?? ($guardNavActive ?? 'dashboard');
+
     ?>
+
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <?= mobile_meta_tags() ?>
+
     <title><?= e(app_agency_name()) ?> | <?= e($documentTitle) ?></title>
+
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
+
     <?= app_fonts_link() ?>
+
     <style>
+
 <?php admin_shell_styles(); ?>
+
 <?php superadmin_page_styles(); ?>
+
+<?php guard_page_styles(); ?>
+
+<?php guard_ui_styles(); ?>
+
+<?php guard_hub_styles(); ?>
+
     </style>
+
 </head>
+
 <body class="light-mode superadmin-portal guard-portal">
+
 <?php
+
     require __DIR__ . '/guard_sidebar.php';
-    echo '<main class="app-main" id="main-content">';
+
+    guard_ui_topbar_markup();
+
+    echo '<main class="app-main guard-app__main" id="main-content">';
+
+    echo '<div class="guard-app__scroll" data-guard-panel-root>';
+
 }
 
+
+
 function guard_layout_end(): void
+
 {
-    echo '</main></div>';
+    global $guardNavActive;
+
+    $navActive = $guardNavActive ?? 'dashboard';
+
+    echo '</div></main>';
+
+    echo '</div>';
+
+    guard_ui_drawer_markup($navActive);
+
     admin_shell_scripts();
+
+    guard_hub_scripts();
+
+    guard_ui_scripts();
+
     require dirname(__DIR__) . '/includes/global-alerts.php';
+
     echo '</body></html>';
+
 }
+
+

@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Hash legacy Pin values into users.password_hash and assign role_id from Designation.
  * Also syncs portal_users when that table exists.
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $tableCheck = $conn->query("SHOW TABLES LIKE 'users'");
     if (!$tableCheck || $tableCheck->num_rows === 0) {
         echo "  [skip] Table `users` not found.\n";
@@ -18,7 +18,7 @@ return static function (mysqli $conn): void {
     }
 
     $colNames = [];
-    while ($col = $columns->fetch_assoc()) {
+    while ($col = $columns->fetch(PDO::FETCH_ASSOC)) {
         $colNames[] = strtolower((string) $col['Field']);
     }
 
@@ -36,7 +36,7 @@ return static function (mysqli $conn): void {
     $roleStmt->execute();
     $roleResult = $roleStmt->get_result();
     $roleIds = [];
-    while ($row = $roleResult->fetch_assoc()) {
+    while ($row = $roleResult->fetch(PDO::FETCH_ASSOC)) {
         $roleIds[strtolower((string) $row['slug'])] = (int) $row['id'];
     }
     $roleStmt->close();
@@ -82,7 +82,7 @@ return static function (mysqli $conn): void {
     $hashed = 0;
     $skipped = 0;
 
-    while ($row = $rows->fetch_assoc()) {
+    while ($row = $rows->fetch(PDO::FETCH_ASSOC)) {
         $companyId = strtoupper(trim((string) ($row['Company_ID'] ?? '')));
         if ($companyId === '') {
             continue;

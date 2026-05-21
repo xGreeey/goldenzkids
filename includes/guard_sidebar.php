@@ -9,31 +9,38 @@ $guardNavActive = $guardNavActive ?? 'dashboard';
     </div>
 
     <nav class="sidebar-nav" aria-label="Guard workspace">
-        <a href="dashboard.php" class="sidebar-link<?= $guardNavActive === 'dashboard' ? ' active' : '' ?>"<?= $guardNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Field dashboard') ?>>
+        <a href="dashboard.php" class="sidebar-link<?= $guardNavActive === 'dashboard' ? ' active' : '' ?>"<?= $guardNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Overview') ?>>
             <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
             Dashboard
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos and notifications') ?>>
+        <a href="submit-report.php" class="sidebar-link<?= $guardNavActive === 'submit' ? ' active' : '' ?>"<?= $guardNavActive === 'submit' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Submit daily report') ?>>
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
+            Submit report
+        </a>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos') ?>>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
         </a>
-        <a href="reports.php" class="sidebar-link<?= $guardNavActive === 'reports' ? ' active' : '' ?>"<?= $guardNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily guard reports') ?>>
-            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
-            My reports
+        <a href="corner.php" class="sidebar-link<?= $guardNavActive === 'corner' ? ' active' : '' ?>"<?= $guardNavActive === 'corner' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Guard corner') ?>>
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+            Guard corner
         </a>
     </nav>
 
     <div class="sidebar-footer">
+<<<<<<< HEAD
+=======
+        <div class="sidebar-footer-user">
+            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
+            <div class="sidebar-footer-meta">
+                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
+            </div>
+        </div>
+
+>>>>>>> eed8e9d3e77bdacb37e57b3a5a0992d3efd5a7dd
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
-                <span class="sidebar-footer-label">Settings</span>
-                <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
-                        <?= admin_sidebar_icon('audit') ?>
-                    </a>
-                    <a href="reports.php" class="sidebar-footer-icon" aria-label="My reports"<?= ui_tooltip('My reports', 'bottom') ?>>
-                        <?= admin_sidebar_icon('settings') ?>
-                    </a>
+                <div class="sidebar-footer-actions" role="toolbar" aria-label="Sign out and appearance">
                     <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">
                         <?= csrf_field() ?>
                         <button type="submit" class="sidebar-footer-icon" aria-label="Sign Out"<?= ui_tooltip('Sign out', 'bottom') ?>>

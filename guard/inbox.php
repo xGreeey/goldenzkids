@@ -23,7 +23,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['mark_read']))
         );
         if ($ok) {
             header('Location: inbox.php');
-            exit();
+            exit;
         }
         $error = 'Could not update memo status.';
     }
@@ -38,7 +38,7 @@ $memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.Distribution_Protocol, 
             ORDER BY mr.is_read ASC, m.created_at DESC';
 $memoResult = db_query($conn, $memoSql, 's', [$companyId]);
 if ($memoResult) {
-    while ($r = $memoResult->fetch_assoc()) {
+    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
         $memos[] = $r;
     }
 }
@@ -46,19 +46,22 @@ if ($memoResult) {
 $guardNavActive = 'inbox';
 guard_layout_head('Inbox');
 ?>
+        <div class="guard-section-stack">
         <header class="page-header">
             <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Secured memos and directives from operations. Mark items as read when acknowledged.</p>
+            <p class="page-subtitle">Secured memos from operations and administration.</p>
         </header>
 
         <?php if ($error !== null): ?>
             <div class="alert alert--error" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> <?= e($error) ?></div>
         <?php endif; ?>
 
-        <section class="card-panel sa-panel" aria-labelledby="guard-inbox-memos-heading">
-            <h2 id="guard-inbox-memos-heading" class="panel-title"><i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i> Memos</h2>
+        <section class="guard-card" aria-labelledby="guard-inbox-memos-heading">
+            <div class="guard-card__head">
+                <h2 id="guard-inbox-memos-heading" class="panel-title">Memos</h2>
+            </div>
             <?php if ($memos === []): ?>
-                <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No memos have been sent to you yet.</p>
+                <p class="empty-state">No memos have been sent to you yet.</p>
             <?php else: ?>
                 <ul class="guard-memo-list">
                     <?php foreach ($memos as $memo): ?>
@@ -92,45 +95,6 @@ guard_layout_head('Inbox');
                 </ul>
             <?php endif; ?>
         </section>
-        <style>
-            .guard-memo-list {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            .guard-memo-list__item {
-                padding: 14px 16px;
-                border-radius: var(--radius-md, 12px);
-                background: var(--sa-card-bg, var(--app-card-bg));
-                box-shadow: 0 0 0 1px var(--sa-card-border, var(--app-border)) inset, var(--sa-card-shadow, var(--app-shadow-sm));
-            }
-            .guard-memo-list__item.is-unread {
-                border-left: 3px solid var(--brand-accent, var(--app-accent));
-            }
-            .guard-memo-list__head {
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                margin-bottom: 10px;
-            }
-            .guard-memo-list__time {
-                font-size: 0.8125rem;
-                color: var(--sa-card-ink-soft, var(--app-ink-soft));
-            }
-            .guard-memo-list__body {
-                margin: 0 0 12px;
-                font-size: 0.9375rem;
-                line-height: 1.55;
-                color: var(--sa-card-ink, var(--app-ink));
-            }
-            .guard-memo-list__action {
-                margin: 0;
-            }
-        </style>
+        </div>
 <?php
 guard_layout_end();

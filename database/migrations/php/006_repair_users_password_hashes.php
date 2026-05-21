@@ -5,7 +5,7 @@ declare(strict_types=1);
  * One-time repair: copy password_hash + role_id from portal_users into users
  * (e.g. if Pin was dropped before hashing). Safe to re-run.
  */
-return static function (mysqli $conn): void {
+return static function (PDO $conn): void {
     $col = $conn->query("SHOW COLUMNS FROM users LIKE 'password_hash'");
     if (!$col || $col->num_rows === 0) {
         echo "  [skip] users.password_hash column missing.\n";

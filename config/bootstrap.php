@@ -56,5 +56,5 @@ function app_agency_name_upper(): string
 
 function app_logo_url(): string
 {
-    return app_url('includes/goldenz_logo.png');
+    return app_url('assets/images/goldenz_logo.png');
 }

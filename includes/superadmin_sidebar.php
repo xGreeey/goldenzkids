@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 $superadminNavActive = $superadminNavActive ?? 'dashboard';
-$adminProfile = admin_sidebar_profile();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -50,16 +49,26 @@ $adminProfile = admin_sidebar_profile();
                     </form>
                 </div>
             </div>
-            <div class="sidebar-footer-theme">
-                <?= theme_toggle_markup([
-                    'id' => 'sidebarThemeToggle',
-                    'mode' => 'light-class',
-                    'title' => 'Toggle light or dark appearance',
-                    'tipPosition' => 'bottom',
-                ]) ?>
+            <div class="sidebar-footer-settings-row sidebar-footer-theme-row">
+                <span class="sidebar-footer-label" id="sidebarThemeLabel">Theme</span>
+                <div class="sidebar-footer-theme">
+                    <?= theme_toggle_markup([
+                        'id' => 'sidebarThemeToggle',
+                        'mode' => 'light-class',
+                        'title' => 'Toggle light or dark appearance',
+                        'tipPosition' => 'bottom',
+                        'showInactiveIcons' => 'next',
+                    ]) ?>
+                </div>
             </div>
         </div>
     </div>
 </aside>
+<?php
+if (!function_exists('theme_sidebar_boot_script')) {
+    require_once __DIR__ . '/theme.php';
+}
+theme_sidebar_boot_script('light-class');
+?>
 
 <div class="app-shell">

@@ -31,3 +31,5 @@ try {
     http_response_code(503);
     exit('Service temporarily unavailable. Please try again later.');
 }
+
+$GLOBALS['conn'] = $conn;

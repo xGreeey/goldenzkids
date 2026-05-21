@@ -6,7 +6,7 @@ $adminProfile = admin_sidebar_profile();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
-        <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo">
+        <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo" width="104" height="104" decoding="async">
     </div>
 
     <nav class="sidebar-nav" aria-label="Workspace">
@@ -22,9 +22,9 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
             Announcement
         </a>
-        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Post-incident and attendance report review') ?>>
+        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Incident reports — monitor and archive') ?>>
             <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
-            Reports
+            Incident report
         </a>
         <a href="duty-detail.php" class="sidebar-link<?= $adminNavActive === 'duty' ? ' active' : '' ?>"<?= $adminNavActive === 'duty' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Duty posts and personnel assignments') ?>>
             <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
@@ -58,16 +58,26 @@ $adminProfile = admin_sidebar_profile();
                     </form>
                 </div>
             </div>
-            <div class="sidebar-footer-theme">
-                <?= theme_toggle_markup([
-                    'id' => 'sidebarThemeToggle',
-                    'mode' => 'light-class',
-                    'title' => 'Toggle light or dark appearance',
-                    'tipPosition' => 'bottom',
-                ]) ?>
+            <div class="sidebar-footer-settings-row sidebar-footer-theme-row">
+                <span class="sidebar-footer-label" id="sidebarThemeLabel">Theme</span>
+                <div class="sidebar-footer-theme">
+                    <?= theme_toggle_markup([
+                        'id' => 'sidebarThemeToggle',
+                        'mode' => 'light-class',
+                        'title' => 'Toggle light or dark appearance',
+                        'tipPosition' => 'bottom',
+                        'showInactiveIcons' => 'next',
+                    ]) ?>
+                </div>
             </div>
         </div>
     </div>
 </aside>
+<?php
+if (!function_exists('theme_sidebar_boot_script')) {
+    require_once __DIR__ . '/theme.php';
+}
+theme_sidebar_boot_script('light-class');
+?>
 
 <div class="app-shell">

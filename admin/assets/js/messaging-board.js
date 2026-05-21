@@ -171,6 +171,11 @@
             return;
         }
 
+        if (board.dataset.messagingBound === '1') {
+            return;
+        }
+        board.dataset.messagingBound = '1';
+
         var threadApi = board.dataset.threadApi || 'messaging-thread.php';
         var actionUrl = board.dataset.actionUrl || 'messaging-action.php';
         var sendDirect = board.dataset.sendDirect || '';

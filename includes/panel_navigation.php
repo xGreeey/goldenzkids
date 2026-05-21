@@ -189,8 +189,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function runPanelPageInit(doc) {
         if (typeof window.initAdminInboxPage === 'function'
-            && (doc.getElementById('alert-feed') || doc.getElementById('memoForm'))) {
+            && (doc.getElementById('alert-feed') || doc.getElementById('memoForm')
+                || document.getElementById('alert-feed') || document.getElementById('memoForm'))) {
             window.initAdminInboxPage();
+        }
+        if (typeof window.initMessagingBoard === 'function'
+            && (doc.getElementById('messaging-board') || document.getElementById('messaging-board'))) {
+            window.initMessagingBoard();
         }
     }
 

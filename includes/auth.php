@@ -76,7 +76,7 @@ function auth_guard_roster_has(mysqli $conn, string $companyId): bool
 }
 
 /**
- * Decide portal destination after login (guard roster / role 0 ΓåÆ guard module).
+ * Decide portal destination after login (guard roster / role 0 -> guard module).
  */
 function auth_resolve_role_at_login(mysqli $conn, array $user): int
 {

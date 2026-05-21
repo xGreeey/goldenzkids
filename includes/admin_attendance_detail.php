@@ -6,6 +6,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/admin_incident_reports.php';
+require_once __DIR__ . '/guard_dad.php';
 
 const ADMIN_ATTENDANCE_SESSION_KEY = 'admin_attendance_detail_store';
 
@@ -103,6 +104,7 @@ function admin_attendance_status_is_valid(string $status): bool
 function admin_attendance_issue_options(): array
 {
     return [
+        'roster_review' => 'Attendance sheet review',
         'missing_time_in' => 'Missing time-in',
         'missing_time_out' => 'Missing time-out',
         'wrong_time_in' => 'Wrong time-in',
@@ -416,6 +418,16 @@ function admin_attendance_normalize(array $row): array
 /** @return list<array<string, mixed>> */
 function admin_attendance_store_all(): array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && guard_dad_table_exists($GLOBALS['conn'])) {
+        $out = [];
+        foreach (guard_dad_fetch_admin_records($GLOBALS['conn']) as $row) {
+            $out[] = admin_attendance_normalize($row);
+        }
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+
+        return $out;
+    }
+
     if (!isset($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY]) || !is_array($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY])) {
         $normalized = [];
         foreach (admin_attendance_seed_templates() as $row) {
@@ -452,6 +464,13 @@ function admin_attendance_store_reset(): void
 
 function admin_attendance_find(string $id): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^dad-(\d+)$/', $id)) {
+        $row = guard_dad_find_by_id($GLOBALS['conn'], $id);
+        if ($row !== null) {
+            return admin_attendance_normalize($row);
+        }
+    }
+
     foreach (admin_attendance_store_all() as $row) {
         if ((string) ($row['id'] ?? '') === $id) {
             return $row;
@@ -546,9 +565,12 @@ function admin_attendance_guard_cell_html(array $record): string
  */
 function admin_attendance_modal_details_html(array $record): string
 {
-    $history = is_array($record['history'] ?? null) ? $record['history'] : [];
+    $html = '';
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO) {
+        $html .= guard_dad_modal_extras_html($GLOBALS['conn'], $record);
+    }
 
-    $html = '<dl class="reports-detail-grid">';
+    $html .= '<dl class="reports-detail-grid">';
     $pairs = [
         'Guard' => (string) ($record['guard_name'] ?? '') . ' (' . (string) ($record['guard_id'] ?? '') . ')',
         'Post' => (string) ($record['post'] ?? ''),
@@ -570,6 +592,86 @@ function admin_attendance_modal_details_html(array $record): string
     $html .= '<p>' . e((string) ($record['summary'] ?? '')) . '</p></div>';
 
     return $html;
+}
+
+/**
+ * @param array<string, mixed> $input
+ */
+function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, string $actorId): ?array
+{
+    if (!guard_dad_table_exists($conn)) {
+        return null;
+    }
+
+    $row = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
+    if ($row === null) {
+        return null;
+    }
+
+    $mapped = guard_dad_map_row_for_admin($row);
+    if ($mapped === null) {
+        return null;
+    }
+
+    $oldStatus = (string) $mapped['status'];
+    $newStatus = (string) ($input['status'] ?? $oldStatus);
+    if (!admin_attendance_status_is_valid($newStatus)) {
+        $newStatus = $oldStatus;
+    }
+
+    $issue = (string) ($input['issue'] ?? $mapped['issue']);
+    if (!array_key_exists($issue, admin_attendance_issue_options())) {
+        $issue = (string) $mapped['issue'];
+    }
+
+    $recorded = (string) ($input['recorded'] ?? $mapped['recorded']);
+    if (!admin_attendance_recorded_is_valid($recorded)) {
+        $recorded = (string) $mapped['recorded'];
+    }
+
+    $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : [];
+    $opsNote = trim((string) ($input['ops_note'] ?? ''));
+    if ($opsNote !== '') {
+        $mapped = admin_incident_append_history($mapped, 'Ops note', $opsNote, $actorId);
+        $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : $history;
+    }
+    if ($newStatus !== $oldStatus) {
+        $mapped = admin_incident_append_history(
+            $mapped,
+            'Status: ' . admin_attendance_status_label($newStatus),
+            'Changed from ' . admin_attendance_status_label($oldStatus),
+            $actorId
+        );
+        $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : $history;
+    }
+
+    $summary = trim((string) ($input['summary'] ?? $mapped['summary']));
+    $post = trim((string) ($input['post'] ?? $mapped['post']));
+    $timeRecord = trim((string) ($input['time_record'] ?? $mapped['time_record']));
+
+    db_execute(
+        $conn,
+        'UPDATE guard_dad_submissions SET
+            status = ?, issue = ?, recorded = ?, post_name = ?, time_record = ?, summary = ?,
+            history_json = ?, updated_at = NOW()
+         WHERE dad_id = ?',
+        'sssssssi',
+        [
+            $newStatus,
+            $issue,
+            $recorded,
+            $post,
+            $timeRecord,
+            $summary,
+            json_encode($history, JSON_THROW_ON_ERROR),
+            $dadId,
+        ]
+    );
+
+    $fresh = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
+    $mappedFresh = $fresh !== null ? guard_dad_map_row_for_admin($fresh) : null;
+
+    return $mappedFresh !== null ? admin_attendance_normalize($mappedFresh) : null;
 }
 
 /**
@@ -603,6 +705,10 @@ function admin_attendance_history_stepper_html(array $history, string $currentSt
  */
 function admin_attendance_update(string $id, array $input, string $actorId): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^dad-(\d+)$/', $id, $m)) {
+        return guard_dad_admin_update_record($GLOBALS['conn'], (int) $m[1], $input, $actorId);
+    }
+
     $records = admin_attendance_store_all();
     $found = null;
     $idx = null;
@@ -660,6 +766,60 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
     admin_attendance_store_save($records);
 
     return $records[$idx];
+}
+
+/**
+ * Delete a DAD registry record (database or demo session).
+ *
+ * @return array{id:string,ref:string}|null
+ */
+function admin_attendance_delete(string $id): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^dad-(\d+)$/', $id, $m)) {
+        if (guard_dad_table_exists($GLOBALS['conn'])) {
+            $result = guard_dad_delete_submission($GLOBALS['conn'], (int) $m[1]);
+            if (!$result['ok']) {
+                return null;
+            }
+
+            return [
+                'id' => $id,
+                'ref' => (string) ($result['ref'] ?? $id),
+            ];
+        }
+    }
+
+    if (!isset($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY]) || !is_array($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY])) {
+        return null;
+    }
+
+    $records = admin_attendance_store_all();
+    $deleted = null;
+    $remaining = [];
+
+    foreach ($records as $row) {
+        if ((string) ($row['id'] ?? '') === $id) {
+            $deleted = $row;
+            continue;
+        }
+        $remaining[] = $row;
+    }
+
+    if ($deleted === null) {
+        return null;
+    }
+
+    admin_attendance_store_save($remaining);
+
+    return [
+        'id' => $id,
+        'ref' => (string) ($deleted['ref'] ?? $id),
+    ];
 }
 
 /**

@@ -453,6 +453,84 @@ function guard_hub_styles(): void
             margin: 0 0 10px;
         }
 
+        body.guard-portal .guard-ocr-preview {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background: rgba(15, 23, 42, 0.04);
+        }
+
+        body.guard-portal .guard-ocr-preview__title {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-ocr-preview__text {
+            margin: 0;
+            max-height: 180px;
+            overflow: auto;
+            font-size: 0.75rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        body.guard-portal .guard-dad-sheet-preview {
+            margin-bottom: 12px;
+        }
+
+        body.guard-portal .guard-dad-sheet-preview__label {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-dad-sheet-preview img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            background: #fff;
+        }
+
+        body.guard-portal .guard-location-stamp {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px dashed rgba(37, 99, 235, 0.45);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp--sheet {
+            border-color: rgba(5, 150, 105, 0.45);
+            background: rgba(5, 150, 105, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp--evidence {
+            border-color: rgba(37, 99, 235, 0.45);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp__title {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-location-stamp__coords {
+            margin: 4px 0 0;
+            font-size: 0.75rem;
+        }
+
+        body.guard-portal .guard-location-stamp__address {
+            margin: 6px 0 0;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
+
         body.guard-portal .guard-app__scroll .guard-select {
             position: relative;
             width: 100%;

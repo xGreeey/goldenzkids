@@ -3032,6 +3032,18 @@ html.dark .reports-compact-step__label.is-active {
     color: #fff;
 }
 
+.reports-action-btn--danger {
+    color: var(--report-dismissed, #b91c1c);
+    border-color: color-mix(in srgb, var(--report-dismissed, #b91c1c) 35%, var(--app-border));
+}
+
+.reports-action-btn--danger:hover,
+.reports-action-btn--danger:focus-visible {
+    color: #fff;
+    background: var(--report-dismissed, #b91c1c);
+    border-color: var(--report-dismissed, #b91c1c);
+}
+
 .reports-action-btn__icon {
     display: flex;
     align-items: center;
@@ -4609,4 +4621,206 @@ body.page-daily-detail .page-title__code {
 body.page-daily-detail .reports-toolbar input,
 body.page-daily-detail .reports-toolbar select {
     color: var(--report-text);
+}
+
+/* DAD modal — step 1 tabs (sheet image + Document AI text) */
+.reports-dad-step1 {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+}
+
+.reports-dad-step1__label {
+    margin: 0 0 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-step1__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.reports-dad-step1__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.45rem 0.85rem;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--report-text-muted, #64748b);
+    background: var(--report-surface, #f1f5f9);
+    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.reports-dad-step1__tab.is-active {
+    color: var(--report-text, #0f172a);
+    background: var(--app-card-bg, #fff);
+    border-color: var(--app-accent-text, #ca8a04);
+}
+
+.reports-dad-step1__panels {
+    min-height: 200px;
+}
+
+.reports-dad-step1__panel {
+    display: none;
+}
+
+.reports-dad-step1__panel.is-active {
+    display: block;
+}
+
+.reports-dad-step1__panel[hidden] {
+    display: none !important;
+}
+
+/* Mirrors printed DAD sheet: POST, DATE, NAME, TIME IN, TIME OUT */
+.reports-dad-ocr-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 1rem 1.1rem;
+    background: var(--report-surface, #f8fafc);
+    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
+    border-radius: 8px;
+}
+
+.reports-dad-ocr-form__row {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, 7rem) 1fr;
+    gap: 0.65rem 1rem;
+    align-items: baseline;
+}
+
+.reports-dad-ocr-form__label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-ocr-form__value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--report-text, #0f172a);
+    word-break: break-word;
+}
+
+.reports-dad-ocr-fields {
+    display: grid;
+    gap: 0.35rem 1rem;
+    grid-template-columns: minmax(6rem, auto) 1fr;
+    margin: 0 0 1rem;
+}
+
+.reports-dad-ocr-fields .reports-detail-item {
+    display: contents;
+}
+
+.reports-dad-ocr-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.reports-dad-ocr-status {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-ocr-status.is-error {
+    color: var(--report-dismissed, #b91c1c);
+}
+
+.reports-dad-ocr-status.is-busy {
+    color: var(--app-accent-text, #ca8a04);
+}
+
+/* DAD modal — attendance sheet + OCR (legacy blocks) */
+.reports-dad-media {
+    display: grid;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+}
+
+.reports-dad-media__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reports-dad-media__title {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-media__link {
+    display: block;
+    line-height: 0;
+}
+
+.reports-dad-media__scan {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: min(520px, 72vh);
+    height: auto;
+    margin: 0 auto;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
+    background: var(--report-surface, #f8fafc);
+}
+
+.reports-dad-step1__panel .reports-dad-media__link {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 220px;
+    padding: 0.5rem;
+    background: var(--report-surface, #f8fafc);
+    border-radius: 8px;
+    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+}
+
+.reports-dad-media__ocr {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    max-height: 220px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--report-text, #0f172a);
+    background: var(--report-surface, #f8fafc);
+    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
+    border-radius: 8px;
+}
+
+.reports-dad-modal .reports-detail-grid {
+    margin-top: 0;
 }

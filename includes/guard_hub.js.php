@@ -466,43 +466,61 @@ function guard_hub_scripts(): void
             .replace(/"/g, '&quot;');
     }
 
+    function guardPolicyNumberedItems(text) {
+        var lines = String(text || '').split(/\r\n|\r|\n/);
+        var items = [];
+        var current = '';
+        lines.forEach(function (line) {
+            line = line.trim();
+            if (!line) {
+                return;
+            }
+            var match = line.match(/^(\d+)\.\s*(.*)$/);
+            if (match) {
+                if (current) {
+                    items.push(current.trim());
+                }
+                current = (match[2] || '').trim();
+                return;
+            }
+            if (current) {
+                current += ' ' + line;
+            }
+        });
+        if (current) {
+            items.push(current.trim());
+        }
+        return items.filter(function (item) {
+            return item !== '';
+        });
+    }
+
     function guardPolicyBodyHtml(text) {
         text = String(text || '').trim();
         if (!text) {
             return '';
         }
-        if (!/\d+\.\s/.test(text)) {
+        var items = guardPolicyNumberedItems(text);
+        if (items.length < 2) {
             return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
         }
-        var parts = text.split(/(?=\d+\.\s)/);
-        var items = [];
-        parts.forEach(function (part) {
-            part = part.trim();
-            if (!part) {
-                return;
-            }
-            part = part.replace(/^\d+\.\s*/, '');
-            part = part.trim();
-            if (part) {
-                items.push(part);
-            }
-        });
-        if (!items.length) {
-            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
-        }
-        return '<ol class="guard-policy-modal__list">' + items.map(function (item) {
+        return '<ul class="guard-policy-modal__list">' + items.map(function (item) {
             return '<li>' + guardPolicyEscapeHtml(item) + '</li>';
-        }).join('') + '</ol>';
+        }).join('') + '</ul>';
     }
 
-    function guardPolicyContentFromSource(src) {
-        if (!src) {
+    function guardPolicyRawFromSource(sourceId) {
+        if (!sourceId) {
             return '';
         }
-        if (src.querySelector('.guard-policy-modal__list')) {
-            return src.innerHTML;
+        var el = document.getElementById(sourceId);
+        if (!el) {
+            return '';
         }
-        return guardPolicyBodyHtml(src.textContent || src.innerText || '');
+        if (el.tagName === 'TEXTAREA') {
+            return el.value || '';
+        }
+        return el.textContent || el.innerText || '';
     }
 
     function initPolicyModals(root) {
@@ -519,13 +537,12 @@ function guard_hub_scripts(): void
 
         function openModal(btn) {
             var sourceId = btn.getAttribute('data-policy-source');
-            var src = sourceId ? document.getElementById(sourceId) : null;
-            if (!src || !titleEl || !scrollEl) {
+            if (!sourceId || !titleEl || !scrollEl) {
                 return;
             }
             lastTrigger = btn;
             titleEl.textContent = btn.getAttribute('data-policy-title') || '';
-            scrollEl.innerHTML = guardPolicyContentFromSource(src);
+            scrollEl.innerHTML = guardPolicyBodyHtml(guardPolicyRawFromSource(sourceId));
             scrollEl.scrollTop = 0;
             modal.classList.add('is-open');
             modal.removeAttribute('hidden');

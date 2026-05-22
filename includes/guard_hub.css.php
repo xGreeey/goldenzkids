@@ -1230,7 +1230,8 @@ function guard_hub_styles(): void
             color: var(--guard-ui-subtle, #64748b);
         }
 
-        body.guard-portal .guard-policy-list__source {
+        body.guard-portal .guard-policy-list__source,
+        body.guard-portal .guard-policy-list__raw {
             display: none !important;
         }
 
@@ -1434,14 +1435,25 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-policy-modal__list {
             margin: 0;
-            padding-left: 1.35rem;
-            list-style-type: decimal;
-            list-style-position: outside;
+            padding: 0;
+            list-style: none;
+            counter-reset: guard-policy-step;
         }
 
         body.guard-portal .guard-policy-modal__list li {
+            position: relative;
             margin: 0 0 0.85em;
-            padding-left: 0.35rem;
+            padding: 0 0 0 1.75rem;
+            counter-increment: guard-policy-step;
+        }
+
+        body.guard-portal .guard-policy-modal__list li::before {
+            content: counter(guard-policy-step) '.';
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-weight: 700;
+            color: var(--guard-ui-primary, #0f172a);
         }
 
         body.guard-portal .guard-policy-modal__list li:last-child {
@@ -1451,6 +1463,10 @@ function guard_hub_styles(): void
         body.guard-portal:not(.light-mode) .guard-policy-modal__scroll,
         body.guard-portal:not(.light-mode) .guard-policy-modal__list li {
             color: var(--guard-ui-secondary, #cbd5e1);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__list li::before {
+            color: #f1f5f9;
         }
 
         body.guard-portal .guard-app__scroll code {

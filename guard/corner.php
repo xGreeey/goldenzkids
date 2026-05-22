@@ -72,22 +72,23 @@ guard_layout_head('Guard Corner');
                 </div>
                 <ul class="guard-policy-list">
                     <?php foreach ($policies as $policy): ?>
-                        <?php $sourceId = 'guard-policy-source-' . $policy['slug']; ?>
+                        <?php
+                        $sourceId = 'guard-policy-source-' . $policy['slug'];
+                        $rawId = $sourceId . '-raw';
+                        ?>
                         <li class="guard-policy-list__item">
                             <button
                                 type="button"
                                 class="guard-policy-list__trigger"
                                 data-policy-trigger
                                 data-policy-title="<?= e($policy['title']) ?>"
-                                data-policy-source="<?= e($sourceId) ?>"
+                                data-policy-source="<?= e($rawId) ?>"
                                 aria-haspopup="dialog"
                             >
                                 <span class="guard-policy-list__label"><?= e($policy['title']) ?></span>
                                 <i class="fa-solid fa-expand guard-policy-list__icon" aria-hidden="true"></i>
                             </button>
-                            <div id="<?= e($sourceId) ?>" class="guard-policy-list__source" hidden>
-                                <?= guard_portal_policy_body_html($policy['body']) ?>
-                            </div>
+                            <textarea id="<?= e($rawId) ?>" class="guard-policy-list__raw" hidden readonly><?= e(trim($policy['body'])) ?></textarea>
                         </li>
                     <?php endforeach; ?>
                 </ul>

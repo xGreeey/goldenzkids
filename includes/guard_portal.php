@@ -433,7 +433,7 @@ function guard_portal_store_report_evidence(
 }
 
 /**
- * Numbered policy text → HTML list with spacing between items.
+ * Numbered policy text → HTML list (one counter; numbers stripped from item text).
  */
 function guard_portal_policy_body_html(string $body): string
 {
@@ -442,35 +442,49 @@ function guard_portal_policy_body_html(string $body): string
         return '';
     }
 
-    if (!preg_match('/\d+\.\s/', $body)) {
+    $items = guard_portal_policy_numbered_items($body);
+    if (count($items) < 2) {
         return nl2br(e($body));
     }
 
-    $chunks = preg_split('/(?=\d+\.\s)/u', $body) ?: [];
-    $items = [];
-    foreach ($chunks as $chunk) {
-        $chunk = trim($chunk);
-        if ($chunk === '') {
-            continue;
-        }
-        $text = preg_replace('/^\d+\.\s*/u', '', $chunk);
-        $text = trim((string) $text);
-        if ($text !== '') {
-            $items[] = $text;
-        }
-    }
-
-    if ($items === []) {
-        return nl2br(e($body));
-    }
-
-    $html = '<ol class="guard-policy-modal__list">';
+    $html = '<ul class="guard-policy-modal__list">';
     foreach ($items as $item) {
         $html .= '<li>' . e($item) . '</li>';
     }
-    $html .= '</ol>';
+    $html .= '</ul>';
 
     return $html;
+}
+
+/** @return list<string> */
+function guard_portal_policy_numbered_items(string $body): array
+{
+    $lines = preg_split('/\r\n|\r|\n/', $body) ?: [];
+    $items = [];
+    $current = '';
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        if (preg_match('/^\d+\.\s*(.*)$/u', $line, $matches)) {
+            if ($current !== '') {
+                $items[] = trim($current);
+            }
+            $current = trim((string) ($matches[1] ?? ''));
+            continue;
+        }
+        if ($current !== '') {
+            $current .= ' ' . $line;
+        }
+    }
+
+    if ($current !== '') {
+        $items[] = trim($current);
+    }
+
+    return array_values(array_filter($items, static fn (string $item): bool => $item !== ''));
 }
 
 /** @return list<array{title:string,slug:string,body:string}> */

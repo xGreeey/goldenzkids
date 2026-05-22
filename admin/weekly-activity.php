@@ -69,7 +69,7 @@ if ($openId !== '' && $openRecord === null) {
 
 $statusDefinitions = admin_weekly_activity_status_definitions();
 
-$warGenerateOptions = admin_weekly_activity_generate_assignment_options();
+$warGenerateOptions = admin_weekly_activity_generate_assignment_options($conn);
 $warDefaultWeekStart = admin_weekly_activity_default_week_start();
 $warDefaultWeekEnd = admin_weekly_activity_default_week_end();
 
@@ -215,7 +215,7 @@ $adminNavActive = 'weekly-activity';
                                                         class="reports-action-btn"
                                                         data-action="print"
                                                         data-activity-id="<?= e((string) $report['id']) ?>"
-                                                        title="Print summary"
+                                                        title="Download PDF (Legal portrait)"
                                                         aria-label="Print <?= e((string) $report['ref']) ?>"><?= admin_weekly_activity_action_icon('print') ?></button>
                                                 <button type="button"
                                                         class="reports-action-btn reports-action-btn--danger"
@@ -295,13 +295,6 @@ $adminNavActive = 'weekly-activity';
 </div>
 
 <?php admin_shell_scripts(); ?>
-<?php
-$weeklyWarJs = __DIR__ . '/assets/js/weekly-war-generate.js';
-if (is_readable($weeklyWarJs)) {
-    echo '<script src="' . e(app_url('admin/assets/js/weekly-war-generate.js'))
-        . '?v=' . (int) filemtime($weeklyWarJs) . '" defer></script>';
-}
-?>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

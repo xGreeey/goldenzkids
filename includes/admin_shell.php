@@ -1220,7 +1220,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
-        echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
+        $html2pdfJs = dirname(__DIR__) . '/admin/assets/js/vendor/html2pdf.bundle.min.js';
+        if (is_readable($html2pdfJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/vendor/html2pdf.bundle.min.js'))
+                . '?v=' . (int) filemtime($html2pdfJs) . '" defer></script>';
+        }
+        $reportPrintJs = dirname(__DIR__) . '/admin/assets/js/report-print.js';
+        if (is_readable($reportPrintJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/report-print.js'))
+                . '?v=' . (int) filemtime($reportPrintJs) . '" defer></script>';
+        }
+        $reportsJs = dirname(__DIR__) . '/admin/assets/js/reports.js';
+        echo '<script src="' . e(app_url('admin/assets/js/reports.js'))
+            . (is_readable($reportsJs) ? '?v=' . (int) filemtime($reportsJs) : '') . '" defer></script>';
         $dailyDetailJs = dirname(__DIR__) . '/admin/assets/js/daily-detail.js';
         if (is_readable($dailyDetailJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/daily-detail.js'))
@@ -1230,6 +1242,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (is_readable($activityRegistryJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/activity-registry.js'))
                 . '?v=' . (int) filemtime($activityRegistryJs) . '" defer></script>';
+        }
+        $weeklyWarJs = dirname(__DIR__) . '/admin/assets/js/weekly-war-generate.js';
+        if (is_readable($weeklyWarJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/weekly-war-generate.js'))
+                . '?v=' . (int) filemtime($weeklyWarJs) . '" defer></script>';
         }
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';

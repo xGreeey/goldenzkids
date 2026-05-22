@@ -424,6 +424,14 @@ function admin_reports_row_attrs(array $report): string
                                                         aria-label="View <?= e((string) $report['ref']) ?>">
                                                     <?= admin_incident_action_icon('view') ?>
                                                 </button>
+                                                <button type="button"
+                                                        class="reports-action-btn"
+                                                        data-action="print"
+                                                        data-incident-id="<?= e((string) $report['id']) ?>"
+                                                        title="Download PDF (Legal portrait)"
+                                                        aria-label="Print <?= e((string) $report['ref']) ?>">
+                                                    <?= admin_incident_action_icon('print') ?>
+                                                </button>
                                                 <?php
                                                 $incStatusSlug = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
                                                 if (!admin_incident_status_is_valid($incStatusSlug)) {
@@ -685,7 +693,6 @@ function admin_reports_row_attrs(array $report): string
 </div>
 
 <?php admin_shell_scripts(); ?>
-<script src="assets/js/reports.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/reports.js') ?>" defer></script>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

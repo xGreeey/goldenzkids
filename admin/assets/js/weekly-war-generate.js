@@ -24,13 +24,23 @@
             return;
         }
 
+        if (form.dataset.warGenerateBound === '1') {
+            return;
+        }
+        form.dataset.warGenerateBound = '1';
+
+        if (window.__weeklyWarAbort) {
+            window.__weeklyWarAbort.abort();
+        }
+        window.__weeklyWarAbort = new AbortController();
+        const signal = window.__weeklyWarAbort.signal;
+
         if (overlay.parentElement !== document.body) {
             document.body.appendChild(overlay);
         }
 
         const previewUrl = module?.dataset.warPreviewUrl || 'api/weekly-war-preview.php';
         const csrf = module?.dataset.csrf || form.querySelector('input[name="_csrf"]')?.value || '';
-        let pendingSubmit = false;
 
         function closePreview() {
             overlay.classList.remove('is-open');
@@ -40,7 +50,6 @@
                 document.body.style.overflow = '';
             }
             confirmBtn.disabled = true;
-            pendingSubmit = false;
         }
 
         function openPreview() {
@@ -48,18 +57,6 @@
             overlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('activity-registry-modal-open');
             document.body.style.overflow = 'hidden';
-        }
-
-        function renderEmptySection(title, message) {
-            return (
-                '<section class="reports-war-preview__section">' +
-                '<h3 class="reports-war-preview__section-title">' +
-                escapeHtml(title) +
-                '</h3>' +
-                '<p class="reports-war-preview__empty">' +
-                escapeHtml(message) +
-                '</p></section>'
-            );
         }
 
         function renderTable(headers, rows) {
@@ -208,8 +205,19 @@
             confirmBtn.disabled = duplicate;
         }
 
+        function focusFirstInvalidField() {
+            const invalid = form.querySelector(':invalid');
+            if (invalid && typeof invalid.focus === 'function') {
+                invalid.focus();
+                if (typeof invalid.reportValidity === 'function') {
+                    invalid.reportValidity();
+                }
+            }
+        }
+
         async function loadPreview() {
             if (!form.reportValidity()) {
+                focusFirstInvalidField();
                 return;
             }
 
@@ -244,34 +252,53 @@
             }
         }
 
-        previewBtn.addEventListener('click', loadPreview);
+        previewBtn.addEventListener('click', loadPreview, { signal });
 
-        form.addEventListener('submit', (e) => {
-            if (!pendingSubmit) {
+        form.addEventListener(
+            'submit',
+            (e) => {
                 e.preventDefault();
                 loadPreview();
-            }
-        });
+            },
+            { signal }
+        );
 
-        confirmBtn.addEventListener('click', () => {
-            pendingSubmit = true;
-            closePreview();
-            form.requestSubmit();
-        });
+        confirmBtn.addEventListener(
+            'click',
+            () => {
+                if (confirmBtn.disabled || !form.reportValidity()) {
+                    focusFirstInvalidField();
+                    return;
+                }
+                closePreview();
+                form.submit();
+            },
+            { signal }
+        );
 
-        cancelBtn?.addEventListener('click', closePreview);
-        closeBtn?.addEventListener('click', closePreview);
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closePreview();
-            }
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
-                closePreview();
-            }
-        });
+        cancelBtn?.addEventListener('click', closePreview, { signal });
+        closeBtn?.addEventListener('click', closePreview, { signal });
+        overlay.addEventListener(
+            'click',
+            (e) => {
+                if (e.target === overlay) {
+                    closePreview();
+                }
+            },
+            { signal }
+        );
+        document.addEventListener(
+            'keydown',
+            (e) => {
+                if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
+                    closePreview();
+                }
+            },
+            { signal }
+        );
     }
+
+    window.initWeeklyWarGenerate = initWeeklyWarGenerate;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initWeeklyWarGenerate);

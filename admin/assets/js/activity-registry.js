@@ -393,7 +393,7 @@
             modalDetails.innerHTML = html;
         }
 
-        function buildWeeklyPrintHtml(p) {
+        function buildWeeklyPrintBody(p) {
             const ref = String(p.ref || 'Weekly summary');
             const printedAt = new Date().toLocaleString();
             const pageTitle = (document.title || '').replace(/\s*\|\s*.*$/, '').trim() || 'Weekly Summary Report';
@@ -404,16 +404,6 @@
                 (p.week_start && p.week_end ? p.week_start + ' – ' + p.week_end : '—');
 
             return (
-                '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
-                escapeHtml(ref) +
-                '</title><style>' +
-                'body{font-family:system-ui,sans-serif;font-size:12pt;line-height:1.45;color:#111;margin:1.25in;}' +
-                'h1{font-size:18pt;margin:0 0 4px;} .meta{color:#444;font-size:10pt;margin-bottom:20px;}' +
-                'dl{display:grid;grid-template-columns:9rem 1fr;gap:6px 12px;margin:0 0 16px;} dt{font-weight:700;margin:0;} dd{margin:0;}' +
-                'h2{font-size:12pt;margin:18px 0 8px;}' +
-                '.narrative{white-space:pre-wrap;margin:0;}' +
-                '@media print{body{margin:0.75in;}}' +
-                '</style></head><body>' +
                 '<h1>' +
                 escapeHtml(ref) +
                 '</h1>' +
@@ -448,11 +438,11 @@
                 '</p>' +
                 '<h2>Highlights</h2><p class="narrative">' +
                 escapeHtml(highlights) +
-                '</p></body></html>'
+                '</p>'
             );
         }
 
-        function buildDailyPrintHtml(p) {
+        function buildDailyPrintBody(p) {
             const ref = String(p.ref || 'Daily activity report');
             const printedAt = new Date().toLocaleString();
             const pageTitle = (document.title || '').replace(/\s*\|\s*.*$/, '').trim() || 'Daily Activity Report';
@@ -481,16 +471,6 @@
             }
 
             return (
-                '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
-                escapeHtml(ref) +
-                '</title><style>' +
-                'body{font-family:system-ui,sans-serif;font-size:12pt;line-height:1.45;color:#111;margin:1.25in;}' +
-                'h1{font-size:18pt;margin:0 0 4px;} .meta{color:#444;font-size:10pt;margin-bottom:20px;}' +
-                'dl{display:grid;grid-template-columns:9rem 1fr;gap:6px 12px;margin:0 0 16px;} dt{font-weight:700;margin:0;} dd{margin:0;}' +
-                'h2{font-size:12pt;margin:18px 0 8px;}' +
-                '.narrative{white-space:pre-wrap;margin:0;}' +
-                '@media print{body{margin:0.75in;}}' +
-                '</style></head><body>' +
                 '<h1>' +
                 escapeHtml(ref) +
                 '</h1>' +
@@ -526,8 +506,7 @@
                 '<h2>Summary</h2><p class="narrative">' +
                 escapeHtml(summary) +
                 '</p>' +
-                submissionHtml +
-                '</body></html>'
+                submissionHtml
             );
         }
 
@@ -536,13 +515,25 @@
             if (!p) {
                 return;
             }
+            const ref = String(p.ref || (isWeekly ? 'Weekly summary' : 'Daily activity report'));
+            const bodyHtml = isWeekly ? buildWeeklyPrintBody(p) : buildDailyPrintBody(p);
+            if (window.ReportPrint && typeof window.ReportPrint.print === 'function') {
+                window.ReportPrint.print({ title: ref, bodyHtml: bodyHtml });
+                return;
+            }
             const win = window.open('', '_blank', 'noopener,noreferrer');
             if (!win) {
-                window.alert('Allow pop-ups to print this report.');
+                window.alert('Allow pop-ups to print or save this report as PDF.');
                 return;
             }
             win.document.open();
-            win.document.write(isWeekly ? buildWeeklyPrintHtml(p) : buildDailyPrintHtml(p));
+            win.document.write(
+                '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
+                    escapeHtml(ref) +
+                    '</title></head><body>' +
+                    bodyHtml +
+                    '</body></html>'
+            );
             win.document.close();
             win.focus();
             setTimeout(function () {

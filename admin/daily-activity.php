@@ -272,7 +272,7 @@ $adminNavActive = 'daily-activity';
                                                         class="reports-action-btn"
                                                         data-action="print"
                                                         data-activity-id="<?= e((string) $report['id']) ?>"
-                                                        title="Print report"
+                                                        title="Download PDF (Legal portrait)"
                                                         aria-label="Print <?= e((string) $report['ref']) ?>"><?= admin_daily_activity_action_icon('print') ?></button>
                                             </div>
                                         </td>

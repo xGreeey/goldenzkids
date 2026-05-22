@@ -209,12 +209,25 @@
                 }
 
                 const viewBtn = e.target.closest('[data-action="view"]');
+                const printBtn = e.target.closest('[data-action="print"]');
                 const archiveBtn = e.target.closest('[data-action="archive"]');
                 const deleteBtn = e.target.closest('[data-action="delete"]');
                 if (viewBtn) {
                     e.preventDefault();
                     e.stopPropagation();
                     h.openIncident(viewBtn.dataset.incidentId || '', 'view');
+                    return;
+                }
+                if (printBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const printId =
+                        printBtn.dataset.incidentId ||
+                        printBtn.closest('[data-report-row]')?.dataset.id ||
+                        '';
+                    if (printId) {
+                        h.printIncident?.(printId);
+                    }
                     return;
                 }
                 if (archiveBtn) {
@@ -1338,7 +1351,7 @@
             : buildOperationFlowHtml(history, payload);
     }
 
-    function buildPrintHtml(p) {
+    function buildIncidentPrintBody(p) {
         const history = Array.isArray(p.history) ? p.history : [];
         const historyRows = history.length
             ? history
@@ -1355,23 +1368,15 @@
                   .join('')
             : '<tr><td colspan="3">No history entries.</td></tr>';
 
+        const ref = String(p.ref || 'Incident report');
+        const pageTitle = document.title.replace(/\s*\|\s*.*$/, '').trim() || 'Incident report';
+
         return (
-            '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
-            escapeHtml(p.ref || 'Incident report') +
-            '</title><style>' +
-            'body{font-family:system-ui,sans-serif;font-size:12pt;line-height:1.45;color:#111;margin:1.25in;}' +
-            'h1{font-size:18pt;margin:0 0 4px;} .meta{color:#444;font-size:10pt;margin-bottom:20px;}' +
-            'table{width:100%;border-collapse:collapse;margin:12px 0;} th,td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top;}' +
-            'th{background:#f4f4f4;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;}' +
-            'dl{display:grid;grid-template-columns:9rem 1fr;gap:6px 12px;margin:0 0 16px;} dt{font-weight:700;margin:0;} dd{margin:0;}' +
-            '.summary{white-space:pre-wrap;}' +
-            '@media print{body{margin:0.75in;}}' +
-            '</style></head><body>' +
             '<h1>' +
-            escapeHtml(p.ref || 'Incident report') +
+            escapeHtml(ref) +
             '</h1>' +
             '<p class="meta">' +
-            escapeHtml(document.title.replace(/\s*\|\s*.*$/, '').trim() || 'Incident report') +
+            escapeHtml(pageTitle) +
             ' · Printed ' +
             escapeHtml(new Date().toLocaleString()) +
             '</p>' +
@@ -1402,29 +1407,44 @@
             escapeHtml(p.incident_type) +
             '</dd>' +
             '</dl>' +
-            '<h2 style="font-size:12pt;margin:16px 0 8px;">Summary</h2>' +
+            '<h2>Summary</h2>' +
             '<p class="summary">' +
             escapeHtml(p.summary) +
             '</p>' +
             (p.ops_note
-                ? '<h2 style="font-size:12pt;margin:16px 0 8px;">Operations note</h2><p class="summary">' +
-                  escapeHtml(p.ops_note) +
-                  '</p>'
+                ? '<h2>Operations note</h2><p class="summary">' + escapeHtml(p.ops_note) + '</p>'
                 : '') +
-            '<h2 style="font-size:12pt;margin:16px 0 8px;">Status history</h2>' +
+            '<h2>Status history</h2>' +
             '<table><thead><tr><th>When</th><th>Event</th><th>Note</th></tr></thead><tbody>' +
             historyRows +
-            '</tbody></table></body></html>'
+            '</tbody></table>'
         );
     }
 
     function printIncident(id) {
         const p = reportsLive.reportsById[id];
-        if (!p) return;
+        if (!p) {
+            return;
+        }
+        const ref = String(p.ref || 'Incident report');
+        const bodyHtml = buildIncidentPrintBody(p);
+        if (window.ReportPrint && typeof window.ReportPrint.print === 'function') {
+            window.ReportPrint.print({ title: ref, bodyHtml: bodyHtml });
+            return;
+        }
         const win = window.open('', '_blank', 'noopener,noreferrer');
-        if (!win) return;
+        if (!win) {
+            window.alert('Allow pop-ups to print or save this report as PDF.');
+            return;
+        }
         win.document.open();
-        win.document.write(buildPrintHtml(p));
+        win.document.write(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
+                escapeHtml(ref) +
+                '</title></head><body>' +
+                bodyHtml +
+                '</body></html>'
+        );
         win.document.close();
         win.focus();
         setTimeout(function () {

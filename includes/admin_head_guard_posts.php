@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/auth.php';
+
 function admin_head_guard_posts_ready(PDO $conn): bool
 {
     return db_table_exists($conn, 'callout_posts')
@@ -28,7 +30,7 @@ function admin_head_guard_posts_list_posts(PDO $conn): array
  */
 function admin_head_guard_posts_list_users(PDO $conn): array
 {
-    $roleCol = auth_users_role_column($conn);
+    $roleFilter = auth_users_head_guard_role_filter($conn);
     $hasUserNames = auth_users_has_profile_names($conn);
     $nameSelect = $hasUserNames
         ? "COALESCE(NULLIF(TRIM(u.First_Name), ''), g.First_Name) AS first_name,
@@ -53,10 +55,10 @@ function admin_head_guard_posts_list_users(PDO $conn): array
             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
             {$hgJoin}
             {$assignJoin}
-            WHERE u.{$roleCol} = ?
+            WHERE {$roleFilter['fragment']}
             ORDER BY u.is_active DESC, last_name ASC, first_name ASC, u.Company_ID ASC";
 
-    $rows = db_fetch_all($conn, $sql, 'i', [AUTH_ROLE_GUARD]);
+    $rows = db_fetch_all($conn, $sql, $roleFilter['types'], $roleFilter['params']);
     $seen = [];
     $list = [];
 
@@ -92,6 +94,47 @@ function admin_head_guard_posts_list_users(PDO $conn): array
     }
 
     return $list;
+}
+
+/**
+ * Post / head guard pairs for admin report tools (WAR generate, etc.).
+ * Uses active users with head-guard portal role and a resolved duty post.
+ *
+ * @return list<array{key: string, head_guard_id: string, head_guard_name: string, site_name: string}>
+ */
+function admin_head_guard_report_assignment_options(PDO $conn): array
+{
+    $options = [];
+
+    foreach (admin_head_guard_posts_list_users($conn) as $hg) {
+        if ((int) ($hg['is_active'] ?? 0) !== 1) {
+            continue;
+        }
+
+        $companyId = trim((string) ($hg['company_id'] ?? ''));
+        $post = trim((string) ($hg['assigned_post_name'] ?? ''));
+        if ($companyId === '' || $post === '') {
+            continue;
+        }
+
+        $name = trim((string) ($hg['label'] ?? '')) ?: $companyId;
+        $options[] = [
+            'key' => $post . "\x1e" . $companyId,
+            'head_guard_id' => $companyId,
+            'head_guard_name' => $name,
+            'site_name' => $post,
+        ];
+    }
+
+    usort(
+        $options,
+        static fn (array $a, array $b): int => strcasecmp(
+            $a['site_name'] . $a['head_guard_name'],
+            $b['site_name'] . $b['head_guard_name']
+        )
+    );
+
+    return $options;
 }
 
 function admin_head_guard_posts_display_label(string $companyId, string $first, string $last, string $email): string
@@ -263,12 +306,12 @@ function admin_head_guard_posts_assign(PDO $conn, string $companyId, int $postId
         return ['ok' => false, 'error' => 'Post assignment tables are not available. Run database migrations first.'];
     }
 
-    $roleCol = auth_users_role_column($conn);
+    $roleFilter = auth_users_head_guard_role_filter($conn);
     $user = db_fetch_one(
         $conn,
-        "SELECT Company_ID FROM users WHERE Company_ID = ? AND {$roleCol} = ? LIMIT 1",
-        'si',
-        [$companyId, AUTH_ROLE_GUARD]
+        "SELECT Company_ID FROM users u WHERE u.Company_ID = ? AND {$roleFilter['fragment']} LIMIT 1",
+        's' . $roleFilter['types'],
+        array_merge([$companyId], $roleFilter['params'])
     );
     if ($user === null) {
         return ['ok' => false, 'error' => 'Invalid head guard account.'];

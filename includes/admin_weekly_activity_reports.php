@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin_weekly_activity_status.php';
 require_once __DIR__ . '/admin_incident_reports.php'; // modal field helpers
 require_once __DIR__ . '/admin_daily_activity_reports.php';
+require_once __DIR__ . '/admin_head_guard_posts.php';
 require_once __DIR__ . '/guard_daily_activity.php';
 
 const ADMIN_WEEKLY_ACTIVITY_SESSION_KEY = 'admin_weekly_activity_reports_store';
@@ -75,83 +76,27 @@ function admin_weekly_activity_normalize(array $row): array
     return $row;
 }
 
-/**
- * @return list<array<string, mixed>>
- */
-function admin_weekly_activity_seed_reports(): array
-{
-    return [
-        [
-            'id' => 'war-seed-1',
-            'ref' => GUARD_WEEKLY_ACTIVITY_REF_PREFIX . '-2026-0001',
-            'week_label' => '12–18 May 2026',
-            'week_start' => '2026-05-12',
-            'week_end' => '2026-05-18',
-            'head_guard_id' => 'HG-DEMO-01',
-            'head_guard_name' => 'Santos, Maria L.',
-            'site_name' => 'Ayala Tower One — Lobby',
-            'summary' => 'All shifts covered; one client walk-through; zero open incidents.',
-            'highlights' => 'Completed fire drill coordination; trained 2 relievers on access control SOP.',
-            'status' => ADMIN_WEEKLY_ACTIVITY_STATUS_APPROVED,
-            'submitted_at' => '2026-05-18 17:30:00',
-            'updated_at' => '2026-05-19 09:15:00',
-            'history' => [
-                ['at' => '18 May 2026, 17:30', 'event' => 'Submitted by head guard', 'note' => 'Weekly summary filed'],
-                ['at' => '19 May 2026, 09:15', 'event' => 'Registry: Approved', 'note' => 'Filed for client weekly pack'],
-            ],
-        ],
-        [
-            'id' => 'war-seed-2',
-            'ref' => GUARD_WEEKLY_ACTIVITY_REF_PREFIX . '-2026-0002',
-            'week_label' => '12–18 May 2026',
-            'week_start' => '2026-05-12',
-            'week_end' => '2026-05-18',
-            'head_guard_id' => 'HG-DEMO-02',
-            'head_guard_name' => 'Reyes, Juan P.',
-            'site_name' => 'BGC High Street — Retail cluster',
-            'summary' => 'Two vendor incidents escalated; both closed same day. Manning at 98%.',
-            'highlights' => 'Gate 3 delivery policy briefing with facilities; overtime approved for weekend cover.',
-            'status' => ADMIN_WEEKLY_ACTIVITY_STATUS_PENDING,
-            'submitted_at' => '2026-05-18 18:05:00',
-            'updated_at' => '2026-05-18 18:05:00',
-            'history' => [
-                ['at' => '18 May 2026, 18:05', 'event' => 'Submitted by head guard', 'note' => 'Pending operations review'],
-            ],
-        ],
-        [
-            'id' => 'war-seed-3',
-            'ref' => GUARD_WEEKLY_ACTIVITY_REF_PREFIX . '-2026-0003',
-            'week_label' => '5–11 May 2026',
-            'week_start' => '2026-05-05',
-            'week_end' => '2026-05-11',
-            'head_guard_id' => 'HG-DEMO-03',
-            'head_guard_name' => 'Cruz, Ana R.',
-            'site_name' => 'Ortigas Center — Podium',
-            'summary' => 'Returned for missing drill attendance sheet — resubmit requested.',
-            'highlights' => 'Draft accomplishments; drill log attachment pending.',
-            'status' => ADMIN_WEEKLY_ACTIVITY_STATUS_RETURNED,
-            'submitted_at' => '2026-05-11 16:20:00',
-            'updated_at' => '2026-05-12 10:00:00',
-            'history' => [
-                ['at' => '11 May 2026, 16:20', 'event' => 'Submitted by head guard', 'note' => 'Initial submission'],
-                ['at' => '12 May 2026, 10:00', 'event' => 'Registry: Returned', 'note' => 'Attach signed drill log'],
-            ],
-        ],
-    ];
-}
-
 /** @return list<array<string, mixed>> */
 function admin_weekly_activity_store_raw(): array
 {
     if (!isset($_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY]) || !is_array($_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY])) {
-        $_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY] = admin_weekly_activity_seed_reports();
+        $_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY] = [];
     }
 
     $out = [];
     foreach ($_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY] as $row) {
-        if (is_array($row)) {
-            $out[] = $row;
+        if (!is_array($row)) {
+            continue;
         }
+        $id = (string) ($row['id'] ?? '');
+        if ($id !== '' && str_starts_with($id, 'war-seed-')) {
+            continue;
+        }
+        $out[] = $row;
+    }
+
+    if (count($out) !== count($_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY])) {
+        $_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY] = $out;
     }
 
     return $out;
@@ -289,8 +234,13 @@ function admin_weekly_activity_next_id(array $reports): string
 /**
  * @return list<array{key: string, head_guard_id: string, head_guard_name: string, site_name: string}>
  */
-function admin_weekly_activity_generate_assignment_options(): array
+function admin_weekly_activity_generate_assignment_options(?PDO $conn = null): array
 {
+    if (!$conn instanceof PDO) {
+        $globalConn = $GLOBALS['conn'] ?? null;
+        $conn = $globalConn instanceof PDO ? $globalConn : null;
+    }
+
     $seen = [];
     $options = [];
 
@@ -314,20 +264,14 @@ function admin_weekly_activity_generate_assignment_options(): array
         ];
     };
 
-    foreach (admin_weekly_activity_store_raw() as $row) {
-        $add(
-            (string) ($row['head_guard_id'] ?? ''),
-            (string) ($row['head_guard_name'] ?? ''),
-            (string) ($row['site_name'] ?? '')
-        );
-    }
-
-    foreach (admin_daily_activity_store_all() as $row) {
-        $add(
-            (string) ($row['head_guard_id'] ?? ''),
-            (string) ($row['head_guard_name'] ?? ''),
-            (string) ($row['site_name'] ?? '')
-        );
+    if ($conn instanceof PDO && db_table_exists($conn, 'users')) {
+        foreach (admin_head_guard_report_assignment_options($conn) as $opt) {
+            $add(
+                (string) ($opt['head_guard_id'] ?? ''),
+                (string) ($opt['head_guard_name'] ?? ''),
+                (string) ($opt['site_name'] ?? '')
+            );
+        }
     }
 
     usort(
@@ -777,7 +721,8 @@ function admin_weekly_activity_generate_panel_html(array $options, string $defau
 {
     if ($options === []) {
         return '<section class="reports-war-panel reports-war-panel--empty" aria-label="Generate WAR">'
-            . '<p class="reports-war-panel__empty">Add daily activity or weekly seed data before generating a WAR.</p>'
+            . '<p class="reports-war-panel__empty">Assign at least one active head guard (role 0) to a post under '
+            . '<strong>Head guard posts</strong> before generating a WAR.</p>'
             . '</section>';
     }
 

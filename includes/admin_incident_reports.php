@@ -69,46 +69,91 @@ function admin_incident_head_guard_display_name(array $row): string
 }
 
 /**
- * Head guards (role 0 portal accounts) — source for incident submitters.
+ * Head guards (portal role on users) — source for incident submitters and report tooling.
+ *
+ * @return list<array{company_id:string, display_name:string, first_name?:string, last_name?:string, post_name?:string|null}>
+ */
+function admin_incident_head_guards_from_users(PDO $conn): array
+{
+    if (!db_table_exists($conn, 'users')) {
+        return [];
+    }
+
+    require_once __DIR__ . '/admin_head_guard_posts.php';
+
+    $list = [];
+    foreach (admin_head_guard_posts_list_users($conn) as $hg) {
+        if ((int) ($hg['is_active'] ?? 0) !== 1) {
+            continue;
+        }
+
+        $companyId = trim((string) ($hg['company_id'] ?? ''));
+        if ($companyId === '') {
+            continue;
+        }
+
+        $label = trim((string) ($hg['label'] ?? ''));
+        $post = trim((string) ($hg['assigned_post_name'] ?? ''));
+
+        $list[] = [
+            'company_id' => $companyId,
+            'first_name' => '',
+            'last_name' => '',
+            'display_name' => $label !== '' ? $label : $companyId,
+            'post_name' => $post !== '' ? $post : null,
+        ];
+    }
+
+    return $list;
+}
+
+/**
+ * @deprecated Prefer {@see admin_incident_head_guards_from_users()} with PDO.
  *
  * @return list<array{company_id:string, display_name:string, first_name?:string, last_name?:string, post_name?:string|null}>
  */
 function admin_incident_head_guards_fetch(mysqli $conn): array
 {
     $list = [];
+    $guardRole = (int) AUTH_ROLE_GUARD;
 
-    if (admin_incident_table_exists($conn, 'callout_head_guards')) {
+    if (admin_incident_table_exists($conn, 'callout_head_guards') && admin_incident_table_exists($conn, 'users')) {
         $result = $conn->query(
-            'SELECT company_id, first_name, last_name, display_name
-             FROM callout_head_guards
-             WHERE is_active = 1
-             ORDER BY display_name ASC'
+            "SELECT hg.company_id, hg.first_name, hg.last_name, hg.display_name,
+                    p.post_name
+             FROM callout_head_guards hg
+             INNER JOIN users u ON u.Company_ID = hg.company_id AND u.is_active = 1 AND u.role = {$guardRole}
+             LEFT JOIN callout_post_assignments a ON a.head_guard_id = hg.head_guard_id AND a.is_active = 1
+             LEFT JOIN callout_posts p ON p.post_id = a.post_id AND p.is_active = 1
+             WHERE hg.is_active = 1 AND hg.company_id IS NOT NULL AND TRIM(hg.company_id) <> ''
+             ORDER BY hg.display_name ASC"
         );
         if ($result) {
             while ($row = $result->fetch_assoc()) {
                 $companyId = trim((string) ($row['company_id'] ?? ''));
                 if ($companyId === '') {
-                    $companyId = 'HG-' . substr(md5((string) $row['display_name']), 0, 8);
+                    continue;
                 }
                 $list[] = [
                     'company_id' => $companyId,
                     'first_name' => (string) ($row['first_name'] ?? ''),
                     'last_name' => (string) ($row['last_name'] ?? ''),
                     'display_name' => (string) ($row['display_name'] ?? ''),
-                    'post_name' => null,
+                    'post_name' => isset($row['post_name']) && $row['post_name'] !== ''
+                        ? (string) $row['post_name']
+                        : null,
                 ];
             }
         }
     }
 
-    if ($list === []) {
-        $roleCol = auth_users_role_column($conn);
-        $sql = "SELECT u.Company_ID AS company_id, g.First_Name AS first_name, g.Last_Name AS last_name,
+    if ($list === [] && admin_incident_table_exists($conn, 'users')) {
+        $sql = 'SELECT u.Company_ID AS company_id, g.First_Name AS first_name, g.Last_Name AS last_name,
                        g.Post_Assigned AS post_name
                 FROM users u
                 LEFT JOIN guards g ON g.Company_ID = u.Company_ID
-                WHERE u.is_active = 1 AND u.{$roleCol} = 0
-                ORDER BY g.Last_Name ASC, g.First_Name ASC, u.Company_ID ASC";
+                WHERE u.is_active = 1 AND u.role = ' . $guardRole . '
+                ORDER BY g.Last_Name ASC, g.First_Name ASC, u.Company_ID ASC';
 
         $result = $conn->query($sql);
         if ($result) {
@@ -370,9 +415,17 @@ function admin_incident_seed_templates(): array
 function admin_incident_seed_reports(?mysqli $conn = null): array
 {
     $templates = admin_incident_seed_templates();
-    $headGuards = $conn instanceof mysqli
-        ? admin_incident_head_guards_fetch($conn)
-        : admin_incident_head_guards_fallback();
+    $pdo = $GLOBALS['conn'] ?? null;
+    if ($pdo instanceof PDO) {
+        $headGuards = admin_incident_head_guards_from_users($pdo);
+    } elseif ($conn instanceof mysqli) {
+        $headGuards = admin_incident_head_guards_fetch($conn);
+    } else {
+        $headGuards = [];
+    }
+    if ($headGuards === []) {
+        $headGuards = admin_incident_head_guards_fallback();
+    }
 
     $reports = [];
     $guardCount = count($headGuards);
@@ -453,11 +506,9 @@ function admin_incident_store_all(): array
         foreach (guard_incident_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_incident_normalize($row);
         }
-        if ($out !== []) {
-            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-            return $out;
-        }
+        return $out;
     }
 
     if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {

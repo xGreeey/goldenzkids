@@ -275,6 +275,26 @@ function auth_map_user_row(array $row): array
     ];
 }
 
+/**
+ * Email on file for the currently signed-in portal user.
+ */
+function auth_current_user_email(PDO $conn): ?string
+{
+    if (!auth_is_logged_in()) {
+        return null;
+    }
+
+    $companyId = (string) ($_SESSION['company_id'] ?? '');
+    if ($companyId === '') {
+        return null;
+    }
+
+    $user = auth_find_user_by_company_id($conn, $companyId);
+    $email = $user['email'] ?? null;
+
+    return is_string($email) && $email !== '' ? $email : null;
+}
+
 function auth_find_user_by_company_id(PDO $conn, string $companyId): ?array
 {
     if (!auth_users_table_supports_hashes($conn)) {

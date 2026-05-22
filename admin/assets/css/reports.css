@@ -5264,6 +5264,25 @@ body.page-daily-detail .reports-toolbar select {
     color: var(--app-accent-text, #ca8a04);
 }
 
+.reports-dad-ocr-export {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+}
+
+.reports-dad-ocr-export__hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-ocr-export__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 /* DAD modal — attendance sheet + OCR (legacy blocks) */
 .reports-dad-media {
     display: grid;

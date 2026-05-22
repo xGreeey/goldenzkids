@@ -104,7 +104,6 @@ function admin_attendance_status_is_valid(string $status): bool
 function admin_attendance_issue_options(): array
 {
     return [
-        'roster_review' => 'Attendance sheet review',
         'missing_time_in' => 'Missing time-in',
         'missing_time_out' => 'Missing time-out',
         'wrong_time_in' => 'Wrong time-in',
@@ -118,6 +117,10 @@ function admin_attendance_issue_options(): array
 
 function admin_attendance_issue_label(string $issue): string
 {
+    if ($issue === 'roster_review') {
+        return '';
+    }
+
     return admin_attendance_issue_options()[$issue] ?? $issue;
 }
 
@@ -579,7 +582,6 @@ function admin_attendance_modal_details_html(array $record): string
         'Guard' => (string) ($record['guard_name'] ?? '') . ' (' . (string) ($record['guard_id'] ?? '') . ')',
         'Post' => (string) ($record['post'] ?? ''),
         'Shift' => (string) ($record['shift_display'] ?? $record['shift_date'] ?? ''),
-        'Issue' => (string) ($record['issue_label'] ?? ''),
         'Time record' => (string) ($record['time_record'] ?? ''),
         'Equivalence' => (string) ($record['recorded_label'] ?? ''),
         'Status' => (string) ($record['status_label'] ?? ''),

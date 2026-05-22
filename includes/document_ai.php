@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/document_ai_rest.php';
+
 use Google\Cloud\DocumentAI\V1\Client\DocumentProcessorServiceClient;
 use Google\Cloud\DocumentAI\V1\Document;
 use Google\Cloud\DocumentAI\V1\Document\Page\FormField;
@@ -83,54 +85,151 @@ function document_ai_process_report_scan(string $absolutePath, string $reportTyp
         return ['ok' => false, 'error' => 'Could not read the report scan image.'];
     }
 
+    $cfg = document_ai_config();
+    $mimeType = document_ai_mime_for_path($absolutePath);
+    $restFailure = null;
+
+    if (document_ai_should_use_direct_rest()) {
+        $restResult = document_ai_process_with_rest($bytes, $mimeType, $cfg, $reportType);
+        if ($restResult['ok']) {
+            return $restResult;
+        }
+
+        $restFailure = $restResult;
+        error_log('Document AI REST failed: ' . ($restResult['error'] ?? 'unknown'));
+    }
+
     try {
-        $cfg = document_ai_config();
-        $client = document_ai_client($cfg);
-        $processorName = document_ai_resolve_processor_name($client, $cfg);
-        if ($processorName === '') {
-            return ['ok' => false, 'error' => 'No Document AI OCR processor found. Set GOOGLE_DOCUMENT_AI_PROCESSOR_ID in .env.'];
-        }
-
-        $raw = (new RawDocument())
-            ->setContent($bytes)
-            ->setMimeType(document_ai_mime_for_path($absolutePath));
-
-        $ocrConfig = (new OcrConfig())
-            ->setEnableNativePdfParsing(true);
-
-        $processOptions = (new ProcessOptions())->setOcrConfig($ocrConfig);
-
-        $request = (new ProcessRequest())
-            ->setName($processorName)
-            ->setRawDocument($raw)
-            ->setProcessOptions($processOptions)
-            ->setSkipHumanReview(true);
-
-        $response = $client->processDocument($request);
-        $document = $response->getDocument();
-        if (!$document instanceof Document) {
-            return ['ok' => false, 'error' => 'Document AI returned an empty result.'];
-        }
-
-        $rawText = trim((string) $document->getText());
-        $structured = document_ai_build_structured($document, $reportType, $rawText);
-        $formatted = document_ai_format_structured($structured, $reportType, $rawText);
-
-        return [
-            'ok' => true,
-            'payload' => [
-                'raw' => $rawText,
-                'structured' => $structured,
-                'formatted' => $formatted,
-                'processed_at' => date('c'),
-                'processor' => $processorName,
-            ],
-        ];
+        return document_ai_process_with_client($bytes, $mimeType, $cfg, $reportType);
     } catch (Throwable $e) {
         error_log('Document AI OCR failed: ' . $e->getMessage());
 
-        return ['ok' => false, 'error' => 'OCR processing failed. Check credentials, processor, and API access.'];
+        if ($restFailure !== null && ($restFailure['error'] ?? '') !== '') {
+            return $restFailure;
+        }
+
+        return ['ok' => false, 'error' => document_ai_public_error($e)];
     }
+}
+
+/**
+ * @param array{project_id: string, location: string, credentials: string, processor_id: string} $cfg
+ * @return array{ok: bool, error?: string, payload?: array<string, mixed>}
+ */
+function document_ai_process_with_rest(string $bytes, string $mimeType, array $cfg, string $reportType): array
+{
+    try {
+        $rest = document_ai_rest_process_document($bytes, $mimeType, $cfg);
+        if (!$rest['ok']) {
+            return ['ok' => false, 'error' => (string) ($rest['error'] ?? 'Document AI request failed.')];
+        }
+
+        $processorName = (string) ($rest['processor'] ?? '');
+        $document = $rest['document'] ?? null;
+        if ($document instanceof Document) {
+            return document_ai_success_payload($document, $reportType, $processorName);
+        }
+
+        $rawText = trim((string) ($rest['raw_text'] ?? ''));
+        if ($rawText === '') {
+            return ['ok' => false, 'error' => 'Document AI returned an empty result.'];
+        }
+
+        return document_ai_success_payload_from_text($rawText, $reportType, $processorName);
+    } catch (Throwable $e) {
+        error_log('Document AI REST exception: ' . $e->getMessage());
+
+        return ['ok' => false, 'error' => document_ai_public_error($e)];
+    }
+}
+
+/**
+ * @param array{project_id: string, location: string, credentials: string, processor_id: string} $cfg
+ * @return array{ok: bool, error?: string, payload?: array<string, mixed>}
+ */
+function document_ai_process_with_client(
+    string $bytes,
+    string $mimeType,
+    array $cfg,
+    string $reportType
+): array {
+    $client = document_ai_client($cfg);
+    $processorName = document_ai_resolve_processor_name($client, $cfg);
+    if ($processorName === '') {
+        return ['ok' => false, 'error' => 'No Document AI OCR processor found. Set GOOGLE_DOCUMENT_AI_PROCESSOR_ID in .env.'];
+    }
+
+    $raw = (new RawDocument())
+        ->setContent($bytes)
+        ->setMimeType($mimeType);
+
+    $ocrConfig = (new OcrConfig())
+        ->setEnableNativePdfParsing(true);
+
+    $processOptions = (new ProcessOptions())->setOcrConfig($ocrConfig);
+
+    $request = (new ProcessRequest())
+        ->setName($processorName)
+        ->setRawDocument($raw)
+        ->setProcessOptions($processOptions)
+        ->setSkipHumanReview(true);
+
+    $response = $client->processDocument($request);
+    $document = $response->getDocument();
+    if (!$document instanceof Document) {
+        return ['ok' => false, 'error' => 'Document AI returned an empty result.'];
+    }
+
+    return document_ai_success_payload($document, $reportType, $processorName);
+}
+
+/**
+ * @return array{ok: true, payload: array<string, mixed>}
+ */
+function document_ai_success_payload(Document $document, string $reportType, string $processorName): array
+{
+    $rawText = trim((string) $document->getText());
+    $structured = document_ai_build_structured($document, $reportType, $rawText);
+    $formatted = document_ai_format_structured($structured, $reportType, $rawText);
+
+    return [
+        'ok' => true,
+        'payload' => [
+            'raw' => $rawText,
+            'structured' => $structured,
+            'formatted' => $formatted,
+            'processed_at' => date('c'),
+            'processor' => $processorName,
+        ],
+    ];
+}
+
+/**
+ * Text-only fallback when the REST JSON document cannot be hydrated (still useful on shared hosting).
+ *
+ * @return array{ok: true, payload: array<string, mixed>}
+ */
+function document_ai_success_payload_from_text(string $rawText, string $reportType, string $processorName): array
+{
+    $structured = document_ai_parse_by_template($rawText, $reportType);
+    if (($structured['template'] ?? '') === 'daily_attendance') {
+        $structured = document_ai_enrich_dad_structured($structured);
+    } elseif (($structured['template'] ?? '') === 'incident_report') {
+        $structured['raw'] = $rawText;
+        $structured = document_ai_enrich_incident_structured($structured);
+    }
+    $formatted = document_ai_format_structured($structured, $reportType, $rawText);
+
+    return [
+        'ok' => true,
+        'payload' => [
+            'raw' => $rawText,
+            'structured' => $structured,
+            'formatted' => $formatted,
+            'processed_at' => date('c'),
+            'processor' => $processorName,
+        ],
+    ];
 }
 
 /** @param array{project_id: string, location: string, credentials: string, processor_id: string} $cfg */
@@ -141,10 +240,16 @@ function document_ai_client(array $cfg): DocumentProcessorServiceClient
         ? 'us-documentai.googleapis.com'
         : $location . '-documentai.googleapis.com';
 
-    return new DocumentProcessorServiceClient([
+    $options = [
         'credentials' => $cfg['credentials'],
         'apiEndpoint' => $endpoint,
-    ]);
+    ];
+
+    if (document_ai_should_use_direct_rest() || !extension_loaded('grpc')) {
+        $options['transport'] = 'rest';
+    }
+
+    return new DocumentProcessorServiceClient($options);
 }
 
 /**
@@ -1663,7 +1768,7 @@ function document_ai_dad_rows_from_tables(array $tables, array $existing): array
 }
 
 /**
- * Ordered fields matching the printed DAD sheet (POST, DATE, NAME, TIME IN, TIME OUT).
+ * Display-only OCR fields shown in admin/guard UI (attendance row columns only).
  *
  * @param list<string> $dates
  * @param list<array{name: string, time_in: string, time_out: string}> $attendanceRows
@@ -1671,16 +1776,9 @@ function document_ai_dad_rows_from_tables(array $tables, array $existing): array
  */
 function document_ai_dad_build_display_fields(string $post, array $dates, array $attendanceRows): array
 {
+    unset($post, $dates);
+
     $fields = [];
-
-    if ($post !== '') {
-        $fields[] = ['key' => 'post', 'label' => 'POST', 'value' => $post];
-    }
-
-    if ($dates !== []) {
-        $fields[] = ['key' => 'date', 'label' => 'DATE', 'value' => implode(' · ', $dates)];
-    }
-
     $rowIndex = 0;
     foreach ($attendanceRows as $row) {
         if (!is_array($row)) {
@@ -1760,8 +1858,39 @@ function document_ai_dad_display_fields(array $structured): array
     }
 
     $enriched = document_ai_enrich_dad_structured($structured);
+    $fields = is_array($enriched['display_fields'] ?? null) ? $enriched['display_fields'] : [];
 
-    return is_array($enriched['display_fields'] ?? null) ? $enriched['display_fields'] : [];
+    return document_ai_dad_filter_name_time_display_fields($fields);
+}
+
+/**
+ * @param list<array{key?: string, label: string, value: string}> $fields
+ * @return list<array{key: string, label: string, value: string}>
+ */
+function document_ai_dad_filter_name_time_display_fields(array $fields): array
+{
+    $out = [];
+    foreach ($fields as $field) {
+        if (!is_array($field)) {
+            continue;
+        }
+        $label = trim((string) ($field['label'] ?? ''));
+        $base = preg_replace('/\s+\(\d+\)$/', '', $label);
+        if (!in_array($base, ['NAME', 'TIME IN', 'TIME OUT'], true)) {
+            continue;
+        }
+        $value = trim((string) ($field['value'] ?? ''));
+        if ($value === '') {
+            continue;
+        }
+        $out[] = [
+            'key' => (string) ($field['key'] ?? strtolower(str_replace(' ', '_', $base))),
+            'label' => $label,
+            'value' => $value,
+        ];
+    }
+
+    return $out;
 }
 
 /**
@@ -1931,24 +2060,7 @@ function document_ai_format_structured(array $structured, string $reportType, st
         $lines[] = '── Action taken (as written) ──';
         $lines[] = (string) ($structured['action_taken'] ?? '—');
     } elseif (($structured['template'] ?? '') === 'daily_attendance') {
-        $display = document_ai_dad_display_fields($structured);
-        $lines[] = '';
-        if ($display !== []) {
-            foreach ($display as $field) {
-                $label = (string) ($field['label'] ?? '');
-                $value = (string) ($field['value'] ?? '');
-                if ($label === '' || $value === '') {
-                    continue;
-                }
-                $lines[] = $label . ': ' . $value;
-            }
-        } else {
-            $lines[] = 'POST: ' . ($structured['post'] ?? '—');
-            $dates = $structured['dates'] ?? [];
-            if (is_array($dates) && $dates !== []) {
-                $lines[] = 'DATE: ' . implode(' · ', array_map('strval', $dates));
-            }
-        }
+        return document_ai_format_dad_extract($structured);
     }
 
     $formFields = $structured['form_fields'] ?? [];
@@ -1971,10 +2083,34 @@ function document_ai_format_structured(array $structured, string $reportType, st
         }
     }
 
-    if (trim($rawText) !== '' && count($lines) <= 2) {
+    if (
+        trim($rawText) !== ''
+        && count($lines) <= 2
+        && ($structured['template'] ?? '') !== 'daily_attendance'
+    ) {
         $lines[] = '';
         $lines[] = 'Raw OCR text';
         $lines[] = $rawText;
+    }
+
+    return implode("\n", $lines);
+}
+
+/**
+ * Formatted DAD extract: NAME, TIME IN, and TIME OUT only (no full-page OCR dump).
+ *
+ * @param array<string, mixed> $structured
+ */
+function document_ai_format_dad_extract(array $structured): string
+{
+    $lines = [];
+    foreach (document_ai_dad_display_fields($structured) as $field) {
+        $label = (string) ($field['label'] ?? '');
+        $value = (string) ($field['value'] ?? '');
+        if ($label === '' || $value === '') {
+            continue;
+        }
+        $lines[] = $label . ': ' . $value;
     }
 
     return implode("\n", $lines);

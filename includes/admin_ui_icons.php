@@ -49,6 +49,8 @@ function admin_ui_icon(string $name, int $size = 18, string $extraClass = ''): s
         'lock' => '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 1 1 8 0v4"/>',
         'image' => '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5L5 19"/>',
         'wand-magic-sparkles' => '<path d="M15 4V2M15 8V6M17 6h2M13 6h2"/><path d="M3 20l9-9"/><path d="M18.5 5.5l1 1M20 3l1 1"/>',
+        'eye' => '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+        'file-csv' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h1M12 13h1M16 13h1M8 17h1M12 17h1M16 17h1"/>',
         default => '<circle cx="12" cy="12" r="9"/>',
     };
 

@@ -1315,10 +1315,6 @@ function guard_ui_styles(): void
             gap: var(--guard-ui-gap);
         }
 
-        body.guard-portal .guard-app__scroll .guard-corner-page .guard-chat__input::placeholder {
-            color: var(--guard-ui-faint);
-        }
-
         body.guard-portal .guard-app__scroll .guard-corner-page select {
             color: var(--guard-ui-primary);
             background: var(--sa-input-bg);

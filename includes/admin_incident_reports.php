@@ -891,6 +891,35 @@ function admin_incident_modal_handwriting_text(string $value): string
 }
 
 /**
+ * Head-guard upload shown beside extracted text for verification.
+ */
+function admin_incident_modal_scan_html(array $report): string
+{
+    $scanUrl = trim((string) ($report['scan_url'] ?? ''));
+    $ref = trim((string) ($report['ref'] ?? 'Incident report'));
+
+    if ($scanUrl === '') {
+        return '<section class="reports-incident-scan reports-incident-scan--empty" aria-label="Submitted form scan">'
+            . '<h4 class="reports-incident-scan__heading">Uploaded form (reference)</h4>'
+            . '<p class="reports-incident-scan__empty">No scan image on file for this report.</p>'
+            . '</section>';
+    }
+
+    $safeUrl = htmlspecialchars($scanUrl, ENT_QUOTES, 'UTF-8');
+    $safeRef = htmlspecialchars($ref, ENT_QUOTES, 'UTF-8');
+
+    return '<section class="reports-incident-scan" aria-label="Submitted form scan">'
+        . '<h4 class="reports-incident-scan__heading">Uploaded form (reference)</h4>'
+        . '<p class="reports-incident-scan__hint">Compare the head guard\'s scan with the extracted handwriting below.</p>'
+        . '<a href="' . $safeUrl . '" target="_blank" rel="noopener noreferrer" class="reports-incident-scan__link">'
+        . '<img class="reports-incident-scan__img" src="' . $safeUrl . '" alt="Scanned post-incident form for ' . $safeRef . '">'
+        . '</a>'
+        . '<p class="reports-incident-scan__open">'
+        . '<a href="' . $safeUrl . '" target="_blank" rel="noopener noreferrer">Open full size</a>'
+        . '</p></section>';
+}
+
+/**
  * As-scanned two-column layout: incident description (left), action taken (right).
  */
 function admin_incident_modal_as_is_html(string $incidentDescription, string $actionTaken): string
@@ -950,6 +979,7 @@ function admin_incident_modal_details_html(array $report): string
     $formDate = trim((string) ($report['form_date'] ?? ''));
 
     $html = '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
+        . admin_incident_modal_scan_html($report)
         . '<section class="reports-detail-sheet__section" aria-label="Assignment">'
         . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">'
         . admin_incident_modal_sheet_field_html('Post', $post)

@@ -5,6 +5,7 @@ use Google\Cloud\DocumentAI\V1\Client\DocumentProcessorServiceClient;
 use Google\Cloud\DocumentAI\V1\Document;
 use Google\Cloud\DocumentAI\V1\Document\Page\FormField;
 use Google\Cloud\DocumentAI\V1\Document\Page\Table;
+use Google\Cloud\DocumentAI\V1\Document\Page\Token;
 use Google\Cloud\DocumentAI\V1\Document\TextAnchor;
 use Google\Cloud\DocumentAI\V1\OcrConfig;
 use Google\Cloud\DocumentAI\V1\ListProcessorsRequest;
@@ -354,6 +355,165 @@ function document_ai_collect_page_lines(Document $document, string $rawText): ar
     usort($lines, static fn (array $a, array $b): int => $a['y_center'] <=> $b['y_center'] ?: $a['x_center'] <=> $b['x_center']);
 
     return $lines;
+}
+
+/**
+ * Word-level OCR anchors (used for incident columns — avoids horizontal line bleed).
+ *
+ * @return list<array{text: string, x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}>
+ */
+function document_ai_collect_page_tokens(Document $document, string $rawText): array
+{
+    $tokens = [];
+
+    foreach ($document->getPages() as $page) {
+        foreach ($page->getTokens() as $token) {
+            if (!$token instanceof Token) {
+                continue;
+            }
+            $layout = $token->getLayout();
+            if ($layout === null) {
+                continue;
+            }
+            $text = trim(document_ai_anchor_text($layout->getTextAnchor(), $rawText));
+            if ($text === '') {
+                continue;
+            }
+            $bounds = document_ai_bounds_from_poly($layout->getBoundingPoly());
+            if ($bounds === null) {
+                continue;
+            }
+            $tokens[] = array_merge(['text' => $text], $bounds);
+        }
+    }
+
+    usort(
+        $tokens,
+        static fn (array $a, array $b): int => $a['y_center'] <=> $b['y_center'] ?: $a['x_center'] <=> $b['x_center']
+    );
+
+    return $tokens;
+}
+
+/**
+ * When Document AI returns no tokens, approximate words from lines (split wide lines at column boundary).
+ *
+ * @param list<array{text: string, x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}> $lines
+ * @return list<array{text: string, x_min: float, x_max: float, y_min: float, y_max: float, x_center: float, y_center: float}>
+ */
+function document_ai_incident_tokens_from_lines(array $lines, float $splitX = 0.5): array
+{
+    $tokens = [];
+
+    foreach ($lines as $line) {
+        $text = trim((string) ($line['text'] ?? ''));
+        if ($text === '') {
+            continue;
+        }
+
+        $xMin = (float) $line['x_min'];
+        $xMax = (float) $line['x_max'];
+        $width = $xMax - $xMin;
+
+        if ($width < 0.1 || $xMax <= $splitX + 0.02 || $xMin >= $splitX - 0.02) {
+            $tokens[] = array_merge(['text' => $text], $line);
+            continue;
+        }
+
+        $words = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if ($words === []) {
+            continue;
+        }
+
+        $cursor = 0;
+        foreach ($words as $word) {
+            $start = $cursor / max(1, mb_strlen($text));
+            $end = ($cursor + mb_strlen($word)) / max(1, mb_strlen($text));
+            $cursor += mb_strlen($word) + 1;
+            $wxMin = $xMin + $width * $start;
+            $wxMax = $xMin + $width * $end;
+            $tokens[] = [
+                'text' => $word,
+                'x_min' => $wxMin,
+                'x_max' => $wxMax,
+                'y_min' => (float) $line['y_min'],
+                'y_max' => (float) $line['y_max'],
+                'x_center' => ($wxMin + $wxMax) / 2,
+                'y_center' => (float) $line['y_center'],
+            ];
+        }
+    }
+
+    usort(
+        $tokens,
+        static fn (array $a, array $b): int => $a['y_center'] <=> $b['y_center'] ?: $a['x_center'] <=> $b['x_center']
+    );
+
+    return $tokens;
+}
+
+/**
+ * Build column text top-to-bottom (vertical reading order within one form box).
+ *
+ * @param list<array{text: string, x_center: float, y_center: float}> $tokens
+ */
+function document_ai_incident_compose_vertical_column_text(array $tokens, float $xMin, float $xMax): string
+{
+    $column = [];
+    foreach ($tokens as $token) {
+        $xc = (float) $token['x_center'];
+        if ($xc < $xMin || $xc > $xMax) {
+            continue;
+        }
+        $text = trim((string) ($token['text'] ?? ''));
+        if ($text === '' || document_ai_incident_is_boilerplate($text)) {
+            continue;
+        }
+        if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\b/iu', $text)) {
+            continue;
+        }
+        $column[] = $token;
+    }
+
+    if ($column === []) {
+        return '';
+    }
+
+    usort(
+        $column,
+        static fn (array $a, array $b): int => $a['y_center'] <=> $b['y_center'] ?: $a['x_center'] <=> $b['x_center']
+    );
+
+    $rows = [];
+    // Tight row grouping: read top-to-bottom (vertical), not left-to-right across columns.
+    $rowThreshold = 0.008;
+    $currentY = null;
+    $currentParts = [];
+
+    foreach ($column as $token) {
+        $yc = (float) $token['y_center'];
+        $part = trim((string) ($token['text']));
+        if ($part === '') {
+            continue;
+        }
+
+        if ($currentY === null || abs($yc - $currentY) > $rowThreshold) {
+            if ($currentParts !== []) {
+                $rows[] = implode(' ', $currentParts);
+            }
+            $currentParts = [$part];
+            $currentY = $yc;
+            continue;
+        }
+
+        $currentParts[] = $part;
+    }
+
+    if ($currentParts !== []) {
+        $rows[] = implode(' ', $currentParts);
+    }
+
+    return document_ai_sanitize_incident_handwriting(implode("\n", $rows));
 }
 
 function document_ai_dad_is_boilerplate(string $text): bool
@@ -1145,13 +1305,13 @@ function document_ai_incident_merge_spatial(array $spatial, array $textParsed): 
 {
     $incident = document_ai_sanitize_incident_handwriting((string) ($spatial['incident_description'] ?? ''));
     $textIncident = document_ai_sanitize_incident_handwriting((string) ($textParsed['incident_description'] ?? ''));
-    if ($incident === '' || ($textIncident !== '' && strlen($textIncident) > strlen($incident))) {
+    if ($incident === '') {
         $incident = $textIncident;
     }
 
     $action = document_ai_sanitize_incident_handwriting((string) ($spatial['action_taken'] ?? ''));
     $textAction = document_ai_sanitize_incident_handwriting((string) ($textParsed['action_taken'] ?? ''));
-    if ($action === '' || ($textAction !== '' && strlen($textAction) > strlen($action))) {
+    if ($action === '') {
         $action = $textAction;
     }
 
@@ -1175,7 +1335,7 @@ function document_ai_incident_merge_spatial(array $spatial, array $textParsed): 
 }
 
 /**
- * Handwritten fields from line positions (left = incident description, right = action taken).
+ * Handwritten fields per column: tokens sorted top-to-bottom within each box (not full-width lines).
  *
  * @return array{incident_description: string, action_taken: string, name: string, date: string}
  */
@@ -1270,49 +1430,35 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
         }
     }
 
-    $incidentLines = [];
-    $actionLines = [];
+    $descXMin = 0.0;
+    $descXMax = $splitX - 0.015;
+    $actionXMin = $splitX + 0.015;
+    $actionXMax = 1.0;
+    $bodyYMin = $sectionYMin < 1.0 ? $sectionYMin + 0.02 : ($agencyYMax > 0 ? $agencyYMax + 0.2 : 0.2);
 
-    foreach ($lines as $line) {
-        $text = (string) $line['text'];
-        $yc = (float) $line['y_center'];
-        $xc = (float) $line['x_center'];
+    $tokens = document_ai_collect_page_tokens($document, $rawText);
+    if ($tokens === []) {
+        $tokens = document_ai_incident_tokens_from_lines($lines, $splitX);
+    }
 
+    $bodyTokens = [];
+    foreach ($tokens as $token) {
+        $yc = (float) $token['y_center'];
         if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.015) {
             continue;
         }
-        if ($sectionYMin < 1.0 && $yc <= $sectionYMin + 0.01) {
+        if ($yc < $bodyYMin) {
             continue;
         }
-        if (document_ai_incident_is_boilerplate($text)) {
-            continue;
-        }
-        if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|NAME|DATE)\b\s*:?\s*$/iu', trim($text))) {
-            continue;
-        }
-
-        $clean = trim(preg_replace('/^(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\s*:+\s*/iu', '', $text) ?? $text);
-        if ($clean === '' || document_ai_incident_is_boilerplate($clean)) {
-            continue;
-        }
-
-        if ($xc < $splitX) {
-            $incidentLines[] = ['y' => $yc, 'text' => $clean];
-        } else {
-            $actionLines[] = ['y' => $yc, 'text' => $clean];
-        }
+        $bodyTokens[] = $token;
     }
 
-    usort($incidentLines, static fn (array $a, array $b): int => $a['y'] <=> $b['y']);
-    usort($actionLines, static fn (array $a, array $b): int => $a['y'] <=> $b['y']);
+    $incidentDescription = document_ai_incident_compose_vertical_column_text($bodyTokens, $descXMin, $descXMax);
+    $actionTaken = document_ai_incident_compose_vertical_column_text($bodyTokens, $actionXMin, $actionXMax);
 
     return [
-        'incident_description' => document_ai_sanitize_incident_handwriting(
-            implode("\n", array_map(static fn (array $l): string => (string) $l['text'], $incidentLines))
-        ),
-        'action_taken' => document_ai_sanitize_incident_handwriting(
-            implode("\n", array_map(static fn (array $l): string => (string) $l['text'], $actionLines))
-        ),
+        'incident_description' => $incidentDescription,
+        'action_taken' => $actionTaken,
         'name' => $name,
         'date' => $date,
     ];

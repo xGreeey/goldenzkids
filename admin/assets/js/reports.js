@@ -465,6 +465,36 @@
         return escapeHtml(v).replace(/\n/g, '<br>');
     }
 
+    function buildIncidentScanHtml(p) {
+        const scanUrl = String(p.scan_url || '').trim();
+        const ref = String(p.ref || 'Incident report').trim();
+
+        if (!scanUrl) {
+            return (
+                '<section class="reports-incident-scan reports-incident-scan--empty" aria-label="Submitted form scan">' +
+                '<h4 class="reports-incident-scan__heading">Uploaded form (reference)</h4>' +
+                '<p class="reports-incident-scan__empty">No scan image on file for this report.</p></section>'
+            );
+        }
+
+        return (
+            '<section class="reports-incident-scan" aria-label="Submitted form scan">' +
+            '<h4 class="reports-incident-scan__heading">Uploaded form (reference)</h4>' +
+            '<p class="reports-incident-scan__hint">Compare the head guard\'s scan with the extracted handwriting below.</p>' +
+            '<a href="' +
+            escapeHtml(scanUrl) +
+            '" target="_blank" rel="noopener noreferrer" class="reports-incident-scan__link">' +
+            '<img class="reports-incident-scan__img" src="' +
+            escapeHtml(scanUrl) +
+            '" alt="Scanned post-incident form for ' +
+            escapeHtml(ref) +
+            '"></a>' +
+            '<p class="reports-incident-scan__open"><a href="' +
+            escapeHtml(scanUrl) +
+            '" target="_blank" rel="noopener noreferrer">Open full size</a></p></section>'
+        );
+    }
+
     function buildIncidentAsIsHtml(incidentDescription, actionTaken) {
         const desc = String(incidentDescription ?? '').trim();
         const action = String(actionTaken ?? '').trim();
@@ -503,6 +533,7 @@
         const formDate = String(p.form_date || '').trim();
         let html =
             '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
+            buildIncidentScanHtml(p) +
             '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
             sheetField('Post', p.site) +

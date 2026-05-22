@@ -69,6 +69,112 @@ function guard_incident_subject_from_summary(string $summary): string
     return '';
 }
 
+/**
+ * Public URL for the head-guard upload (served via admin API — uploads/guard is not web-accessible).
+ */
+function guard_incident_scan_url(int $incId): string
+{
+    return app_url('admin/api/incident-scan.php') . '?inc=' . $incId;
+}
+
+/**
+ * Resolve on-disk path for a post-incident form scan.
+ */
+function guard_incident_resolve_scan_absolute_path(PDO $conn, int $incId): ?string
+{
+    global $master_key, $cipher_algo;
+
+    if ($incId <= 0) {
+        return null;
+    }
+
+    require_once __DIR__ . '/guard_dad.php';
+
+    $row = db_fetch_one($conn, 'SELECT * FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1', 'i', [$incId]);
+    if ($row === null) {
+        return null;
+    }
+
+    $ivB64 = (string) ($row['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        return null;
+    }
+
+    $pathCipher = trim((string) ($row['scan_path_cipher'] ?? ''));
+    if ($pathCipher !== '') {
+        $rel = openssl_decrypt($pathCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+        if ($rel !== '') {
+            $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+            if (guard_dad_is_safe_guard_upload_path($abs)) {
+                return realpath($abs) ?: null;
+            }
+        }
+    }
+
+    $dgdId = (int) ($row['dgd_report_number'] ?? 0);
+    if ($dgdId <= 0) {
+        return null;
+    }
+
+    $dgd = db_fetch_one(
+        $conn,
+        'SELECT Template_Path, iv FROM dgd WHERE Report_Number = ? LIMIT 1',
+        'i',
+        [$dgdId]
+    );
+    if ($dgd === null) {
+        return null;
+    }
+
+    $dgdIv = base64_decode((string) ($dgd['iv'] ?? ''), true) ?: '';
+    if ($dgdIv === '') {
+        return null;
+    }
+
+    $rel = openssl_decrypt((string) ($dgd['Template_Path'] ?? ''), (string) $cipher_algo, (string) $master_key, 0, $dgdIv) ?: '';
+    if ($rel === '') {
+        return null;
+    }
+
+    $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+    if (!guard_dad_is_safe_guard_upload_path($abs)) {
+        return null;
+    }
+
+    return realpath($abs) ?: null;
+}
+
+/**
+ * Stream uploaded incident form image to the browser (admin-authenticated endpoint).
+ */
+function guard_incident_stream_scan(PDO $conn, int $incId): void
+{
+    require_once __DIR__ . '/guard_dad.php';
+
+    $absolutePath = guard_incident_resolve_scan_absolute_path($conn, $incId);
+    if ($absolutePath === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Scan not found.';
+        exit;
+    }
+
+    $mime = guard_dad_mime_for_path($absolutePath);
+    $fileSize = filesize($absolutePath);
+    if ($fileSize === false) {
+        http_response_code(500);
+        exit;
+    }
+
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . (string) $fileSize);
+    header('Cache-Control: private, max-age=300');
+    header('X-Content-Type-Options: nosniff');
+    readfile($absolutePath);
+    exit;
+}
+
 function guard_incident_head_guard_display_name(PDO $conn, string $companyId): string
 {
     if ($companyId === '') {
@@ -340,6 +446,12 @@ function guard_incident_map_row_for_admin(array $row): ?array
     }
     $formDate = document_ai_sanitize_incident_date((string) ($structured['date'] ?? ''));
 
+    $scanUrl = '';
+    $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
+    if ($conn !== null && guard_incident_resolve_scan_absolute_path($conn, $incId) !== null) {
+        $scanUrl = guard_incident_scan_url($incId);
+    }
+
     return [
         'id' => 'inc-' . $incId,
         'inc_id' => $incId,
@@ -356,6 +468,8 @@ function guard_incident_map_row_for_admin(array $row): ?array
         'action_taken' => $actionTaken,
         'form_name' => $formName,
         'form_date' => $formDate,
+        'scan_url' => $scanUrl,
+        'has_scan' => $scanUrl !== '',
         'submitted_at' => substr($submittedAt, 0, 10),
         'submitted_display' => $submittedAt !== '' ? date('j M Y, H:i', strtotime($submittedAt) ?: time()) : '',
         'updated_at' => substr($updatedAt, 0, 10),

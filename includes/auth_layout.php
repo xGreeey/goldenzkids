@@ -50,8 +50,8 @@ function auth_module_open(): void
                 src="<?= e(app_logo_url()) ?>"
                 alt="<?= e(app_agency_name()) ?>"
                 class="login-logo-mark"
-                width="72"
-                height="72"
+                width="56"
+                height="56"
                 decoding="async"
             >
             <p class="login-logo-caption"><?= e(app_agency_name()) ?></p>

@@ -492,9 +492,11 @@ function admin_incident_store_all(): array
         foreach (guard_incident_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_incident_normalize($row);
         }
-        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        if ($out !== []) {
+            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-        return $out;
+            return $out;
+        }
     }
 
     if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {

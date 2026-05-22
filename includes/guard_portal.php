@@ -144,7 +144,11 @@ function guard_portal_report_type_icon(string $label): string
     $label = guard_portal_report_type_label($label);
 
     return match ($label) {
+<<<<<<< HEAD
+        'Post incident' => 'fa-triangle-exclamation',
+=======
         GUARD_INCIDENT_REPORT_TYPE => 'fa-triangle-exclamation',
+>>>>>>> ca124865c3583e0aa80e7afa51118aceb6c974c8
         GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY => 'fa-calendar-day',
         'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',

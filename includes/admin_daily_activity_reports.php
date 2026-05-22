@@ -256,7 +256,7 @@ function admin_daily_activity_row_attrs(array $report): string
         'data-status="' . e((string) $report['status']) . '"',
         'data-submitted-at="' . e((string) $report['submitted_at']) . '"',
         'data-updated-at="' . e(substr((string) ($report['updated_at'] ?? ''), 0, 10)) . '"',
-        'data-sort-site="' . e(strtolower((string) ($report['site_name'] ?? ''))) . '"',
+        'data-sort-post="' . e(strtolower((string) ($report['site_name'] ?? ''))) . '"',
         'data-sort-hg="' . e(strtolower((string) ($report['head_guard_name'] ?? ''))) . '"',
         'data-search="' . e(admin_daily_activity_search_blob($report)) . '"',
         'data-detail="' . e($detailJson) . '"',
@@ -271,7 +271,7 @@ function admin_daily_activity_modal_details_html(array $report): string
     $html = '<div class="reports-detail-sheet">';
     $html .= admin_incident_modal_sheet_field_html('Reference', (string) ($report['ref'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Site', (string) ($report['site_name'] ?? ''));
+    $html .= admin_incident_modal_sheet_field_html('Post', (string) ($report['site_name'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Mode', (string) ($report['activity_mode_label'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Summary', (string) ($report['summary'] ?? ''), 'wide');
     if (trim((string) ($report['activity_details'] ?? '')) !== '') {

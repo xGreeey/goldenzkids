@@ -17,11 +17,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
     $action = trim((string) ($_POST['action'] ?? ''));
 
-    if ($action === 'reset_demo') {
-        admin_daily_activity_store_reset();
-        redirect_with_alert('Demo daily activity data has been reset.', 'daily-activity.php');
-    }
-
     if ($action === 'update_activity') {
         $id = trim((string) ($_POST['activity_id'] ?? ''));
         $updated = admin_daily_activity_update($id, [
@@ -63,13 +58,6 @@ $validStatusTabs = ['all', ...admin_daily_activity_status_slugs()];
 $initialStatusTab = in_array($statusTabFromQuery, $validStatusTabs, true) ? $statusTabFromQuery : '';
 
 $adminNavActive = 'daily-activity';
-$kpiIcons = [
-    'all' => 'clipboard-list',
-    'pending' => 'hourglass-half',
-    'reviewed' => 'circle-check',
-    'on_hold' => 'clock',
-    'archived' => 'folder-open',
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -96,7 +84,7 @@ $kpiIcons = [
     <main class="app-main">
         <header class="page-header page-header--inline">
             <h1 class="page-title">Daily Activity Report</h1>
-            <p class="page-subtitle">Review shift logs and field activity from head guards — normal operations and event submissions (reference prefix <strong><?= e(GUARD_DAILY_ACTIVITY_REF_PREFIX) ?></strong>).</p>
+            <p class="page-subtitle">Review shift logs and field activity from head guards — normal operations and event submissions.</p>
         </header>
 
         <div id="daily-activity-module" class="reports-module"
@@ -106,17 +94,13 @@ $kpiIcons = [
             <section class="kpi-grid" aria-label="Daily activity summary">
                 <article class="kpi-card kpi-card--total" title="All daily activity submissions">
                     <div class="kpi-stat">
-                        <?= admin_kpi_icon($kpiIcons['all']) ?>
                         <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
                     </div>
                     <p class="kpi-label">Total submissions</p>
                 </article>
-                <?php foreach ($statusDefinitions as $slug => $def):
-                    $icon = $kpiIcons[$slug] ?? 'file-lines';
-                    ?>
+                <?php foreach ($statusDefinitions as $slug => $def): ?>
                 <article class="kpi-card kpi-card--<?= e($slug) ?>" title="<?= e((string) $def['description']) ?>">
                     <div class="kpi-stat">
-                        <?= admin_kpi_icon($icon) ?>
                         <span class="kpi-value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></span>
                     </div>
                     <p class="kpi-label"><?= e((string) $def['kpi']) ?></p>
@@ -130,7 +114,7 @@ $kpiIcons = [
                         <div class="reports-toolbar__fields">
                             <div class="form-field reports-field--search">
                                 <label for="activity-search" class="reports-label-with-icon"><?= admin_ui_icon('magnifying-glass', 14) ?> Search</label>
-                                <input type="search" id="activity-search" placeholder="Reference, head guard, site, summary…" autocomplete="off">
+                                <input type="search" id="activity-search" placeholder="Reference, head guard, post, summary…" autocomplete="off">
                             </div>
                             <div class="form-field reports-field--category">
                                 <label for="activity-mode">Submission mode</label>
@@ -152,17 +136,8 @@ $kpiIcons = [
                         <div class="reports-toolbar-actions" role="toolbar" aria-label="Daily activity filter actions">
                             <div class="reports-button-set">
                                 <button type="button" class="reports-btn reports-btn--secondary" id="activity-reset">
-                                    <?= admin_btn_icon('rotate-left') ?>
                                     <span class="reports-btn__text">Reset</span>
                                 </button>
-                                <form method="POST" class="reports-inline-form">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="action" value="reset_demo">
-                                    <button type="submit" class="reports-btn reports-btn--secondary" title="Restore demo daily activity records">
-                                        <?= admin_btn_icon('database') ?>
-                                        <span class="reports-btn__text">Reset demo</span>
-                                    </button>
-                                </form>
                             </div>
                         </div>
                     </div>
@@ -192,7 +167,7 @@ $kpiIcons = [
                                 <colgroup>
                                     <col class="reports-col-ref">
                                     <col class="reports-col-mode">
-                                    <col class="reports-col-site">
+                                    <col class="reports-col-post">
                                     <col class="reports-col-hg">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
@@ -204,7 +179,7 @@ $kpiIcons = [
                                     <tr>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="ref"><span class="reports-sort__label">Reference</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort reports-sort--center" data-sort-key="mode"><span class="reports-sort__label">Mode</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="site"><span class="reports-sort__label">Site</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="post"><span class="reports-sort__label">Post</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="headGuard"><span class="reports-sort__label">Head guard</span></button></th>
                                         <th scope="col"><span class="reports-sort__label">Summary</span></th>
                                         <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
@@ -220,7 +195,7 @@ $kpiIcons = [
                                 <colgroup>
                                     <col class="reports-col-ref">
                                     <col class="reports-col-mode">
-                                    <col class="reports-col-site">
+                                    <col class="reports-col-post">
                                     <col class="reports-col-hg">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
@@ -237,7 +212,7 @@ $kpiIcons = [
                                                 <?= e((string) $report['activity_mode_label']) ?>
                                             </span>
                                         </td>
-                                        <td class="reports-col-site"><?= e((string) $report['site_name']) ?></td>
+                                        <td class="reports-col-post"><?= e((string) $report['site_name']) ?></td>
                                         <td class="reports-col-hg"><?= e((string) $report['head_guard_name']) ?></td>
                                         <td class="reports-col-summary">
                                             <div class="reports-incident-cell" title="<?= e((string) $report['summary']) ?>">

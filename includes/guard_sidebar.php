@@ -2,6 +2,20 @@
 declare(strict_types=1);
 
 $guardNavActive = $guardNavActive ?? 'dashboard';
+$guardInboxUnread = 0;
+
+if (isset($conn) && $conn instanceof PDO) {
+    try {
+        require_once __DIR__ . '/messaging_unread.php';
+        $guardInboxUnread = messaging_unread_total(
+            $conn,
+            (string) ($_SESSION['company_id'] ?? ''),
+            auth_user_role()
+        );
+    } catch (Throwable $e) {
+        error_log('guard_sidebar messaging unread: ' . $e->getMessage());
+    }
+}
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -17,9 +31,12 @@ $guardNavActive = $guardNavActive ?? 'dashboard';
             <i class="fa-solid fa-camera" aria-hidden="true"></i>
             Submit report
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging') ?> data-guard-inbox-nav>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
+            <?php if ($guardInboxUnread > 0): ?>
+                <span class="sidebar-link__badge" data-guard-inbox-badge aria-label="<?= (int) $guardInboxUnread ?> unread messages"><?= (int) $guardInboxUnread ?></span>
+            <?php endif; ?>
         </a>
         <a href="corner.php" class="sidebar-link<?= $guardNavActive === 'corner' ? ' active' : '' ?>"<?= $guardNavActive === 'corner' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Guard corner') ?>>
             <i class="fa-solid fa-comments" aria-hidden="true"></i>

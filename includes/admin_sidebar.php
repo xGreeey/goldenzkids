@@ -82,6 +82,9 @@ if (!function_exists('theme_sidebar_boot_script')) {
     require_once __DIR__ . '/theme.php';
 }
 theme_sidebar_boot_script('light-class');
+
+require_once __DIR__ . '/admin_topbar.php';
 ?>
 
 <div class="app-shell">
+<?php admin_topbar_markup(); ?>

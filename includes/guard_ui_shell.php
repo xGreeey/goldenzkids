@@ -82,6 +82,8 @@ function guard_ui_settings_row_markup(string $themeToggleId): void
 
 function guard_ui_drawer_markup(string $navActive): void
 {
+    global $guardInboxUnread;
+    $guardInboxUnread = (int) ($guardInboxUnread ?? 0);
     ?>
     <div class="guard-app__drawer" id="guardAppDrawer" aria-hidden="true">
         <div class="guard-app__drawer-backdrop" data-guard-drawer-close tabindex="-1" aria-hidden="true"></div>
@@ -98,9 +100,13 @@ function guard_ui_drawer_markup(string $navActive): void
                         href="<?= e($item['href']) ?>"
                         class="guard-app__drawer-link<?= $navActive === $item['id'] ? ' is-active' : '' ?>"
                         <?= $navActive === $item['id'] ? ' aria-current="page"' : '' ?>
+                        <?= $item['id'] === 'inbox' ? ' data-guard-inbox-nav' : '' ?>
                     >
                         <span class="guard-app__drawer-link-icon"><?= guard_ui_icon($item['icon'], 20) ?></span>
                         <?= e($item['label']) ?>
+                        <?php if ($item['id'] === 'inbox' && $guardInboxUnread > 0): ?>
+                            <span class="guard-app__drawer-link__badge" data-guard-inbox-badge aria-label="<?= $guardInboxUnread ?> unread messages"><?= $guardInboxUnread ?></span>
+                        <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
             </nav>

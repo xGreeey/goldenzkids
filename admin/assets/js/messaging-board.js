@@ -187,6 +187,123 @@
         var idleTemplate = document.getElementById('messagingIdleTemplate');
         var loading = false;
 
+        function unreadBannerHtml(count) {
+            if (count === 1) {
+                return 'You have <strong>1 new message</strong> — open a conversation below.';
+            }
+            if (count > 1) {
+                return 'You have <strong>' + count + ' new messages</strong> — open a conversation below.';
+            }
+            return '';
+        }
+
+        function updateUnreadUi(total) {
+            total = Math.max(0, parseInt(String(total), 10) || 0);
+            board.dataset.unreadTotal = String(total);
+
+            var banner = document.getElementById('messagingUnreadBanner');
+            var textEl = banner && banner.querySelector('[data-messaging-unread-banner-text]');
+            if (banner) {
+                if (total > 0) {
+                    banner.hidden = false;
+                    banner.classList.remove('is-hidden');
+                    if (textEl) {
+                        textEl.innerHTML = unreadBannerHtml(total);
+                    }
+                } else {
+                    banner.hidden = true;
+                    banner.classList.add('is-hidden');
+                }
+            }
+
+            document.querySelectorAll('[data-guard-inbox-badge]').forEach(function (badge) {
+                if (total > 0) {
+                    badge.textContent = String(total);
+                    badge.setAttribute('aria-label', total + ' unread messages');
+                    badge.hidden = false;
+                } else {
+                    badge.remove();
+                }
+            });
+
+            document.querySelectorAll('[data-guard-inbox-nav]').forEach(function (link) {
+                if (total > 0) {
+                    var existing = link.querySelector('[data-guard-inbox-badge]');
+                    if (!existing) {
+                        var span = document.createElement('span');
+                        span.className = link.classList.contains('guard-app__drawer-link')
+                            ? 'guard-app__drawer-link__badge'
+                            : 'sidebar-link__badge';
+                        span.setAttribute('data-guard-inbox-badge', '');
+                        span.setAttribute('aria-label', total + ' unread messages');
+                        span.textContent = String(total);
+                        link.appendChild(span);
+                    }
+                }
+            });
+
+            var titleBadge = document.querySelector('.page-title__badge');
+            if (titleBadge) {
+                if (total > 0) {
+                    titleBadge.textContent = String(total);
+                    titleBadge.setAttribute('aria-label', total + ' new messages');
+                    titleBadge.hidden = false;
+                } else {
+                    titleBadge.remove();
+                }
+            }
+
+            var hint = document.querySelector('.inbox-new-messages-hint');
+            if (hint) {
+                if (total > 0) {
+                    hint.innerHTML =
+                        '<i class="fa-solid fa-circle" aria-hidden="true"></i> ' +
+                        (total === 1 ? '1 new message waiting' : total + ' new messages waiting');
+                    hint.hidden = false;
+                } else {
+                    hint.remove();
+                }
+            }
+        }
+
+        function markContactRead(btn) {
+            if (!btn) {
+                return;
+            }
+            var unread = parseInt(btn.getAttribute('data-unread') || '0', 10) || 0;
+            if (unread <= 0) {
+                return;
+            }
+            btn.setAttribute('data-unread', '0');
+            btn.classList.remove('has-unread');
+            var dot = btn.querySelector('.messaging-contact__dot');
+            if (dot) {
+                dot.remove();
+            }
+            var badge = btn.querySelector('.messaging-contact__badge');
+            if (badge) {
+                badge.remove();
+            }
+            var total = parseInt(board.dataset.unreadTotal || '0', 10) || 0;
+            updateUnreadUi(Math.max(0, total - unread));
+        }
+
+        function resortContactLists() {
+            board.querySelectorAll('.messaging-contact-list').forEach(function (list) {
+                var items = Array.prototype.slice.call(list.children);
+                items.sort(function (a, b) {
+                    var btnA = a.querySelector('.messaging-contact');
+                    var btnB = b.querySelector('.messaging-contact');
+                    var unreadA = parseInt((btnA && btnA.getAttribute('data-unread')) || '0', 10) || 0;
+                    var unreadB = parseInt((btnB && btnB.getAttribute('data-unread')) || '0', 10) || 0;
+                    return unreadB - unreadA;
+                });
+                items.forEach(function (li) {
+                    list.appendChild(li);
+                });
+            });
+        }
+
         function setActiveContact(btn) {
             board.querySelectorAll('.messaging-contact').forEach(function (el) {
                 el.classList.remove('is-active');
@@ -627,22 +744,16 @@
                 if (type === 'direct') {
                     var peer = chatBtn.getAttribute('data-peer-id');
                     if (peer) {
+                        markContactRead(chatBtn);
                         updateUrl({ peer: peer });
                         loadThread({ peer: peer });
-                        var badge = chatBtn.querySelector('.messaging-contact__badge');
-                        if (badge) {
-                            badge.remove();
-                        }
                     }
                 } else if (type === 'group') {
                     var groupId = chatBtn.getAttribute('data-group-id');
                     if (groupId) {
+                        markContactRead(chatBtn);
                         updateUrl({ group: groupId });
                         loadThread({ group: groupId });
-                        var badgeG = chatBtn.querySelector('.messaging-contact__badge');
-                        if (badgeG) {
-                            badgeG.remove();
-                        }
                     }
                 }
                 return;
@@ -684,6 +795,9 @@
             bindCompose(pane.querySelector('.js-messaging-compose'), pane.dataset.threadMode || 'direct');
             scrollThread();
         }
+
+        resortContactLists();
+        updateUnreadUi(parseInt(board.dataset.unreadTotal || '0', 10) || 0);
     }
 
     document.addEventListener('DOMContentLoaded', initMessagingBoard);

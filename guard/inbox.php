@@ -64,13 +64,30 @@ try {
     error_log('guard/inbox messaging: ' . $e->getMessage());
 }
 
+require_once APP_ROOT . '/includes/messaging_unread.php';
+$guardInboxPageUnread = messaging_unread_total($conn, $company_id, auth_user_role());
+
 $guardNavActive = 'inbox';
 guard_layout_head('Inbox');
 ?>
         <div class="guard-section-stack">
         <header class="page-header">
-            <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Staff messaging board for direct and group conversations.</p>
+            <h1 class="page-title">
+                Inbox
+                <?php if ($guardInboxPageUnread > 0): ?>
+                    <span class="page-title__badge" aria-label="<?= (int) $guardInboxPageUnread ?> new messages"><?= (int) $guardInboxPageUnread ?></span>
+                <?php endif; ?>
+            </h1>
+            <p class="page-subtitle">
+                <?php if ($guardInboxPageUnread > 0): ?>
+                    <span class="inbox-new-messages-hint">
+                        <i class="fa-solid fa-circle" aria-hidden="true"></i>
+                        <?= $guardInboxPageUnread === 1 ? '1 new message waiting' : (int) $guardInboxPageUnread . ' new messages waiting' ?>
+                    </span>
+                    —
+                <?php endif; ?>
+                Staff messaging board for direct and group conversations.
+            </p>
         </header>
 
         <div class="inbox-messaging-solo">

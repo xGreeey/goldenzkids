@@ -826,7 +826,7 @@ function admin_panel_asset_styles(): void
     $loaded = true;
 
     $cssDir = dirname(__DIR__) . '/admin/assets/css';
-    foreach (['messaging-board.css', 'inbox.css', 'reports.css'] as $file) {
+    foreach (['messaging-board.css', 'inbox.css', 'reports.css', 'admin-notifications.css'] as $file) {
         $path = $cssDir . '/' . $file;
         if (is_readable($path)) {
             readfile($path);
@@ -885,5 +885,6 @@ document.addEventListener('DOMContentLoaded', function () {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
+        echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';
     }
 }

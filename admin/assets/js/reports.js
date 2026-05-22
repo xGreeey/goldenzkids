@@ -770,28 +770,66 @@
         );
     }
 
-    function buildIncidentAsIsHtml(incidentDescription, actionTaken) {
+    function buildIncidentAsIsHtml(incidentDescription, actionTaken, editable) {
         const desc = String(incidentDescription ?? '').trim();
         const action = String(actionTaken ?? '').trim();
         const emptyClass = !desc && !action ? ' is-empty' : '';
+        const isEdit = editable === true;
+        const sectionClass =
+            'reports-detail-sheet__section' + (isEdit ? ' reports-report-body-edit' : '');
+        const ariaLabel = isEdit ? 'Handwritten report (edit)' : 'Handwritten report (as scanned)';
 
-        return (
-            '<section id="modal-as-is-view" class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">' +
-            '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>' +
+        let html =
+            '<section id="modal-as-is-view" class="' +
+            sectionClass +
+            '" aria-label="' +
+            escapeHtml(ariaLabel) +
+            '">' +
+            '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>';
+
+        if (isEdit) {
+            html +=
+                '<p class="reports-incident-scan__hint">Compare the uploaded form scan above, then correct any misread text below. Changes are saved with the report and shown in the operation flow.</p>';
+        }
+
+        html +=
             '<div class="reports-incident-as-is' +
+            (isEdit ? ' reports-incident-as-is--editable' : '') +
             emptyClass +
             '">' +
-            '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">' +
-            '<span class="reports-incident-as-is__label">Incident description</span>' +
-            '<div class="reports-incident-as-is__body">' +
-            handwritingHtml(desc) +
-            '</div></div>' +
-            '<div class="reports-incident-as-is__col reports-incident-as-is__col--action">' +
-            '<span class="reports-incident-as-is__label">Action taken</span>' +
-            '<div class="reports-incident-as-is__body">' +
-            handwritingHtml(action) +
-            '</div></div></div></section>'
-        );
+            '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">';
+
+        if (isEdit) {
+            html +=
+                '<label class="reports-incident-as-is__label" for="edit-incident-description">Incident description</label>' +
+                '<textarea id="edit-incident-description" name="incident_description" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="As written on the form…">' +
+                escapeHtml(desc) +
+                '</textarea>';
+        } else {
+            html +=
+                '<span class="reports-incident-as-is__label">Incident description</span>' +
+                '<div class="reports-incident-as-is__body">' +
+                handwritingHtml(desc) +
+                '</div>';
+        }
+
+        html += '</div><div class="reports-incident-as-is__col reports-incident-as-is__col--action">';
+
+        if (isEdit) {
+            html +=
+                '<label class="reports-incident-as-is__label" for="edit-action-taken">Action taken</label>' +
+                '<textarea id="edit-action-taken" name="action_taken" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="As written on the form…">' +
+                escapeHtml(action) +
+                '</textarea>';
+        } else {
+            html +=
+                '<span class="reports-incident-as-is__label">Action taken</span>' +
+                '<div class="reports-incident-as-is__body">' +
+                handwritingHtml(action) +
+                '</div>';
+        }
+
+        return html + '</div></div></section>';
     }
 
     function buildModalDetailsHtml(p) {
@@ -827,7 +865,11 @@
                 '</div></section>';
         }
 
-        html += buildIncidentAsIsHtml(p.incident_description, p.action_taken);
+        html += buildIncidentAsIsHtml(
+            p.incident_description,
+            p.action_taken,
+            reportsLive.currentMode === 'edit'
+        );
         html +=
             '<section class="reports-detail-sheet__section" aria-label="Classification">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
@@ -998,7 +1040,7 @@
             html += '<p class="reports-op-flow__submission-line">—</p>';
         }
         html +=
-            '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Report text</strong> section above.</p>';
+            '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Form handwriting (as written)</strong> section above.</p>';
         return html + '</div>';
     }
 
@@ -1555,15 +1597,6 @@
         if (historyHint) {
             historyHint.hidden = isView;
         }
-        const asIsView = document.getElementById('modal-as-is-view');
-        if (asIsView) {
-            asIsView.hidden = !isView;
-        }
-        const bodyEditWrap = document.getElementById('modal-report-body-edit-wrap');
-        if (bodyEditWrap) {
-            bodyEditWrap.hidden = isView;
-        }
-
         const id = reportsLive.currentIncidentId;
         const payload = id ? resolveIncidentById(id) : null;
         if (payload) {
@@ -1577,7 +1610,7 @@
 
     function scrollModalToEditPanel() {
         const target =
-            document.getElementById('modal-report-body-edit-wrap') ||
+            document.getElementById('modal-as-is-view') ||
             document.getElementById('modal-history-section');
         const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
         if (target && scroller) {

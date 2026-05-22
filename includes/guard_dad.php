@@ -206,10 +206,27 @@ function guard_dad_fields_from_ocr(array $structured, string $postName): array
     if (is_array($rows) && $rows !== []) {
         $first = $rows[0];
         if (is_array($first)) {
-            $guardName = trim((string) ($first['name'] ?? ''));
-            $tin = trim((string) ($first['time_in'] ?? ''));
-            $tout = trim((string) ($first['time_out'] ?? ''));
-            if ($tin === '' && $tout !== '') {
+            $normalized = document_ai_dad_normalize_attendance_row($first);
+            $guardName = $normalized['name'];
+            $punches = [];
+            foreach (
+                [
+                    'AM in' => $normalized['am_time_in'],
+                    'AM out' => $normalized['am_time_out'],
+                    'PM in' => $normalized['pm_time_in'],
+                    'PM out' => $normalized['pm_time_out'],
+                ] as $label => $value
+            ) {
+                if ($value !== '') {
+                    $punches[] = $label . ' ' . $value;
+                }
+            }
+            $tin = $normalized['time_in'];
+            $tout = $normalized['time_out'];
+            if ($punches !== []) {
+                $timeRecord = implode('; ', $punches);
+                $recorded = 'present';
+            } elseif ($tin === '' && $tout !== '') {
                 $issue = 'missing_time_in';
                 $timeRecord = 'No time-in; time-out ' . $tout;
             } elseif ($tout === '' && $tin !== '') {

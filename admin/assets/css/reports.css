@@ -1853,6 +1853,10 @@ body:not(.light-mode) .reports-empty {
     margin-bottom: 1.25rem;
 }
 
+.reports-report-body-edit .reports-incident-scan__hint {
+    margin: 0 0 12px;
+}
+
 .reports-incident-as-is--editable .reports-report-body-edit__input {
     box-sizing: border-box;
     width: 100%;

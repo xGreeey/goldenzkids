@@ -519,19 +519,6 @@ function admin_reports_row_attrs(array $report): string
         <div class="reports-modal__content">
             <div class="reports-modal__body-scroll">
                 <div class="reports-modal-form">
-                    <div class="reports-modal-form__blocks">
-                    <div id="modal-panel-view" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active">
-                        <div id="modal-view-details" class="reports-modal-view-details">
-                            <?php if ($openIncident): ?>
-                            <?= admin_incident_modal_details_html($openIncident) ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    </div>
-
-                    <hr class="reports-modal-form__separator" aria-hidden="true">
-
                     <form method="POST" class="reports-edit-form reports-progression-edit__form" id="reports-edit-form"<?= $openIncident === null ? ' hidden' : '' ?> aria-labelledby="modal-history-heading">
                 <?= csrf_field() ?>
                         <input type="hidden" name="action" value="update_incident">
@@ -539,11 +526,17 @@ function admin_reports_row_attrs(array $report): string
                         <input type="hidden" name="incident_id" id="edit-incident-id" value="<?= $openIncident ? e((string) $openIncident['id']) : '' ?>">
                         <input type="hidden" name="edit_history_index" id="edit-history-index" value="">
 
-                    <div id="modal-report-body-edit-wrap" class="reports-modal-form__section reports-modal-form__section--wide"<?= $drawerMode === 'edit' ? '' : ' hidden' ?>>
-                        <?php if ($openIncident): ?>
-                            <?= admin_incident_modal_report_body_edit_html($openIncident) ?>
-                        <?php endif; ?>
+                    <div class="reports-modal-form__blocks">
+                    <div id="modal-panel-view" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active">
+                        <div id="modal-view-details" class="reports-modal-view-details">
+                            <?php if ($openIncident): ?>
+                            <?= admin_incident_modal_details_html($openIncident, $drawerMode === 'edit') ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
+                    </div>
+
+                    <hr class="reports-modal-form__separator" aria-hidden="true">
 
                     <section id="modal-history-section" class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history<?= $drawerMode === 'edit' ? ' is-editing-progression' : '' ?>" aria-labelledby="modal-history-heading">
                         <header class="reports-modal-form__section-header reports-modal__history-intro">

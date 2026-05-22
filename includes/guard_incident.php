@@ -416,12 +416,19 @@ function guard_incident_map_row_for_admin(array $row): ?array
     $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
 
     $structured = guard_incident_structured_from_row($row);
-    $incidentDescription = document_ai_sanitize_incident_handwriting(
-        (string) ($row['incident_description'] ?? $structured['incident_description'] ?? '')
-    );
-    $actionTaken = document_ai_sanitize_incident_handwriting(
-        (string) ($row['action_taken'] ?? $structured['action_taken'] ?? '')
-    );
+    // Prefer stored column text as-is (admin edits); only sanitize OCR fallback.
+    $incidentDescription = trim((string) ($row['incident_description'] ?? ''));
+    if ($incidentDescription === '') {
+        $incidentDescription = document_ai_sanitize_incident_handwriting(
+            (string) ($structured['incident_description'] ?? '')
+        );
+    }
+    $actionTaken = trim((string) ($row['action_taken'] ?? ''));
+    if ($actionTaken === '') {
+        $actionTaken = document_ai_sanitize_incident_handwriting(
+            (string) ($structured['action_taken'] ?? '')
+        );
+    }
     $formName = document_ai_sanitize_incident_name((string) ($structured['name'] ?? ''));
     if ($formName === '') {
         $formName = guard_incident_subject_from_summary((string) ($row['summary'] ?? ''));

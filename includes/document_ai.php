@@ -148,6 +148,18 @@ function document_ai_process_report_scan(string $absolutePath, string $reportTyp
         return ['ok' => false, 'error' => 'Report scan file was not found on the server.'];
     }
 
+    if (document_ai_is_dad_report_type($reportType)) {
+        $dadRegionResult = document_ai_process_dad_region_pipeline($absolutePath, $reportType);
+        if ($dadRegionResult['ok']) {
+            return $dadRegionResult;
+        }
+
+        error_log(
+            'DTR region OCR failed, falling back to full-page: '
+            . ($dadRegionResult['error'] ?? 'unknown')
+        );
+    }
+
     if (document_ai_is_incident_report_type($reportType)) {
         $regionResult = document_ai_process_incident_region_pipeline($absolutePath, $reportType);
         if ($regionResult['ok']) {
@@ -1255,8 +1267,49 @@ function document_ai_dad_merge_spatial(array $spatial, array $textParsed): array
 }
 
 /**
- * @param list<array{name: string, time_in: string, time_out: string}> $rows
- * @return list<array{name: string, time_in: string, time_out: string}>
+ * @param array<string, mixed> $row
+ * @return array{name: string, am_time_in: string, am_time_out: string, pm_time_in: string, pm_time_out: string, time_in: string, time_out: string}
+ */
+function document_ai_dad_normalize_attendance_row(array $row): array
+{
+    $name = document_ai_sanitize_dad_name((string) ($row['name'] ?? ''));
+    $amIn = document_ai_sanitize_dad_time((string) ($row['am_time_in'] ?? ''));
+    $amOut = document_ai_sanitize_dad_time((string) ($row['am_time_out'] ?? ''));
+    $pmIn = document_ai_sanitize_dad_time((string) ($row['pm_time_in'] ?? ''));
+    $pmOut = document_ai_sanitize_dad_time((string) ($row['pm_time_out'] ?? ''));
+    $timeIn = document_ai_sanitize_dad_time((string) ($row['time_in'] ?? ''));
+    $timeOut = document_ai_sanitize_dad_time((string) ($row['time_out'] ?? ''));
+
+    if ($amIn === '' && $timeIn !== '' && !document_ai_dad_is_time_text($name)) {
+        $amIn = $timeIn;
+    }
+    if ($pmOut === '' && $timeOut !== '' && $amOut === '' && $pmIn === '') {
+        $pmOut = $timeOut;
+    } elseif ($amOut === '' && $timeOut !== '' && $pmIn === '' && $pmOut === '') {
+        $amOut = $timeOut;
+    }
+
+    if ($timeIn === '') {
+        $timeIn = $amIn !== '' ? $amIn : $pmIn;
+    }
+    if ($timeOut === '') {
+        $timeOut = $pmOut !== '' ? $pmOut : $amOut;
+    }
+
+    return [
+        'name' => $name,
+        'am_time_in' => $amIn,
+        'am_time_out' => $amOut,
+        'pm_time_in' => $pmIn,
+        'pm_time_out' => $pmOut,
+        'time_in' => $timeIn,
+        'time_out' => $timeOut,
+    ];
+}
+
+/**
+ * @param list<array<string, mixed>> $rows
+ * @return list<array{name: string, am_time_in: string, am_time_out: string, pm_time_in: string, pm_time_out: string, time_in: string, time_out: string}>
  */
 function document_ai_dad_sanitize_rows(array $rows): array
 {
@@ -1265,13 +1318,17 @@ function document_ai_dad_sanitize_rows(array $rows): array
         if (!is_array($row)) {
             continue;
         }
-        $name = document_ai_sanitize_dad_name((string) ($row['name'] ?? ''));
-        $timeIn = document_ai_sanitize_dad_time((string) ($row['time_in'] ?? ''));
-        $timeOut = document_ai_sanitize_dad_time((string) ($row['time_out'] ?? ''));
-        if ($name === '' && $timeIn === '' && $timeOut === '') {
+        $normalized = document_ai_dad_normalize_attendance_row($row);
+        if (
+            $normalized['name'] === ''
+            && $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
             continue;
         }
-        $out[] = ['name' => $name, 'time_in' => $timeIn, 'time_out' => $timeOut];
+        $out[] = $normalized;
     }
 
     return $out;
@@ -2270,21 +2327,50 @@ function document_ai_dad_build_display_fields(string $post, array $dates, array 
             continue;
         }
         $rowIndex++;
-        $name = trim((string) ($row['name'] ?? ''));
-        $timeIn = trim((string) ($row['time_in'] ?? ''));
-        $timeOut = trim((string) ($row['time_out'] ?? ''));
-        if ($name === '' && $timeIn === '' && $timeOut === '') {
+        $normalized = document_ai_dad_normalize_attendance_row($row);
+        $name = $normalized['name'];
+        if (
+            $name === ''
+            && $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
             continue;
         }
         $suffix = count($attendanceRows) > 1 ? ' (' . $rowIndex . ')' : '';
         if ($name !== '') {
             $fields[] = ['key' => 'name_' . $rowIndex, 'label' => 'NAME' . $suffix, 'value' => $name];
         }
-        if ($timeIn !== '') {
-            $fields[] = ['key' => 'time_in_' . $rowIndex, 'label' => 'TIME IN' . $suffix, 'value' => $timeIn];
+        foreach (
+            [
+                'am_time_in' => 'AM TIME IN',
+                'am_time_out' => 'AM TIME OUT',
+                'pm_time_in' => 'PM TIME IN',
+                'pm_time_out' => 'PM TIME OUT',
+            ] as $key => $label
+        ) {
+            $value = $normalized[$key];
+            if ($value !== '') {
+                $fields[] = [
+                    'key' => $key . '_' . $rowIndex,
+                    'label' => $label . $suffix,
+                    'value' => $value,
+                ];
+            }
         }
-        if ($timeOut !== '') {
-            $fields[] = ['key' => 'time_out_' . $rowIndex, 'label' => 'TIME OUT' . $suffix, 'value' => $timeOut];
+        if (
+            $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
+            if ($normalized['time_in'] !== '') {
+                $fields[] = ['key' => 'time_in_' . $rowIndex, 'label' => 'TIME IN' . $suffix, 'value' => $normalized['time_in']];
+            }
+            if ($normalized['time_out'] !== '') {
+                $fields[] = ['key' => 'time_out_' . $rowIndex, 'label' => 'TIME OUT' . $suffix, 'value' => $normalized['time_out']];
+            }
         }
     }
 
@@ -2631,3 +2717,4 @@ function document_ai_encode_stored(array $payload): string
 }
 
 require_once __DIR__ . '/document_ai_incident_regions.php';
+require_once __DIR__ . '/document_ai_dad_regions.php';

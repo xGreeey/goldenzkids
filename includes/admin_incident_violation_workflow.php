@@ -185,6 +185,26 @@ function admin_incident_per_post_violation_types(): array
  */
 function admin_incident_violation_workflow_sections(): array
 {
+    require_once __DIR__ . '/admin_incident_guide_store.php';
+    $fromDb = admin_incident_guide_sections_from_db(['violation']);
+    if ($fromDb !== null) {
+        return $fromDb;
+    }
+
+    return admin_incident_violation_workflow_sections_legacy();
+}
+
+/**
+ * @return list<array{
+ *   id: string,
+ *   title: string,
+ *   intro: string,
+ *   columns: list<string>,
+ *   rows: list<list<string>>
+ * }>
+ */
+function admin_incident_violation_workflow_sections_legacy(): array
+{
     $sections = [
         [
             'id' => 'vw-purpose',

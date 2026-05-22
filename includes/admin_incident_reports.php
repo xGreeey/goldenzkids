@@ -5,6 +5,7 @@ require_once __DIR__ . '/admin_ui_icons.php';
 
 require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/admin_incident_guidelines.php';
+require_once __DIR__ . '/admin_incident_pipeline.php';
 require_once __DIR__ . '/guard_incident.php';
 
 const ADMIN_INCIDENT_SESSION_KEY = 'admin_incident_reports_store';
@@ -213,11 +214,54 @@ function admin_incident_seed_templates(): array
             'submitted_at' => '2026-05-20',
             'submitted_display' => '20 May 2026, 09:14',
             'status' => 'ongoing',
-            'summary' => 'Head guard reported a non-roster individual attempting to enter the admin wing after hours. CCTV clip attached; awaiting ops review.',
+            'summary' => 'Guard under head guard: (field) · Classified: Policy breach — unauthorized access · On post · High',
+            'incident_description' => 'At 09:05, an unknown male (approx. 30s, dark jacket) attempted to enter the admin wing via the service elevator lobby without a valid access pass. He was challenged at the desk; claimed to be IT but had no visitor badge or roster match.',
+            'action_taken' => 'Denied entry, escorted to main lobby, and CCTV stills saved. Duty supervisor and operations notified immediately via field portal.',
+            'person_involved' => 'Unknown male (non-roster)',
+            'attachments' => [
+                [
+                    'type' => 'scan',
+                    'label' => 'Incident form',
+                    'url' => 'assets/img/report-template-incident.png',
+                ],
+                [
+                    'type' => 'evidence',
+                    'label' => 'CCTV still',
+                    'url' => 'assets/img/report-template-incident.png',
+                ],
+            ],
+            'has_attachments' => true,
             'history' => [
-                ['at' => '20 May 2026, 09:14', 'event' => 'Submitted by head guard', 'note' => 'Initial incident filed from field portal.'],
-                ['at' => '20 May 2026, 10:02', 'event' => 'Assigned to operations', 'note' => 'Routed to admin queue for investigation.'],
-                ['at' => '20 May 2026, 14:30', 'event' => 'Status: Open', 'note' => 'Interview with duty supervisor scheduled.'],
+                [
+                    'at' => '20 May 2026, 09:14',
+                    'source' => 'head_guard',
+                    'kind' => 'field_submission',
+                    'event' => 'Report filed',
+                    'description' => 'At 09:05, an unknown male (approx. 30s, dark jacket) attempted to enter the admin wing via the service elevator lobby without a valid access pass. He was challenged at the desk; claimed to be IT but had no visitor badge or roster match.',
+                    'immediate_action' => 'Denied entry, escorted to main lobby, and CCTV stills saved. Duty supervisor and operations notified immediately via field portal.',
+                    'guard_name' => 'Unknown male (non-roster)',
+                ],
+                [
+                    'at' => '20 May 2026, 09:14',
+                    'source' => 'system',
+                    'kind' => 'classification',
+                    'event' => 'Classified',
+                    'note' => 'Type: Policy breach — unauthorized access · On post · Severity High',
+                ],
+                [
+                    'at' => '20 May 2026, 09:14',
+                    'source' => 'system',
+                    'kind' => 'routing',
+                    'event' => 'Assigned to operations',
+                    'note' => 'Stage 2 — Admin review. Within 1 hour — preserve evidence same shift',
+                ],
+                [
+                    'at' => '20 May 2026, 14:30',
+                    'source' => 'admin',
+                    'kind' => 'decision',
+                    'event' => 'Report accepted',
+                    'note' => 'Accepted for operations review. Interview with duty supervisor scheduled; awaiting signed statement.',
+                ],
             ],
         ],
         [
@@ -407,12 +451,20 @@ function admin_incident_normalize(array $row): array
     $row['submitter_name'] = $row['head_guard_name'];
     $row['submitter_role'] = 'head_guard';
     $row['submitter_role_label'] = admin_incident_submitter_role_label();
+    $row['person_involved'] = admin_incident_person_from_report($row);
 
     $severity = trim((string) ($row['severity'] ?? ''));
     if (!admin_incident_severity_is_valid($severity)) {
         $severity = admin_incident_severity_for_type((string) ($row['incident_type'] ?? ''));
     }
     $row['severity'] = $severity;
+
+    if (!isset($row['attachments']) || !is_array($row['attachments'])) {
+        $row['attachments'] = [];
+    }
+    $row['has_attachments'] = !empty($row['has_attachments'])
+        || (is_array($row['attachments']) && $row['attachments'] !== []);
+    $row['has_operations_decision'] = admin_incident_report_has_operations_decision($row);
 
     $row = admin_incident_sync_dates($row);
     $submittedParts = admin_incident_table_date_parts(
@@ -647,15 +699,236 @@ function admin_incident_touch_updated(array $report): array
  * @param array<string, mixed> $report
  * @param array<string, string> $changes
  */
-function admin_incident_append_history(array $report, string $event, string $note, string $actorId): array
+/**
+ * @param array<string, mixed> $meta Optional: source (head_guard|admin|system), kind (field_submission|status|note|routing|response)
+ */
+function admin_incident_append_history(array $report, string $event, string $note, string $actorId, array $meta = []): array
 {
-    $history = $report['history'] ?? [];
-    $history[] = [
+    $history = is_array($report['history'] ?? null) ? $report['history'] : [];
+    $entry = [
         'at' => admin_incident_history_now(),
         'event' => $event,
         'note' => $note,
         'actor' => $actorId,
+        'source' => (string) ($meta['source'] ?? 'admin'),
+        'kind' => (string) ($meta['kind'] ?? 'response'),
     ];
+    if (isset($meta['description']) && trim((string) $meta['description']) !== '') {
+        $entry['description'] = trim((string) $meta['description']);
+    }
+    if (isset($meta['immediate_action']) && trim((string) $meta['immediate_action']) !== '') {
+        $entry['immediate_action'] = trim((string) $meta['immediate_action']);
+    }
+    $history[] = $entry;
+    $report['history'] = $history;
+
+    return $report;
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_entry_is_editable(array $entry): bool
+{
+    return admin_incident_history_entry_source($entry) === 'admin';
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_entry_is_decision(array $entry): bool
+{
+    $kind = strtolower(trim((string) ($entry['kind'] ?? '')));
+    if ($kind === 'decision') {
+        return true;
+    }
+
+    $event = strtolower(trim((string) ($entry['event'] ?? '')));
+
+    return in_array($event, ['report accepted', 'report not accepted', 'report on hold'], true);
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_head_guard_notes_html(array $entry, array $report): string
+{
+    $content = admin_incident_field_submission_content($entry, $report);
+    $guardName = trim((string) ($entry['guard_name'] ?? $report['person_involved'] ?? ''));
+    $html = '<div class="reports-op-flow__submission-readonly">';
+    if ($guardName !== '') {
+        $html .= '<p class="reports-op-flow__submission-line"><strong>Guard (under head guard):</strong> '
+            . htmlspecialchars($guardName, ENT_QUOTES, 'UTF-8')
+            . '</p>';
+    }
+    if ($content['description'] !== '') {
+        $html .= '<p class="reports-op-flow__submission-line"><strong>Description:</strong> '
+            . htmlspecialchars($content['description'], ENT_QUOTES, 'UTF-8')
+            . '</p>';
+    }
+    if ($content['immediate_action'] !== '') {
+        $html .= '<p class="reports-op-flow__submission-line"><strong>Immediate action:</strong> '
+            . htmlspecialchars($content['immediate_action'], ENT_QUOTES, 'UTF-8')
+            . '</p>';
+    }
+    if ($html === '<div class="reports-op-flow__submission-readonly">') {
+        $html .= '<p class="reports-op-flow__submission-line">—</p>';
+    }
+
+    return $html . '</div>';
+}
+
+function admin_incident_status_slug_from_history_event(string $event): ?string
+{
+    if (!preg_match('/^(Registry|Status):\s*(.+)$/iu', trim($event), $m)) {
+        return null;
+    }
+
+    $label = trim($m[2]);
+    foreach (admin_incident_status_definitions() as $slug => $def) {
+        if (strcasecmp($def['label'], $label) === 0) {
+            return $slug;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @return array<string, mixed>
+ */
+function admin_incident_apply_history_entry_edit(array $entry, string $status, string $opsNote, string $actorId): array
+{
+    $entry['note'] = $opsNote;
+    $entry['edited_at'] = admin_incident_history_now();
+    $entry['edited_by'] = $actorId;
+
+    $kind = strtolower(trim((string) ($entry['kind'] ?? '')));
+    $event = trim((string) ($entry['event'] ?? ''));
+    $eventLower = strtolower($event);
+    $isRegistryEvent = $kind === 'status'
+        || str_starts_with($eventLower, 'registry:')
+        || str_starts_with($eventLower, 'status:');
+
+    if ($isRegistryEvent) {
+        $entry['event'] = 'Registry: ' . admin_incident_status_label($status);
+        $entry['kind'] = 'status';
+    }
+
+    return $entry;
+}
+
+/**
+ * @param array<string, mixed> $report
+ * @param array<string, mixed> $input
+ */
+function admin_incident_update_history_entry(array $report, array $input, string $actorId): ?array
+{
+    $editIdx = (int) ($input['edit_history_index'] ?? -1);
+    if ($editIdx < 0) {
+        return null;
+    }
+
+    $history = is_array($report['history'] ?? null) ? $report['history'] : [];
+    if (!isset($history[$editIdx]) || !is_array($history[$editIdx])) {
+        return null;
+    }
+
+    $entry = $history[$editIdx];
+    if (!admin_incident_history_entry_is_editable($entry)) {
+        return null;
+    }
+
+    $status = (string) ($input['status'] ?? $report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    if (!admin_incident_status_is_valid($status)) {
+        $status = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    }
+
+    $opsNote = trim((string) ($input['ops_note'] ?? ''));
+    $history[$editIdx] = admin_incident_apply_history_entry_edit($entry, $status, $opsNote, $actorId);
+    $report['history'] = $history;
+    $report['status'] = $status;
+
+    return admin_incident_touch_updated($report);
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_entry_is_registry(array $entry): bool
+{
+    $kind = strtolower(trim((string) ($entry['kind'] ?? '')));
+    $event = strtolower(trim((string) ($entry['event'] ?? '')));
+
+    return $kind === 'status'
+        || str_starts_with($event, 'registry:')
+        || str_starts_with($event, 'status:');
+}
+
+function admin_incident_history_status_select_html(string $name, string $selectedSlug, string $id = ''): string
+{
+    $idAttr = $id !== '' ? ' id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"' : '';
+    $html = '<select name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" class="reports-op-flow__input"' . $idAttr . '>';
+    foreach (admin_incident_status_definitions() as $slug => $def) {
+        $selected = $slug === $selectedSlug ? ' selected' : '';
+        $html .= '<option value="' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '"' . $selected . '>'
+            . htmlspecialchars($def['label'], ENT_QUOTES, 'UTF-8')
+            . '</option>';
+    }
+
+    return $html . '</select>';
+}
+
+/**
+ * @param array<string, mixed> $report
+ * @param array<int|string, array<string, mixed>> $rowsInput
+ */
+function admin_incident_apply_history_rows_edit(array $report, array $rowsInput, string $actorId): array
+{
+    $history = is_array($report['history'] ?? null) ? $report['history'] : [];
+
+    foreach ($rowsInput as $idxStr => $rowInput) {
+        if (!is_array($rowInput)) {
+            continue;
+        }
+        $idx = (int) $idxStr;
+        if (!isset($history[$idx]) || !is_array($history[$idx])) {
+            continue;
+        }
+
+        $entry = $history[$idx];
+
+        if (admin_incident_history_entry_source($entry) === 'head_guard') {
+            continue;
+        }
+
+        if (admin_incident_history_entry_is_editable($entry)) {
+            $note = trim((string) ($rowInput['note'] ?? ''));
+            $actionType = trim((string) ($rowInput['action_type'] ?? ''));
+            $registryStatus = trim((string) ($rowInput['registry_status'] ?? ''));
+
+            if ($actionType !== '' && admin_incident_history_entry_is_decision($entry)) {
+                $decisionMeta = admin_incident_operations_decision_meta($actionType);
+                if ($decisionMeta !== null) {
+                    $entry['event'] = $decisionMeta['event'];
+                    $entry['kind'] = $decisionMeta['kind'];
+                    $entry['note'] = $note;
+                    $entry['edited_at'] = admin_incident_history_now();
+                    $entry['edited_by'] = $actorId;
+                    $report['status'] = $decisionMeta['status'];
+                }
+            } elseif ($registryStatus !== '' && admin_incident_status_is_valid($registryStatus)) {
+                $entry = admin_incident_apply_history_entry_edit($entry, $registryStatus, $note, $actorId);
+            } else {
+                $entry['note'] = $note;
+                $event = trim((string) ($rowInput['event'] ?? ''));
+                if ($event !== '') {
+                    $entry['event'] = $event;
+                }
+                $entry['edited_at'] = admin_incident_history_now();
+                $entry['edited_by'] = $actorId;
+            }
+        }
+
+        $history[$idx] = $entry;
+    }
+
     $report['history'] = $history;
 
     return $report;
@@ -698,55 +971,150 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
     $oldSeverity = (string) ($found['severity'] ?? 'Medium');
     $oldSummary = (string) $found['summary'];
 
-    $category = admin_incident_category_normalize((string) ($input['category'] ?? $oldCategory));
+    $progressionOnly = !empty($input['progression_only']);
+
+    $category = $oldCategory;
+    $incidentType = $oldType;
+    $site = $oldSite;
+    $summary = $oldSummary;
+    $severity = $oldSeverity;
+
+    if (!$progressionOnly) {
+        $category = admin_incident_category_normalize((string) ($input['category'] ?? $oldCategory));
+        $incidentType = trim((string) ($input['incident_type'] ?? $oldType));
+        $site = trim((string) ($input['site'] ?? $oldSite));
+        $summary = trim((string) ($input['summary'] ?? $oldSummary));
+        $severity = trim((string) ($input['severity'] ?? $oldSeverity));
+        if (!admin_incident_severity_is_valid($severity)) {
+            $severity = admin_incident_severity_for_type($incidentType);
+        }
+        $found['category'] = $category;
+        $found['incident_type'] = $incidentType;
+        $found['site'] = $site;
+        $found['severity'] = $severity;
+        $found['summary'] = $summary;
+    }
 
     $status = (string) ($input['status'] ?? $oldStatus);
     if (!admin_incident_status_is_valid($status)) {
         $status = $oldStatus;
     }
 
-    $incidentType = trim((string) ($input['incident_type'] ?? $oldType));
-    $site = trim((string) ($input['site'] ?? $oldSite));
-    $summary = trim((string) ($input['summary'] ?? $oldSummary));
-    $severity = trim((string) ($input['severity'] ?? $oldSeverity));
-    if (!admin_incident_severity_is_valid($severity)) {
-        $severity = admin_incident_severity_for_type($incidentType);
+    $historyRows = is_array($input['history_row'] ?? null) ? $input['history_row'] : [];
+    $newRowInput = is_array($historyRows['new'] ?? null) ? $historyRows['new'] : null;
+    unset($historyRows['new']);
+
+    if ($progressionOnly) {
+        if ($historyRows !== []) {
+            $found = admin_incident_apply_history_rows_edit($found, $historyRows, $actorId);
+        }
+        if ($newRowInput !== null) {
+            $found = admin_incident_apply_history_new_row($found, $newRowInput, $actorId);
+        }
+
+        $status = (string) ($input['status'] ?? $found['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+        if (!admin_incident_status_is_valid($status)) {
+            $status = (string) ($found['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+        }
+        $statusBefore = (string) $found['status'];
+        if ($status !== $statusBefore) {
+            $found['status'] = $status;
+            $found = admin_incident_append_history(
+                $found,
+                'Registry: ' . admin_incident_status_label($status),
+                'Registry status updated.',
+                $actorId,
+                ['source' => 'admin', 'kind' => 'status']
+            );
+        }
+
+        $found = admin_incident_touch_updated($found);
+        $found['status'] = admin_incident_reconcile_status($found);
+        $found = admin_incident_normalize($found);
+        $reports[$idx] = $found;
+        admin_incident_store_save($reports);
+
+        return $found;
     }
 
-    $found['category'] = $category;
-    $found['incident_type'] = $incidentType;
-    $found['site'] = $site;
-    $found['severity'] = $severity;
-    $found['summary'] = $summary;
+    $hasHistoryEdits = is_array($input['history_row'] ?? null) && $input['history_row'] !== [];
+    if ($hasHistoryEdits) {
+        $found = admin_incident_apply_history_rows_edit($found, $input['history_row'], $actorId);
+        $found = admin_incident_touch_updated($found);
+    }
+
     $found['status'] = $status;
 
-    $opsNote = trim((string) ($input['ops_note'] ?? ''));
-    $fieldsChanged = $category !== $oldCategory
+    $editHistoryIndex = trim((string) ($input['edit_history_index'] ?? ''));
+    if ($editHistoryIndex !== '' && $progressionOnly && (!is_array($historyRows) || $historyRows === [])) {
+        $updated = admin_incident_update_history_entry($found, [
+            'status' => $status,
+            'ops_note' => (string) ($input['ops_note'] ?? ''),
+            'edit_history_index' => $editHistoryIndex,
+        ], $actorId);
+        if ($updated === null) {
+            return null;
+        }
+        $found = admin_incident_normalize($updated);
+        $reports[$idx] = $found;
+        admin_incident_store_save($reports);
+
+        return $found;
+    }
+
+    $opsDecision = trim((string) ($input['ops_decision'] ?? ''));
+    $decisionAppended = $progressionOnly && $opsDecision !== '';
+    $fieldsChanged = !$progressionOnly && (
+        $category !== $oldCategory
         || $incidentType !== $oldType
         || $site !== $oldSite
         || $severity !== $oldSeverity
-        || $summary !== $oldSummary;
+        || $summary !== $oldSummary
+    );
     $statusChanged = $status !== $oldStatus;
 
+<<<<<<< HEAD
     $didChange = $statusChanged || $fieldsChanged || $opsNote !== '';
     if ($didChange) {
         $event = $statusChanged
             ? 'Status: ' . admin_incident_status_label($status)
             : 'Updated by operations';
+=======
+    if (!$statusChanged && !$fieldsChanged && $opsNote === '' && !$hasHistoryEdits && !$decisionAppended) {
+        return admin_incident_normalize($found);
+    }
+
+    if (!$decisionAppended && ($statusChanged || $fieldsChanged || $opsNote !== '')) {
+>>>>>>> 6cf64fa43bc8e995a4414128ad6ed9ca42ec55b8
         $noteParts = [];
         if ($opsNote !== '') {
             $noteParts[] = $opsNote;
         }
         if ($fieldsChanged && $opsNote === '') {
-            $noteParts[] = 'Incident details revised by ' . $actorId . '.';
+            $noteParts[] = 'Incident details revised.';
         }
         if ($statusChanged && $opsNote === '' && !$fieldsChanged) {
-            $noteParts[] = 'Status set to ' . $found['status_label'] . ' by ' . $actorId . '.';
+            $noteParts[] = 'Registry status updated.';
         }
-        $found = admin_incident_append_history($found, $event, implode(' ', $noteParts), $actorId);
+        $note = implode(' ', $noteParts);
+        if ($statusChanged) {
+            $event = 'Registry: ' . admin_incident_status_label($status);
+            $kind = 'status';
+        } elseif ($opsNote !== '') {
+            $event = 'Operations response';
+            $kind = 'note';
+        } else {
+            $event = 'Operations update';
+            $kind = 'response';
+        }
+        $found = admin_incident_append_history($found, $event, $note, $actorId, [
+            'source' => 'admin',
+            'kind' => $kind,
+        ]);
     }
 
     $found = admin_incident_touch_updated($found);
+    $found['status'] = admin_incident_reconcile_status($found);
     $found = admin_incident_normalize($found);
 
     $reports[$idx] = $found;
@@ -801,7 +1169,7 @@ function admin_incident_severity_is_valid(string $severity): bool
 
 function admin_incident_severity_for_type(string $incidentType): string
 {
-    foreach (admin_incident_sanctions_reference() as $ref) {
+    foreach (admin_incident_guard_guide_workflow_rows() as $ref) {
         if ((string) ($ref['incident_type'] ?? '') === $incidentType) {
             $severity = (string) ($ref['severity'] ?? 'Medium');
 
@@ -971,6 +1339,49 @@ function admin_incident_modal_sheet_field_html(string $label, string $value, str
 }
 
 /**
+ * Thumbnail preview of scan + evidence images (between description and severity).
+ *
+ * @param array<string, mixed> $report
+ */
+function admin_incident_modal_attachments_field_html(array $report): string
+{
+    $attachments = is_array($report['attachments'] ?? null) ? $report['attachments'] : [];
+    $html = '<div class="reports-detail-sheet__field reports-detail-sheet__field--attachments">';
+    $html .= '<span class="reports-detail-sheet__label">Attachments</span>';
+    $html .= '<div class="reports-detail-sheet__value reports-incident-attachments">';
+
+    if ($attachments === []) {
+        $html .= '<span class="reports-incident-attachments__empty">No images attached</span>';
+    } else {
+        $html .= '<div class="reports-incident-attachments__grid" role="list">';
+        foreach ($attachments as $attachment) {
+            if (!is_array($attachment)) {
+                continue;
+            }
+            $url = trim((string) ($attachment['url'] ?? ''));
+            if ($url === '') {
+                continue;
+            }
+            $label = trim((string) ($attachment['label'] ?? 'Attachment'));
+            $html .= '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" role="listitem"'
+                . ' class="reports-incident-attachments__link" data-reports-attachment-preview'
+                . ' target="_blank" rel="noopener noreferrer">';
+            $html .= '<img class="reports-incident-attachments__thumb" src="'
+                . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" alt="'
+                . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '" loading="lazy" decoding="async">';
+            $html .= '<span class="reports-incident-attachments__caption">'
+                . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+                . '</span></a>';
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '</div></div>';
+
+    return $html;
+}
+
+/**
  * Report summary — text-first grid (wireframe layout, readable spacing).
  *
  * @param array<string, mixed> $report
@@ -987,12 +1398,21 @@ function admin_incident_modal_details_html(array $report): string
     }
 
     $incident = trim((string) ($report['incident_type'] ?? ''));
+<<<<<<< HEAD
+    $description = admin_incident_modal_description_text($report);
+    $severity = trim((string) ($report['severity'] ?? 'Medium'));
+    $person = admin_incident_person_from_report($report);
+    if ($person === '') {
+        $person = admin_incident_person_involved_label($report);
+    }
+=======
     $severity = trim((string) ($report['severity'] ?? 'Medium'));
     $person = admin_incident_person_involved_label($report);
     $incidentDescription = trim((string) ($report['incident_description'] ?? ''));
     $actionTaken = trim((string) ($report['action_taken'] ?? ''));
     $formName = trim((string) ($report['form_name'] ?? ''));
     $formDate = trim((string) ($report['form_date'] ?? ''));
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
 
     $html = '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
         . admin_incident_modal_scan_html($report)
@@ -1016,6 +1436,11 @@ function admin_incident_modal_details_html(array $report): string
     $html .= '<section class="reports-detail-sheet__section" aria-label="Classification">'
         . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">'
         . admin_incident_modal_sheet_field_html('Incident', $incident, 'incident')
+<<<<<<< HEAD
+        . admin_incident_modal_sheet_field_html('Description', $description, 'description')
+        . admin_incident_modal_attachments_field_html($report)
+=======
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
         . admin_incident_modal_sheet_field_html('Severity', $severity, 'severity')
         . '</div></section></div>';
 
@@ -1087,12 +1512,478 @@ function admin_incident_timeline_section_title(): string
 
 function admin_incident_timeline_section_description(): string
 {
-    return '';
+    return 'Chronological audit trail: head guard filing, automatic classification, operations decisions, and registry updates.';
+}
+
+function admin_incident_progression_edit_intro(): string
+{
+    return 'Edit directly in the table — like a sheet. Head guard and system rows are fixed; add a new operations row or update existing operations notes, then save.';
+}
+
+/** @return array<string, string> */
+function admin_incident_history_ops_action_options(): array
+{
+    return [
+        '' => '— Select action —',
+        'accept' => 'Report accepted',
+        'on_hold' => 'Report on hold',
+        'denied' => 'Report not accepted',
+        'response' => 'Operations note',
+        'registry' => 'Registry status change',
+    ];
+}
+
+function admin_incident_history_ops_action_select_html(string $name, string $selected = '', string $id = ''): string
+{
+    $idAttr = $id !== '' ? ' id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '"' : '';
+    $html = '<select name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" class="reports-op-flow__input reports-op-flow__cell-input"' . $idAttr . '>';
+    foreach (admin_incident_history_ops_action_options() as $value => $label) {
+        $sel = $value === $selected ? ' selected' : '';
+        $html .= '<option value="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '"' . $sel . '>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</option>';
+    }
+
+    return $html . '</select>';
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_action_type_from_entry(array $entry): string
+{
+    if (admin_incident_history_entry_is_decision($entry)) {
+        $event = strtolower(trim((string) ($entry['event'] ?? '')));
+        return match ($event) {
+            'report accepted' => 'accept',
+            'report on hold' => 'on_hold',
+            'report not accepted' => 'denied',
+            default => 'accept',
+        };
+    }
+
+    if (admin_incident_history_entry_is_registry($entry)) {
+        return 'registry';
+    }
+
+    return 'response';
+}
+
+/**
+ * @param array<string, mixed> $rowInput
+ */
+function admin_incident_validate_new_history_row(array $rowInput): ?string
+{
+    $actionType = trim((string) ($rowInput['action_type'] ?? ''));
+    if ($actionType === '') {
+        return null;
+    }
+
+    $note = trim((string) ($rowInput['note'] ?? ''));
+    $meta = admin_incident_operations_decision_meta($actionType);
+    if ($meta !== null && !empty($meta['requires_note']) && $note === '') {
+        return 'Notes are required for on hold or not accepted.';
+    }
+
+    if ($actionType === 'registry') {
+        $status = trim((string) ($rowInput['registry_status'] ?? ''));
+        if ($status === '' || !admin_incident_status_is_valid($status)) {
+            return 'Select a registry status for the new row.';
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param array<string, mixed> $report
+ * @param array<string, mixed> $rowInput
+ */
+function admin_incident_apply_history_new_row(array $report, array $rowInput, string $actorId): array
+{
+    $actionType = trim((string) ($rowInput['action_type'] ?? ''));
+    if ($actionType === '') {
+        return $report;
+    }
+
+    $note = trim((string) ($rowInput['note'] ?? ''));
+    $meta = admin_incident_operations_decision_meta($actionType);
+
+    if ($meta !== null) {
+        if (!empty($meta['requires_note']) && $note === '') {
+            return $report;
+        }
+        if ($note === '' && $actionType === 'accept') {
+            $note = 'Accepted for operations review — case continues.';
+        }
+
+        $report = admin_incident_append_history($report, $meta['event'], $note, $actorId, [
+            'source' => 'admin',
+            'kind' => $meta['kind'],
+        ]);
+        $report['status'] = $meta['status'];
+
+        return admin_incident_touch_updated($report);
+    }
+
+    if ($actionType === 'registry') {
+        $status = trim((string) ($rowInput['registry_status'] ?? ''));
+        if (!admin_incident_status_is_valid($status)) {
+            return $report;
+        }
+        $registryNote = $note !== '' ? $note : 'Registry status updated.';
+        $report = admin_incident_append_history(
+            $report,
+            'Registry: ' . admin_incident_status_label($status),
+            $registryNote,
+            $actorId,
+            ['source' => 'admin', 'kind' => 'status']
+        );
+        $report['status'] = $status;
+
+        return admin_incident_touch_updated($report);
+    }
+
+    $event = trim((string) ($rowInput['event'] ?? ''));
+    if ($event === '') {
+        $event = 'Operations response';
+    }
+    $responseNote = $note !== '' ? $note : 'Progression updated.';
+
+    $report = admin_incident_append_history($report, $event, $responseNote, $actorId, [
+        'source' => 'admin',
+        'kind' => 'response',
+    ]);
+
+    return admin_incident_touch_updated($report);
+}
+
+function admin_incident_history_new_row_editable_html(): string
+{
+    return '<tr class="reports-op-flow__row reports-op-flow__row--editing reports-op-flow__row--new" data-history-index="new">'
+        . '<td class="reports-op-flow__when"><span class="reports-op-flow__new-label">New</span></td>'
+        . '<td class="reports-op-flow__action">'
+        . admin_incident_history_ops_action_select_html('history_row[new][action_type]', '', 'history-row-new-action')
+        . '</td>'
+        . '<td class="reports-op-flow__notes">'
+        . '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="history_row[new][note]" rows="2" maxlength="1000" placeholder="Decision notes, follow-up, evidence request, closure memo…"></textarea>'
+        . '<div class="reports-op-flow__registry-inline" data-registry-inline hidden>'
+        . admin_incident_history_status_select_html('history_row[new][registry_status]', ADMIN_INCIDENT_STATUS_ONGOING, 'history-row-new-registry')
+        . '</div></td>'
+        . '<td class="reports-op-flow__by">Operations</td>'
+        . '</tr>';
+}
+
+/**
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_registry_status_row_editable_html(array $report): string
+{
+    $statusSlug = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    if (!admin_incident_status_is_valid($statusSlug)) {
+        $statusSlug = ADMIN_INCIDENT_STATUS_ONGOING;
+    }
+
+    return '<tr class="reports-op-flow__row reports-op-flow__row--status reports-op-flow__row--editing">'
+        . '<td class="reports-op-flow__when">—</td>'
+        . '<td class="reports-op-flow__action">Case registry</td>'
+        . '<td class="reports-op-flow__notes">'
+        . admin_incident_history_status_select_html('status', $statusSlug, 'edit-registry-status')
+        . '</td>'
+        . '<td class="reports-op-flow__by"></td>'
+        . '</tr>';
+}
+
+/** @param array<string, mixed> $report */
+function admin_incident_report_has_operations_decision(array $report): bool
+{
+    $history = is_array($report['history'] ?? null) ? $report['history'] : [];
+    foreach ($history as $entry) {
+        if (is_array($entry) && admin_incident_history_entry_is_decision($entry)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function admin_incident_operations_decision_select_html(string $name = 'ops_decision', string $selected = ''): string
+{
+    $html = '<select name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" id="edit-ops-decision" class="reports-op-flow__input">';
+    $html .= '<option value="">— Select decision —</option>';
+    $options = [
+        'accept' => 'Accept report (continue review)',
+        'on_hold' => 'On hold',
+        'denied' => 'Not accepted',
+    ];
+    foreach ($options as $value => $label) {
+        $sel = $value === $selected ? ' selected' : '';
+        $html .= '<option value="' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '"' . $sel . '>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</option>';
+    }
+
+    return $html . '</select>';
+}
+
+/**
+ * Progression edit panel — registry status, first decision, or follow-up.
+ *
+ * @param array<string, mixed> $report
+ */
+function admin_incident_progression_edit_panel_html(array $report): string
+{
+    $statusSlug = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    if (!admin_incident_status_is_valid($statusSlug)) {
+        $statusSlug = ADMIN_INCIDENT_STATUS_ONGOING;
+    }
+    $statusLabel = admin_incident_status_label($statusSlug);
+    $hasDecision = admin_incident_report_has_operations_decision($report);
+
+    $html = '<div class="reports-progression-edit__fields">';
+    $html .= '<div class="reports-progression-edit__row reports-progression-edit__row--registry">';
+    $html .= '<div class="reports-form-field">';
+    $html .= '<label for="edit-registry-status">Registry status</label>';
+    $html .= admin_incident_history_status_select_html('status', $statusSlug, 'edit-registry-status');
+    $html .= '<p class="reports-form-hint">Current: <strong>' . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8')
+        . '</strong>. Changing this adds a registry step when you save (if it differs).</p>';
+    $html .= '</div></div>';
+
+    $html .= '<div id="progression-first-decision" class="reports-progression-edit__block"'
+        . ($hasDecision ? ' hidden' : '')
+        . ' data-progression-block="first-decision">';
+    $html .= '<h4 class="reports-progression-edit__block-title">First operations review</h4>';
+    $html .= '<p class="reports-form-hint">Required response to the head guard filing — accept to continue, or record on hold / not accepted with notes.</p>';
+    $html .= '<div class="reports-progression-edit__row">';
+    $html .= '<div class="reports-form-field"><label for="edit-ops-decision">Decision</label>';
+    $html .= admin_incident_operations_decision_select_html();
+    $html .= '</div>';
+    $html .= '<div class="reports-form-field reports-progression-edit__note">';
+    $html .= '<label for="edit-ops-note">Decision notes</label>';
+    $html .= '<textarea id="edit-ops-note" name="ops_note" rows="3" maxlength="1000"'
+        . ' placeholder="Required for not accepted or on hold. Summarize terms, reason, or next steps."></textarea>';
+    $html .= '</div></div></div>';
+
+    $html .= '<div id="progression-follow-up" class="reports-progression-edit__block"'
+        . ($hasDecision ? '' : ' hidden')
+        . ' data-progression-block="follow-up">';
+    $html .= '<h4 class="reports-progression-edit__block-title">Follow-up</h4>';
+    $html .= '<p class="reports-form-hint">Add investigation notes, evidence requests, or closure details. Combine with a registry change above when closing or pausing the case.</p>';
+    $html .= '<div class="reports-form-field reports-progression-edit__note">';
+    $html .= '<label for="edit-ops-followup">Follow-up note (optional)</label>';
+    $html .= '<textarea id="edit-ops-followup" name="ops_followup" rows="3" maxlength="1000"'
+        . ' placeholder="e.g. Awaiting CCTV from head guard; interview scheduled; case closed per client memo."></textarea>';
+    $html .= '</div></div>';
+
+    $html .= '</div>';
+
+    return $html;
 }
 
 function admin_incident_timeline_empty_message(): string
 {
     return 'No operations history yet. Entries are added when a report is submitted or updated by operations.';
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_entry_source(array $entry): string
+{
+    return admin_incident_pipeline_entry_source($entry);
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_entry_kind(array $entry, int $index): string
+{
+    $kind = strtolower(trim((string) ($entry['kind'] ?? '')));
+    if ($kind !== '') {
+        return $kind;
+    }
+
+    if ($index === 0 && admin_incident_history_entry_source($entry) === 'head_guard') {
+        return 'field_submission';
+    }
+
+    $event = strtolower(trim((string) ($entry['event'] ?? '')));
+    if (str_starts_with($event, 'status:') || str_starts_with($event, 'registry:')) {
+        return 'status';
+    }
+    if (str_contains($event, 'assigned')) {
+        return 'routing';
+    }
+
+    return 'response';
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ * @return array{description: string, immediate_action: string}
+ */
+function admin_incident_field_submission_content(array $entry, array $report): array
+{
+    $description = trim((string) ($entry['description'] ?? $entry['incident_description'] ?? ''));
+    $action = trim((string) ($entry['immediate_action'] ?? $entry['action_taken'] ?? ''));
+
+    if ($description === '') {
+        $description = trim((string) ($report['incident_description'] ?? $report['summary'] ?? ''));
+    }
+    if ($action === '') {
+        $action = trim((string) ($report['action_taken'] ?? ''));
+    }
+
+    $note = trim((string) ($entry['note'] ?? ''));
+    if ($description === '' && $note !== '') {
+        $description = $note;
+    }
+
+    return ['description' => $description, 'immediate_action' => $action];
+}
+
+/** @param array<string, mixed> $entry */
+function admin_incident_history_action_label(array $entry, int $index): string
+{
+    $kind = admin_incident_history_entry_kind($entry, $index);
+    if ($kind === 'field_submission' || ($index === 0 && admin_incident_history_entry_source($entry) === 'head_guard')) {
+        return 'Report filed';
+    }
+
+    return trim((string) ($entry['event'] ?? 'Update'));
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_notes_text(array $entry, int $index, array $report): string
+{
+    $kind = admin_incident_history_entry_kind($entry, $index);
+    if ($kind === 'field_submission' || ($index === 0 && admin_incident_history_entry_source($entry) === 'head_guard')) {
+        $content = admin_incident_field_submission_content($entry, $report);
+        $lines = [];
+        if ($content['description'] !== '') {
+            $lines[] = 'Description: ' . $content['description'];
+        }
+        if ($content['immediate_action'] !== '') {
+            $lines[] = 'Immediate action: ' . $content['immediate_action'];
+        }
+
+        return $lines !== [] ? implode("\n", $lines) : '—';
+    }
+
+    $note = trim((string) ($entry['note'] ?? ''));
+
+    return $note !== '' ? $note : '—';
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_by_label(array $entry, array $report): string
+{
+    if (admin_incident_history_entry_source($entry) === 'head_guard') {
+        $name = trim((string) ($report['head_guard_name'] ?? $report['submitter_name'] ?? ''));
+
+        return $name !== '' ? $name : 'Head guard';
+    }
+
+    return 'Operations';
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_row_html(array $entry, int $index, array $report): string
+{
+    $parts = admin_incident_history_datetime_parts(admin_incident_history_display_timestamp($entry));
+    $action = admin_incident_history_action_label($entry, $index);
+    $notes = admin_incident_history_notes_text($entry, $index, $report);
+    $by = admin_incident_history_by_label($entry, $report);
+
+    return '<tr class="reports-op-flow__row" data-history-index="' . $index . '">'
+        . '<td class="reports-op-flow__when">'
+        . '<span class="reports-op-flow__date">' . htmlspecialchars($parts['date'], ENT_QUOTES, 'UTF-8') . '</span>'
+        . '<span class="reports-op-flow__time">' . htmlspecialchars($parts['time'], ENT_QUOTES, 'UTF-8') . '</span>'
+        . '</td>'
+        . '<td class="reports-op-flow__action">' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8') . '</td>'
+        . '<td class="reports-op-flow__notes"><span class="reports-op-flow__notes-text">' . htmlspecialchars($notes, ENT_QUOTES, 'UTF-8') . '</span></td>'
+        . '<td class="reports-op-flow__by">' . htmlspecialchars($by, ENT_QUOTES, 'UTF-8') . '</td>'
+        . '</tr>';
+}
+
+/**
+ * @param array<string, mixed> $entry
+ * @param array<string, mixed> $report
+ */
+function admin_incident_history_row_editable_html(array $entry, int $index, array $report): string
+{
+    if (admin_incident_history_entry_source($entry) === 'system') {
+        return admin_incident_history_row_html($entry, $index, $report);
+    }
+
+    $parts = admin_incident_history_datetime_parts(admin_incident_history_display_timestamp($entry));
+    $by = admin_incident_history_by_label($entry, $report);
+    $prefix = 'history_row[' . $index . ']';
+    $rowClass = 'reports-op-flow__row reports-op-flow__row--editing';
+    $editedMark = trim((string) ($entry['edited_at'] ?? '')) !== ''
+        ? ' <span class="reports-op-flow__edited-tag">Updated</span>'
+        : '';
+
+    if (admin_incident_history_entry_source($entry) === 'head_guard') {
+        $rowClass .= ' reports-op-flow__row--head-guard';
+        $actionCell = '<span class="reports-op-flow__action-label">Report filed</span>';
+        $notesCell = admin_incident_history_head_guard_notes_html($entry, $report);
+    } elseif (admin_incident_history_entry_is_editable($entry)) {
+        $note = historyEntryNoteForEditPhp($entry);
+        if (admin_incident_history_entry_is_decision($entry)) {
+            $actionType = admin_incident_action_type_from_entry($entry);
+            $actionCell = admin_incident_history_ops_action_select_html($prefix . '[action_type]', $actionType);
+            $notesCell = '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' . $prefix . '[note]" rows="2" maxlength="1000" placeholder="Decision notes…">'
+                . htmlspecialchars($note, ENT_QUOTES, 'UTF-8')
+                . '</textarea>';
+        } elseif (admin_incident_history_entry_is_registry($entry)) {
+            $statusSlug = admin_incident_status_slug_from_history_event((string) ($entry['event'] ?? ''))
+                ?? (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+            $actionCell = admin_incident_history_ops_action_select_html($prefix . '[action_type]', 'registry')
+                . admin_incident_history_status_select_html($prefix . '[registry_status]', $statusSlug);
+            $notesCell = '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' . $prefix . '[note]" rows="2" maxlength="1000" placeholder="Note…">'
+                . htmlspecialchars($note, ENT_QUOTES, 'UTF-8')
+                . '</textarea>';
+        } else {
+            $actionCell = '<input type="text" class="reports-op-flow__input reports-op-flow__cell-input" name="' . $prefix . '[event]" value="'
+                . htmlspecialchars(trim((string) ($entry['event'] ?? '')), ENT_QUOTES, 'UTF-8')
+                . '" maxlength="120" placeholder="Action label">';
+            $notesCell = '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' . $prefix . '[note]" rows="2" maxlength="1000" placeholder="Notes…">'
+                . htmlspecialchars($note, ENT_QUOTES, 'UTF-8')
+                . '</textarea>';
+        }
+    } else {
+        return admin_incident_history_row_html($entry, $index, $report);
+    }
+
+    return '<tr class="' . $rowClass . '" data-history-index="' . $index . '">'
+        . '<td class="reports-op-flow__when">'
+        . '<span class="reports-op-flow__date">' . htmlspecialchars($parts['date'], ENT_QUOTES, 'UTF-8') . '</span>'
+        . '<span class="reports-op-flow__time">' . htmlspecialchars($parts['time'], ENT_QUOTES, 'UTF-8') . $editedMark . '</span>'
+        . '</td>'
+        . '<td class="reports-op-flow__action">' . $actionCell . '</td>'
+        . '<td class="reports-op-flow__notes">' . $notesCell . '</td>'
+        . '<td class="reports-op-flow__by">' . htmlspecialchars($by, ENT_QUOTES, 'UTF-8') . '</td>'
+        . '</tr>';
+}
+
+/** @param array<string, mixed> $entry */
+function historyEntryNoteForEditPhp(array $entry): string
+{
+    $note = trim((string) ($entry['note'] ?? ''));
+    if (
+        str_contains($note, 'Status set to')
+        || str_contains($note, 'Registry status updated')
+        || $note === 'Progression updated.'
+    ) {
+        return '';
+    }
+
+    return $note;
 }
 
 /**
@@ -1101,9 +1992,19 @@ function admin_incident_timeline_empty_message(): string
  * @param list<array<string, mixed>> $history
  * @param array<string, mixed> $report
  */
-function admin_incident_history_stepper_html(array $history, array $report): string
+function admin_incident_history_stepper_html(array $history, array $report, bool $editable = false): string
 {
-    if ($history === []) {
+    $rows = [];
+    foreach ($history as $index => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $rows[] = $editable
+            ? admin_incident_history_row_editable_html($entry, $index, $report)
+            : admin_incident_history_row_html($entry, $index, $report);
+    }
+
+    if ($history === [] && !$editable) {
         return '<p class="reports-op-flow__empty">' . htmlspecialchars(
             admin_incident_timeline_empty_message(),
             ENT_QUOTES,
@@ -1111,47 +2012,29 @@ function admin_incident_history_stepper_html(array $history, array $report): str
         ) . '</p>';
     }
 
-    $rows = [];
-
-    foreach ($history as $index => $entry) {
-        $event = trim((string) ($entry['event'] ?? 'Update'));
-        $note = trim((string) ($entry['note'] ?? ''));
-        $parts = admin_incident_history_datetime_parts((string) ($entry['at'] ?? ''));
-        $stepNum = $index + 1;
-        $title = 'Step ' . $stepNum . ' — ' . $event;
-        $description = $note !== '' ? $note : '—';
-        $action = $event;
-
-        $rows[] = '<tr class="reports-op-flow__row">'
-            . '<td class="reports-op-flow__when">'
-            . '<span class="reports-op-flow__date">' . htmlspecialchars($parts['date'], ENT_QUOTES, 'UTF-8') . '</span>'
-            . '<span class="reports-op-flow__time">' . htmlspecialchars($parts['time'], ENT_QUOTES, 'UTF-8') . '</span>'
-            . '</td>'
-            . '<td class="reports-op-flow__rule" aria-hidden="true"></td>'
-            . '<td class="reports-op-flow__step">'
-            . '<span class="reports-op-flow__step-title">' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</span>'
-            . '<span class="reports-op-flow__step-desc">' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '</span>'
-            . '</td>'
-            . '<td class="reports-op-flow__action">' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8') . '</td>'
+    if ($editable) {
+        $rows[] = admin_incident_history_new_row_editable_html();
+        $rows[] = admin_incident_history_registry_status_row_editable_html($report);
+    } else {
+        $statusSlug = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+        $statusLabel = (string) ($report['status_label'] ?? admin_incident_status_label($statusSlug));
+        $rows[] = '<tr class="reports-op-flow__row reports-op-flow__row--status">'
+            . '<td class="reports-op-flow__when">—</td>'
+            . '<td class="reports-op-flow__action">Case registry</td>'
+            . '<td class="reports-op-flow__notes">' . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') . '</td>'
+            . '<td class="reports-op-flow__by"></td>'
             . '</tr>';
     }
 
-    $statusLabel = (string) ($report['status_label'] ?? admin_incident_status_label((string) ($report['status'] ?? '')));
-    $rows[] = '<tr class="reports-op-flow__row reports-op-flow__row--status">'
-        . '<td class="reports-op-flow__when"><span class="reports-op-flow__date">—</span></td>'
-        . '<td class="reports-op-flow__rule" aria-hidden="true"></td>'
-        . '<td class="reports-op-flow__status" colspan="2">'
-        . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8')
-        . '</td></tr>';
-
+    $tableClass = 'reports-op-flow__table' . ($editable ? ' reports-op-flow__table--editing' : '');
     $header = '<thead><tr class="reports-op-flow__head">'
-        . '<th scope="col" class="reports-op-flow__col-when">Recorded</th>'
-        . '<th scope="col" class="reports-op-flow__col-rule" aria-hidden="true"></th>'
-        . '<th scope="col" class="reports-op-flow__col-step">Step</th>'
+        . '<th scope="col" class="reports-op-flow__col-when">Date</th>'
         . '<th scope="col" class="reports-op-flow__col-action">Action</th>'
+        . '<th scope="col" class="reports-op-flow__col-notes">Notes</th>'
+        . '<th scope="col" class="reports-op-flow__col-by">By</th>'
         . '</tr></thead>';
 
-    return '<table class="reports-op-flow__table">' . $header . '<tbody>' . implode('', $rows) . '</tbody></table>';
+    return '<table class="' . $tableClass . '">' . $header . '<tbody>' . implode('', $rows) . '</tbody></table>';
 }
 
 /**

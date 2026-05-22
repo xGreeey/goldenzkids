@@ -1,16 +1,219 @@
 (function () {
     'use strict';
 
+    /** @type {AbortController | null} */
+    let reportsModalUiAbort = null;
+
+    /** @type {AbortController | null} */
+    let reportsTableUiAbort = null;
+
+    /** Shared across init/reinit so modal + table actions stay in sync after panel navigation. */
+    const reportsLive = {
+        currentIncidentId: '',
+        currentMode: 'view',
+        reportsById: {},
+        handlers: null,
+    };
+
+    function bindReportsModalUi() {
+        const h = reportsLive.handlers;
+        if (!h) {
+            return;
+        }
+        reportsModalUiAbort?.abort();
+        reportsModalUiAbort = new AbortController();
+        const { signal } = reportsModalUiAbort;
+
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        const modalEl = document.getElementById('reports-modal');
+        const modalClose = document.getElementById('reports-modal-close');
+        const guardGuideOpen = document.getElementById('reports-guard-guide-open');
+        const guardGuideOverlay = document.getElementById('reports-guard-guide-overlay');
+        const guardGuideModal = document.getElementById('reports-guard-guide-modal');
+        const guardGuideClose = document.getElementById('reports-guard-guide-close');
+        const guardGuideFilterSearch = document.getElementById('reports-guard-guide-search');
+        const guardGuideFilterReset = document.getElementById('reports-guard-guide-reset');
+        const incidentTypesOpen = document.getElementById('reports-incident-types-open');
+        const incidentTypesOverlay = document.getElementById('reports-incident-types-overlay');
+        const incidentTypesModal = document.getElementById('reports-incident-types-modal');
+        const incidentTypesClose = document.getElementById('reports-incident-types-close');
+        const incidentTypesFilterSearch = document.getElementById('reports-incident-types-search');
+        const incidentTypesFilterReset = document.getElementById('reports-incident-types-reset');
+
+        modalOverlay?.addEventListener(
+            'click',
+            (e) => {
+                if (e.target === modalOverlay) {
+                    h.closeModal();
+                }
+            },
+            { signal }
+        );
+        modalClose?.addEventListener('click', () => h.closeModal(), { signal });
+        modalEl?.addEventListener(
+            'change',
+            (e) => {
+                const target = e.target;
+                if (target && target.id === 'history-row-new-action') {
+                    const registryInline = document.querySelector(
+                        '#modal-stepper [data-registry-inline]'
+                    );
+                    if (registryInline) {
+                        registryInline.hidden = target.value !== 'registry';
+                    }
+                }
+            },
+            { signal }
+        );
+
+        modalEl?.addEventListener(
+            'click',
+            (e) => {
+                const attachmentLink = e.target.closest('[data-reports-attachment-preview]');
+                if (attachmentLink) {
+                    e.preventDefault();
+                    const thumb = attachmentLink.querySelector('img');
+                    openReportsImageViewer(
+                        attachmentLink.getAttribute('href') || thumb?.src || '',
+                        thumb?.alt || 'Attachment preview'
+                    );
+                    return;
+                }
+                if (e.target.closest('#modal-goto-edit')) {
+                    e.preventDefault();
+                    h.switchToEditMode();
+                    return;
+                }
+                if (e.target.closest('#modal-cancel-edit')) {
+                    e.preventDefault();
+                    h.switchToViewMode();
+                    return;
+                }
+                e.stopPropagation();
+            },
+            { signal }
+        );
+
+        const imageViewer = document.getElementById('reports-image-viewer');
+        const imageViewerClose = document.getElementById('reports-image-viewer-close');
+        imageViewer?.addEventListener(
+            'click',
+            (e) => {
+                if (e.target === imageViewer || e.target.closest('#reports-image-viewer-close')) {
+                    closeReportsImageViewer();
+                }
+            },
+            { signal }
+        );
+        imageViewerClose?.addEventListener('click', () => closeReportsImageViewer(), { signal });
+        document.addEventListener(
+            'keydown',
+            (e) => {
+                if (e.key === 'Escape' && imageViewer?.classList.contains('is-open')) {
+                    closeReportsImageViewer();
+                }
+            },
+            { signal }
+        );
+
+        guardGuideOpen?.addEventListener('click', () => h.openGuardGuide(), { signal });
+        guardGuideClose?.addEventListener('click', () => h.closeGuardGuide(), { signal });
+        guardGuideOverlay?.addEventListener(
+            'click',
+            (e) => {
+                if (e.target === guardGuideOverlay) {
+                    h.closeGuardGuide();
+                }
+            },
+            { signal }
+        );
+        guardGuideModal?.addEventListener('click', (e) => e.stopPropagation(), { signal });
+        guardGuideFilterSearch?.addEventListener('input', () => h.applyGuardGuideSearch(), {
+            signal,
+        });
+        guardGuideFilterReset?.addEventListener('click', () => h.resetGuardGuideFilters(), {
+            signal,
+        });
+
+        incidentTypesOpen?.addEventListener('click', () => h.openIncidentTypesCatalog(), { signal });
+        incidentTypesClose?.addEventListener('click', () => h.closeIncidentTypesCatalog(), { signal });
+        incidentTypesOverlay?.addEventListener(
+            'click',
+            (e) => {
+                if (e.target === incidentTypesOverlay) {
+                    h.closeIncidentTypesCatalog();
+                }
+            },
+            { signal }
+        );
+        incidentTypesModal?.addEventListener('click', (e) => e.stopPropagation(), { signal });
+        incidentTypesFilterSearch?.addEventListener('input', () => h.applyIncidentTypesSearch(), {
+            signal,
+        });
+        incidentTypesFilterReset?.addEventListener('click', () => h.resetIncidentTypesFilters(), {
+            signal,
+        });
+    }
+
+    function bindReportsTableUi(tableRoot) {
+        const h = reportsLive.handlers;
+        if (!h || !tableRoot) {
+            return;
+        }
+        reportsTableUiAbort?.abort();
+        reportsTableUiAbort = new AbortController();
+        const { signal } = reportsTableUiAbort;
+
+        tableRoot.addEventListener(
+            'click',
+            (e) => {
+                if (e.target.closest('.reports-sort')) {
+                    return;
+                }
+
+                const viewBtn = e.target.closest('[data-action="view"]');
+                const editBtn = e.target.closest('[data-action="edit"]');
+                const printBtn = e.target.closest('[data-action="print"]');
+                if (viewBtn) {
+                    e.preventDefault();
+                    h.openIncident(viewBtn.dataset.incidentId, 'view');
+                    return;
+                }
+                if (editBtn) {
+                    e.preventDefault();
+                    h.openIncident(editBtn.dataset.incidentId, 'edit');
+                    return;
+                }
+                if (printBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    h.printIncident(printBtn.dataset.incidentId || '');
+                    return;
+                }
+
+                const row = e.target.closest('[data-report-row]');
+                if (row && !e.target.closest('.reports-actions')) {
+                    h.openIncident(row.dataset.id, 'view');
+                }
+            },
+            { signal }
+        );
+    }
+
     function initReportsModule() {
     const root = document.getElementById('reports-module');
-    if (!root || root.dataset.reportsBound === '1') {
+    if (!root) {
         return;
     }
-    root.dataset.reportsBound = '1';
+
+    const isReinit = root.dataset.reportsBound === '1';
+    if (!isReinit) {
+        root.dataset.reportsBound = '1';
+    }
 
     const tableHeadWrap = document.getElementById('reports-table-head-wrap');
     const tableBodyWrap = document.getElementById('reports-table-body-wrap');
-    if (tableHeadWrap && tableBodyWrap) {
+    if (!isReinit && tableHeadWrap && tableBodyWrap) {
         tableBodyWrap.addEventListener(
             'scroll',
             () => {
@@ -26,10 +229,12 @@
     const STATUS_LABELS = statusLabelsEl ? safeParse(statusLabelsEl.textContent) : {};
     const DEFAULT_STATUS_LABEL =
         (STATUS_LABELS && STATUS_LABELS.ongoing) || 'Open';
-    const reportsById = {};
+    reportsLive.reportsById = {};
     if (Array.isArray(allReports)) {
         allReports.forEach((r) => {
-            if (r && r.id) reportsById[r.id] = r;
+            if (r && r.id) {
+                reportsLive.reportsById[r.id] = r;
+            }
         });
     }
 
@@ -41,36 +246,6 @@
     const emptyEl = document.getElementById('reports-empty');
     const tbody = document.getElementById('reports-tbody');
     const tabs = Array.from(root.querySelectorAll('[data-status-tab]'));
-    const modalOverlay = document.getElementById('reports-modal-overlay');
-    const modalEl = document.getElementById('reports-modal');
-    const modalClose = document.getElementById('reports-modal-close');
-    const modalGotoEdit = document.getElementById('modal-goto-edit');
-    const modalCancelEdit = document.getElementById('modal-cancel-edit');
-    const modalFooterView = document.getElementById('reports-modal-footer-view');
-    const modalFooterEdit = document.getElementById('reports-modal-footer-edit');
-    const panelView = document.getElementById('modal-panel-view');
-    const panelEdit = document.getElementById('modal-panel-edit');
-    const viewDetails = document.getElementById('modal-view-details');
-    const stepperHost = document.getElementById('modal-stepper');
-    const editForm = document.getElementById('reports-edit-form');
-    const sanctionsOpen = document.getElementById('reports-sanctions-open');
-    const sanctionsOverlay = document.getElementById('reports-sanctions-overlay');
-    const sanctionsModal = document.getElementById('reports-sanctions-modal');
-    const sanctionsClose = document.getElementById('reports-sanctions-close');
-    const guideFilterSearch = document.getElementById('guide-filter-search');
-    const guideFilterReset = document.getElementById('guide-filter-reset');
-    const guideFilterCountVisible = document.getElementById('guide-filter-count-visible');
-    const guideFilterCountSuffix = document.getElementById('guide-filter-count-suffix');
-    const workflowRows = Array.from(document.querySelectorAll('.reports-workflow-row'));
-    const workflowCategoryRows = Array.from(document.querySelectorAll('.reports-workflow-category'));
-    const guideSections = Array.from(
-        document.querySelectorAll('.reports-guide-section[data-guide-search]')
-    );
-    const guideBlocks = Array.from(document.querySelectorAll('[data-guide-block]'));
-    const guideSearchEmpty = document.getElementById('guide-search-empty');
-    const guideScroll = document.querySelector('.reports-sanctions__body--guide');
-    const workflowTotal = workflowRows.length;
-    const guideSearchTotal = workflowTotal + guideSections.length;
     const sortButtons = Array.from(root.querySelectorAll('.reports-sort[data-sort-key]'));
 
     const LEGACY_STATUS_TABS = { history: 'all', active: 'all' };
@@ -90,8 +265,8 @@
     if (LEGACY_STATUS_TABS[activeStatus]) {
         activeStatus = LEGACY_STATUS_TABS[activeStatus];
     }
-    let currentIncidentId = document.body.dataset.openIncident || '';
-    let currentMode = document.body.dataset.openMode || 'view';
+    reportsLive.currentIncidentId = document.body.dataset.openIncident || '';
+    reportsLive.currentMode = document.body.dataset.openMode || 'view';
 
     function statusMatchesTab(reportStatus, tab) {
         if (tab === 'all') return true;
@@ -112,7 +287,7 @@
             submittedAt: row.dataset.submittedAt || '',
             updatedAt: row.dataset.updatedAt || '',
             searchBlob: (row.dataset.search || '').toLowerCase(),
-            payload: reportsById[row.dataset.id || ''] || safeParse(row.dataset.detail),
+            payload: reportsLive.reportsById[row.dataset.id || ''] || safeParse(row.dataset.detail),
             sort: {
                 ref: (row.dataset.ref || '').toLowerCase(),
                 category: normalizeCategory(row.dataset.category || ''),
@@ -457,6 +632,83 @@
         );
     }
 
+<<<<<<< HEAD
+    function incidentAttachmentsField(p) {
+        const attachments = Array.isArray(p.attachments) ? p.attachments : [];
+        let inner = '<span class="reports-incident-attachments__empty">No images attached</span>';
+
+        if (attachments.length > 0) {
+            let items = '';
+            for (const attachment of attachments) {
+                if (!attachment || typeof attachment !== 'object') {
+                    continue;
+                }
+                const url = String(attachment.url || '').trim();
+                if (!url) {
+                    continue;
+                }
+                const label = String(attachment.label || 'Attachment').trim();
+                items +=
+                    '<a href="' +
+                    escapeHtml(url) +
+                    '" role="listitem" class="reports-incident-attachments__link" data-reports-attachment-preview target="_blank" rel="noopener noreferrer">' +
+                    '<img class="reports-incident-attachments__thumb" src="' +
+                    escapeHtml(url) +
+                    '" alt="' +
+                    escapeHtml(label) +
+                    '" loading="lazy" decoding="async">' +
+                    '<span class="reports-incident-attachments__caption">' +
+                    escapeHtml(label) +
+                    '</span></a>';
+            }
+            if (items) {
+                inner =
+                    '<div class="reports-incident-attachments__grid" role="list">' + items + '</div>';
+            }
+        }
+
+        return (
+            '<div class="reports-detail-sheet__field reports-detail-sheet__field--attachments">' +
+            '<span class="reports-detail-sheet__label">Attachments</span>' +
+            '<div class="reports-detail-sheet__value reports-incident-attachments">' +
+            inner +
+            '</div></div>'
+        );
+    }
+
+    function openReportsImageViewer(src, alt) {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer || !img || !src) {
+            return;
+        }
+        img.src = src;
+        img.alt = alt || 'Attachment preview';
+        viewer.hidden = false;
+        viewer.classList.add('is-open');
+        viewer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeReportsImageViewer() {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer) {
+            return;
+        }
+        viewer.classList.remove('is-open');
+        viewer.hidden = true;
+        viewer.setAttribute('aria-hidden', 'true');
+        if (img) {
+            img.removeAttribute('src');
+            img.alt = '';
+        }
+        const modalOpen = document.getElementById('reports-modal-overlay')?.classList.contains('is-open');
+        const guideOpen = document.getElementById('reports-guard-guide-overlay')?.classList.contains('is-open');
+        if (!modalOpen && !guideOpen) {
+            document.body.style.overflow = '';
+        }
+=======
     function handwritingHtml(value) {
         const v = String(value ?? '').trim();
         if (!v) {
@@ -517,6 +769,7 @@
             handwritingHtml(action) +
             '</div></div></div></section>'
         );
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
     }
 
     function buildModalDetailsHtml(p) {
@@ -528,10 +781,16 @@
             headGuard = headGuardId;
         }
 
+<<<<<<< HEAD
+        const person = personFromReport(p);
+
+        return (
+=======
         const person = String(p.person_involved || p.guard_involved || '').trim();
         const formName = String(p.form_name || '').trim();
         const formDate = String(p.form_date || '').trim();
         let html =
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
             '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
             buildIncidentScanHtml(p) +
             '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
@@ -555,10 +814,452 @@
             '<section class="reports-detail-sheet__section" aria-label="Classification">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
             sheetField('Incident', p.incident_type, 'incident') +
+<<<<<<< HEAD
+            sheetField('Description', modalDescriptionText(p), 'description') +
+            incidentAttachmentsField(p) +
+=======
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
             sheetField('Severity', p.severity, 'severity') +
             '</div></section></div>';
 
         return html;
+    }
+
+    function historyEntrySource(entry) {
+        const source = String(entry.source || '').toLowerCase();
+        if (source === 'head_guard' || source === 'admin' || source === 'system') {
+            return source;
+        }
+        const event = String(entry.event || '').toLowerCase();
+        if (event.includes('submitted by head guard') || event.includes('report filed')) {
+            return 'head_guard';
+        }
+        if (event.includes('classified') || event.includes('assigned to operations')) {
+            return 'system';
+        }
+        return 'admin';
+    }
+
+    function historyEntryKind(entry, index) {
+        const kind = String(entry.kind || '').toLowerCase();
+        if (kind) {
+            return kind;
+        }
+        if (index === 0 && historyEntrySource(entry) === 'head_guard') {
+            return 'field_submission';
+        }
+        return 'response';
+    }
+
+    function fieldSubmissionContent(entry, p) {
+        let description = String(entry.description || entry.incident_description || '').trim();
+        let immediate_action = String(entry.immediate_action || entry.action_taken || '').trim();
+        if (!description) {
+            description = String(p.incident_description || p.summary || '').trim();
+        }
+        if (!immediate_action) {
+            immediate_action = String(p.action_taken || '').trim();
+        }
+        const note = String(entry.note || '').trim();
+        if (!description && note) {
+            description = note;
+        }
+        return { description, immediate_action };
+    }
+
+    function historyActionLabel(entry, index) {
+        const kind = historyEntryKind(entry, index);
+        if (kind === 'field_submission' || (index === 0 && historyEntrySource(entry) === 'head_guard')) {
+            return 'Report filed';
+        }
+        return String(entry.event || 'Update').trim();
+    }
+
+    function historyNotesText(entry, index, p) {
+        if (historyEntrySource(entry) === 'system') {
+            return String(entry.note || '—').trim() || '—';
+        }
+        const kind = historyEntryKind(entry, index);
+        if (kind === 'field_submission' || (index === 0 && historyEntrySource(entry) === 'head_guard')) {
+            const content = fieldSubmissionContent(entry, p);
+            const lines = [];
+            if (content.description) {
+                lines.push('Description: ' + content.description);
+            }
+            if (content.immediate_action) {
+                lines.push('Immediate action: ' + content.immediate_action);
+            }
+            return lines.length ? lines.join('\n') : '—';
+        }
+        const note = String(entry.note || '').trim();
+        return note || '—';
+    }
+
+    function historyByLabel(entry, p) {
+        if (historyEntrySource(entry) === 'head_guard') {
+            const name = String(p.head_guard_name || p.submitter_name || '').trim();
+            return name || 'Head guard';
+        }
+        if (historyEntrySource(entry) === 'system') {
+            return 'System';
+        }
+        return 'Operations';
+    }
+
+    function historyDisplayTimestamp(entry) {
+        const edited = String(entry.edited_at || '').trim();
+        return edited || String(entry.at || '');
+    }
+
+    function modalDescriptionText(p) {
+        const desc = String(p.incident_description || '').trim();
+        if (desc) {
+            return desc;
+        }
+        const history = Array.isArray(p.history) ? p.history : [];
+        for (const entry of history) {
+            if (historyEntrySource(entry) === 'head_guard') {
+                const fromHistory = String(entry.description || '').trim();
+                if (fromHistory) {
+                    return fromHistory;
+                }
+            }
+        }
+        return String(p.summary || '').trim();
+    }
+
+    function personFromReport(p) {
+        let person = String(p.person_involved || p.guard_involved || '').trim();
+        if (person) {
+            return person;
+        }
+        const history = Array.isArray(p.history) ? p.history : [];
+        for (const entry of history) {
+            if (String(entry.guard_name || '').trim()) {
+                return String(entry.guard_name).trim();
+            }
+        }
+        return '';
+    }
+
+    function historyEntryIsEditable(entry) {
+        return historyEntrySource(entry) === 'admin';
+    }
+
+    function historyEntryIsDecision(entry) {
+        const kind = String(entry.kind || '').toLowerCase();
+        if (kind === 'decision') {
+            return true;
+        }
+        const event = String(entry.event || '').toLowerCase();
+        return (
+            event === 'report accepted' ||
+            event === 'report not accepted' ||
+            event === 'report on hold'
+        );
+    }
+
+    function buildHeadGuardReadonlyNotesHtml(entry, p) {
+        const content = fieldSubmissionContent(entry, p);
+        const guardName = String(entry.guard_name || p.person_involved || '').trim();
+        let html = '<div class="reports-op-flow__submission-readonly">';
+        if (guardName) {
+            html +=
+                '<p class="reports-op-flow__submission-line"><strong>Guard (under head guard):</strong> ' +
+                escapeHtml(guardName) +
+                '</p>';
+        }
+        if (content.description) {
+            html +=
+                '<p class="reports-op-flow__submission-line"><strong>Description:</strong> ' +
+                escapeHtml(content.description) +
+                '</p>';
+        }
+        if (content.immediate_action) {
+            html +=
+                '<p class="reports-op-flow__submission-line"><strong>Immediate action:</strong> ' +
+                escapeHtml(content.immediate_action) +
+                '</p>';
+        }
+        if (!guardName && !content.description && !content.immediate_action) {
+            html += '<p class="reports-op-flow__submission-line">—</p>';
+        }
+        return html + '</div>';
+    }
+
+    function historyEntryIsRegistry(entry) {
+        const kind = String(entry.kind || '').toLowerCase();
+        const event = String(entry.event || '').toLowerCase();
+        return kind === 'status' || event.startsWith('registry:') || event.startsWith('status:');
+    }
+
+    function buildStatusSelectHtml(name, selectedValue, id) {
+        const tpl = document.getElementById('reports-status-options-template');
+        if (!tpl) {
+            return '';
+        }
+        let html =
+            '<select class="reports-op-flow__input" name="' + escapeHtml(name) + '"';
+        if (id) {
+            html += ' id="' + escapeHtml(id) + '"';
+        }
+        html += '>';
+        for (const opt of tpl.options) {
+            html +=
+                '<option value="' +
+                escapeHtml(opt.value) +
+                '"' +
+                (opt.value === selectedValue ? ' selected' : '') +
+                '>' +
+                escapeHtml(opt.text) +
+                '</option>';
+        }
+        return html + '</select>';
+    }
+
+    function actionTypeFromEntry(entry) {
+        if (historyEntryIsDecision(entry)) {
+            const event = String(entry.event || '').toLowerCase();
+            if (event === 'report accepted') {
+                return 'accept';
+            }
+            if (event === 'report on hold') {
+                return 'on_hold';
+            }
+            if (event === 'report not accepted') {
+                return 'denied';
+            }
+            return 'accept';
+        }
+        if (historyEntryIsRegistry(entry)) {
+            return 'registry';
+        }
+        return 'response';
+    }
+
+    function buildOpsActionSelectHtml(name, selectedValue, id) {
+        const options = [
+            ['', '— Select action —'],
+            ['accept', 'Report accepted'],
+            ['on_hold', 'Report on hold'],
+            ['denied', 'Report not accepted'],
+            ['response', 'Operations note'],
+            ['registry', 'Registry status change'],
+        ];
+        let html =
+            '<select name="' + escapeHtml(name) + '" class="reports-op-flow__input reports-op-flow__cell-input"';
+        if (id) {
+            html += ' id="' + escapeHtml(id) + '"';
+        }
+        html += '>';
+        for (const [value, label] of options) {
+            html +=
+                '<option value="' +
+                escapeHtml(value) +
+                '"' +
+                (value === selectedValue ? ' selected' : '') +
+                '>' +
+                escapeHtml(label) +
+                '</option>';
+        }
+        return html + '</select>';
+    }
+
+    function buildOperationFlowNewRowHtml() {
+        return (
+            '<tr class="reports-op-flow__row reports-op-flow__row--editing reports-op-flow__row--new" data-history-index="new">' +
+            '<td class="reports-op-flow__when"><span class="reports-op-flow__new-label">New</span></td>' +
+            '<td class="reports-op-flow__action">' +
+            buildOpsActionSelectHtml('history_row[new][action_type]', '', 'history-row-new-action') +
+            '</td>' +
+            '<td class="reports-op-flow__notes">' +
+            '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="history_row[new][note]" rows="2" maxlength="1000" placeholder="Decision notes, follow-up, evidence request, closure memo…"></textarea>' +
+            '<div class="reports-op-flow__registry-inline" data-registry-inline hidden>' +
+            buildStatusSelectHtml('history_row[new][registry_status]', 'ongoing', 'history-row-new-registry') +
+            '</div></td>' +
+            '<td class="reports-op-flow__by">Operations</td></tr>'
+        );
+    }
+
+    function buildOperationFlowRegistryRowHtml(p) {
+        const statusSlug = String(p?.status || 'ongoing');
+        return (
+            '<tr class="reports-op-flow__row reports-op-flow__row--status reports-op-flow__row--editing">' +
+            '<td class="reports-op-flow__when">—</td>' +
+            '<td class="reports-op-flow__action">Case registry</td>' +
+            '<td class="reports-op-flow__notes">' +
+            buildStatusSelectHtml('status', statusSlug, 'edit-registry-status') +
+            '</td>' +
+            '<td class="reports-op-flow__by"></td></tr>'
+        );
+    }
+
+    function buildOperationFlowEditableHtml(history, p) {
+        const entries = Array.isArray(history) ? history : [];
+
+        let rows = '';
+        entries.forEach((entry, index) => {
+            if (historyEntrySource(entry) === 'system') {
+                const parts = historyDatetimeParts(historyDisplayTimestamp(entry));
+                rows +=
+                    '<tr class="reports-op-flow__row reports-op-flow__row--system" data-history-index="' +
+                    index +
+                    '">' +
+                    '<td class="reports-op-flow__when">' +
+                    '<span class="reports-op-flow__date">' +
+                    escapeHtml(parts.date) +
+                    '</span>' +
+                    '<span class="reports-op-flow__time">' +
+                    escapeHtml(parts.time) +
+                    '</span></td>' +
+                    '<td class="reports-op-flow__action">' +
+                    escapeHtml(String(entry.event || 'System')) +
+                    '</td>' +
+                    '<td class="reports-op-flow__notes">' +
+                    escapeHtml(historyNotesText(entry, index, p)) +
+                    '</td>' +
+                    '<td class="reports-op-flow__by">' +
+                    escapeHtml(historyByLabel(entry, p)) +
+                    '</td></tr>';
+                return;
+            }
+
+            const parts = historyDatetimeParts(historyDisplayTimestamp(entry));
+            const prefix = 'history_row[' + index + ']';
+            const by = historyByLabel(entry, p);
+            const editedTag =
+                String(entry.edited_at || '').trim() !== ''
+                    ? ' <span class="reports-op-flow__edited-tag">Updated</span>'
+                    : '';
+            let actionCell = '';
+            let notesCell = '';
+
+            let rowClass = 'reports-op-flow__row reports-op-flow__row--editing';
+
+            if (historyEntrySource(entry) === 'head_guard') {
+                rowClass += ' reports-op-flow__row--head-guard';
+                actionCell = '<span class="reports-op-flow__action-label">Report filed</span>';
+                notesCell = buildHeadGuardReadonlyNotesHtml(entry, p);
+            } else if (historyEntryIsEditable(entry)) {
+                const note = historyEntryNoteForEdit(entry);
+                if (historyEntryIsDecision(entry)) {
+                    actionCell = buildOpsActionSelectHtml(
+                        prefix + '[action_type]',
+                        actionTypeFromEntry(entry)
+                    );
+                    notesCell =
+                        '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' +
+                        prefix +
+                        '[note]" rows="2" maxlength="1000" placeholder="Decision notes…">' +
+                        escapeHtml(note) +
+                        '</textarea>';
+                } else if (historyEntryIsRegistry(entry)) {
+                    const statusSlug =
+                        statusSlugFromHistoryEvent(entry.event) || p.status || 'ongoing';
+                    actionCell =
+                        buildOpsActionSelectHtml(prefix + '[action_type]', 'registry') +
+                        buildStatusSelectHtml(prefix + '[registry_status]', statusSlug);
+                    notesCell =
+                        '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' +
+                        prefix +
+                        '[note]" rows="2" maxlength="1000" placeholder="Note…">' +
+                        escapeHtml(note) +
+                        '</textarea>';
+                } else {
+                    actionCell =
+                        '<input type="text" class="reports-op-flow__input reports-op-flow__cell-input" name="' +
+                        prefix +
+                        '[event]" value="' +
+                        escapeHtml(String(entry.event || '').trim()) +
+                        '" maxlength="120" placeholder="Action label">';
+                    notesCell =
+                        '<textarea class="reports-op-flow__input reports-op-flow__textarea reports-op-flow__cell-input" name="' +
+                        prefix +
+                        '[note]" rows="2" maxlength="1000" placeholder="Notes…">' +
+                        escapeHtml(note) +
+                        '</textarea>';
+                }
+            } else {
+                actionCell = escapeHtml(historyActionLabel(entry, index));
+                notesCell =
+                    '<span class="reports-op-flow__notes-text">' +
+                    escapeHtml(historyNotesText(entry, index, p)) +
+                    '</span>';
+            }
+
+            rows +=
+                '<tr class="' +
+                rowClass +
+                '" data-history-index="' +
+                index +
+                '">' +
+                '<td class="reports-op-flow__when">' +
+                '<span class="reports-op-flow__date">' +
+                escapeHtml(parts.date) +
+                '</span>' +
+                '<span class="reports-op-flow__time">' +
+                escapeHtml(parts.time) +
+                editedTag +
+                '</span></td>' +
+                '<td class="reports-op-flow__action">' +
+                actionCell +
+                '</td>' +
+                '<td class="reports-op-flow__notes">' +
+                notesCell +
+                '</td>' +
+                '<td class="reports-op-flow__by">' +
+                escapeHtml(by) +
+                '</td></tr>';
+        });
+
+        const header =
+            '<thead><tr class="reports-op-flow__head">' +
+            '<th scope="col" class="reports-op-flow__col-when">Date</th>' +
+            '<th scope="col" class="reports-op-flow__col-action">Action</th>' +
+            '<th scope="col" class="reports-op-flow__col-notes">Notes</th>' +
+            '<th scope="col" class="reports-op-flow__col-by">By</th>' +
+            '</tr></thead>';
+
+        rows += buildOperationFlowNewRowHtml();
+        rows += buildOperationFlowRegistryRowHtml(p);
+
+        return (
+            '<table class="reports-op-flow__table reports-op-flow__table--editing reports-op-flow__table--sheet">' +
+            header +
+            '<tbody>' +
+            rows +
+            '</tbody></table>'
+        );
+    }
+
+    function statusSlugFromHistoryEvent(event) {
+        const m = String(event || '').match(/^(Registry|Status):\s*(.+)$/i);
+        if (!m) {
+            return null;
+        }
+        const label = m[2].trim().toLowerCase();
+        const tpl = document.getElementById('reports-status-options-template');
+        if (!tpl) {
+            return null;
+        }
+        for (const opt of tpl.options) {
+            if (opt.text.trim().toLowerCase() === label) {
+                return opt.value;
+            }
+        }
+        return null;
+    }
+
+    function historyEntryNoteForEdit(entry) {
+        const note = String(entry.note || '').trim();
+        if (
+            note.includes('Status set to') ||
+            note.includes('Registry status updated') ||
+            note === 'Progression updated.'
+        ) {
+            return '';
+        }
+        return note;
     }
 
     function buildOperationFlowHtml(history, p) {
@@ -570,15 +1271,22 @@
 
         let rows = '';
         history.forEach((entry, index) => {
-            const event = String(entry.event || 'Update').trim();
-            const note = String(entry.note || '').trim();
-            const parts = historyDatetimeParts(entry.at);
-            const stepNum = index + 1;
-            const title = 'Step ' + stepNum + ' — ' + event;
-            const description = note !== '' ? note : '—';
+            const parts = historyDatetimeParts(historyDisplayTimestamp(entry));
+            let rowClass = 'reports-op-flow__row';
+            if (historyEntrySource(entry) === 'system') {
+                rowClass += ' reports-op-flow__row--system';
+            } else if (historyEntrySource(entry) === 'head_guard') {
+                rowClass += ' reports-op-flow__row--head-guard';
+            } else if (historyEntryIsDecision(entry)) {
+                rowClass += ' reports-op-flow__row--decision';
+            }
 
             rows +=
-                '<tr class="reports-op-flow__row">' +
+                '<tr class="' +
+                rowClass +
+                '" data-history-index="' +
+                index +
+                '">' +
                 '<td class="reports-op-flow__when">' +
                 '<span class="reports-op-flow__date">' +
                 escapeHtml(parts.date) +
@@ -586,44 +1294,48 @@
                 '<span class="reports-op-flow__time">' +
                 escapeHtml(parts.time) +
                 '</span></td>' +
-                '<td class="reports-op-flow__rule" aria-hidden="true"></td>' +
-                '<td class="reports-op-flow__step">' +
-                '<span class="reports-op-flow__step-title">' +
-                escapeHtml(title) +
-                '</span>' +
-                '<span class="reports-op-flow__step-desc">' +
-                escapeHtml(description) +
-                '</span></td>' +
                 '<td class="reports-op-flow__action">' +
-                escapeHtml(event) +
+                escapeHtml(historyActionLabel(entry, index)) +
+                '</td>' +
+                '<td class="reports-op-flow__notes"><span class="reports-op-flow__notes-text">' +
+                escapeHtml(historyNotesText(entry, index, p)) +
+                '</span></td>' +
+                '<td class="reports-op-flow__by">' +
+                escapeHtml(historyByLabel(entry, p)) +
                 '</td></tr>';
         });
 
         const statusLabel = String(p.status_label || p.status || '—');
         rows +=
             '<tr class="reports-op-flow__row reports-op-flow__row--status">' +
-            '<td class="reports-op-flow__when"><span class="reports-op-flow__date">—</span></td>' +
-            '<td class="reports-op-flow__rule" aria-hidden="true"></td>' +
-            '<td class="reports-op-flow__status" colspan="2">' +
+            '<td class="reports-op-flow__when">—</td>' +
+            '<td class="reports-op-flow__action">Case registry</td>' +
+            '<td class="reports-op-flow__notes">' +
             escapeHtml(statusLabel) +
-            '</td></tr>';
+            '</td>' +
+            '<td class="reports-op-flow__by"></td></tr>';
 
         const header =
             '<thead><tr class="reports-op-flow__head">' +
-            '<th scope="col" class="reports-op-flow__col-when">Recorded</th>' +
-            '<th scope="col" class="reports-op-flow__col-rule" aria-hidden="true"></th>' +
-            '<th scope="col" class="reports-op-flow__col-step">Step</th>' +
+            '<th scope="col" class="reports-op-flow__col-when">Date</th>' +
             '<th scope="col" class="reports-op-flow__col-action">Action</th>' +
+            '<th scope="col" class="reports-op-flow__col-notes">Notes</th>' +
+            '<th scope="col" class="reports-op-flow__col-by">By</th>' +
             '</tr></thead>';
 
         return '<table class="reports-op-flow__table">' + header + '<tbody>' + rows + '</tbody></table>';
     }
 
     function renderHistoryStepper(history, p) {
-        if (!stepperHost) {
+        const host = document.getElementById('modal-stepper');
+        if (!host) {
             return;
         }
-        stepperHost.innerHTML = buildOperationFlowHtml(history, p || {});
+        const payload = p || {};
+        const editable = reportsLive.currentMode === 'edit';
+        host.innerHTML = editable
+            ? buildOperationFlowEditableHtml(history, payload)
+            : buildOperationFlowHtml(history, payload);
     }
 
     function buildPrintHtml(p) {
@@ -707,7 +1419,7 @@
     }
 
     function printIncident(id) {
-        const p = reportsById[id];
+        const p = reportsLive.reportsById[id];
         if (!p) return;
         const win = window.open('', '_blank', 'noopener,noreferrer');
         if (!win) return;
@@ -751,45 +1463,51 @@
     }
 
     function renderViewDetails(p) {
-        if (!viewDetails || !p) {
+        const host = document.getElementById('modal-view-details');
+        if (!host || !p) {
             return;
         }
-        viewDetails.innerHTML = buildModalDetailsHtml(p);
+        host.innerHTML = buildModalDetailsHtml(p);
     }
 
-    const editPlaceholder = document.getElementById('modal-edit-placeholder');
-
     function populateEditForm(p) {
-        if (!editForm || !p) return;
+        const editForm = document.getElementById('reports-edit-form');
+        const editPlaceholder = document.getElementById('modal-edit-placeholder');
+        if (!editForm || !p) {
+            return;
+        }
         editForm.hidden = false;
-        if (editPlaceholder) editPlaceholder.hidden = true;
+        if (editPlaceholder) {
+            editPlaceholder.hidden = true;
+        }
 
-        const set = (name, val) => {
-            const el = editForm.querySelector('[name="' + name + '"]');
-            if (el) el.value = val ?? '';
-        };
         const idInput = document.getElementById('edit-incident-id');
-        if (idInput) idInput.value = p.id || '';
-        set('status', p.status);
-        set('category', normalizeCategory(p.category));
-        set('incident_type', p.incident_type);
-        set('site', p.site);
-        set('severity', p.severity);
-        set('summary', p.summary);
-        const note = editForm.querySelector('[name="ops_note"]');
-        if (note) note.value = '';
+        if (idInput) {
+            idInput.value = p.id || '';
+        }
+        const indexInput = document.getElementById('edit-history-index');
+        if (indexInput) {
+            indexInput.value = '';
+        }
+        const newNote = editForm.querySelector('[name="history_row[new][note]"]');
+        if (newNote) {
+            newNote.value = '';
+        }
+        const newAction = document.getElementById('history-row-new-action');
+        if (newAction) {
+            newAction.value = '';
+        }
     }
 
     function setModalMode(mode) {
-        currentMode = mode === 'edit' ? 'edit' : 'view';
-        const isView = currentMode === 'view';
+        reportsLive.currentMode = mode === 'edit' ? 'edit' : 'view';
+        const isView = reportsLive.currentMode === 'view';
+        const panelView = document.getElementById('modal-panel-view');
+        const modalFooterView = document.getElementById('reports-modal-footer-view');
+        const modalFooterEdit = document.getElementById('reports-modal-footer-edit');
         if (panelView) {
-            panelView.classList.toggle('is-active', isView);
-            panelView.hidden = !isView;
-        }
-        if (panelEdit) {
-            panelEdit.classList.toggle('is-active', !isView);
-            panelEdit.hidden = isView;
+            panelView.classList.add('is-active');
+            panelView.hidden = false;
         }
         if (modalFooterView) {
             modalFooterView.hidden = !isView;
@@ -797,6 +1515,80 @@
         if (modalFooterEdit) {
             modalFooterEdit.hidden = isView;
         }
+        const historySection = document.getElementById('modal-history-section');
+        historySection?.classList.toggle('is-editing-progression', !isView);
+        const historyViewDesc = document.getElementById('modal-history-view-desc');
+        const historyHint = document.getElementById('modal-history-edit-hint');
+        if (historyViewDesc) {
+            historyViewDesc.hidden = !isView;
+        }
+        if (historyHint) {
+            historyHint.hidden = isView;
+        }
+
+        const id = reportsLive.currentIncidentId;
+        const payload = id ? reportsLive.reportsById[id] : null;
+        if (payload) {
+            renderViewDetails(payload);
+            renderHistoryStepper(payload.history, payload);
+            if (!isView) {
+                populateEditForm(payload);
+            }
+        }
+    }
+
+    function scrollModalToEditPanel() {
+        const target = document.getElementById('modal-history-section');
+        const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
+        if (target && scroller) {
+            const top = target.offsetTop - 12;
+            scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+            return;
+        }
+        target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    function focusFirstEditField() {
+        document
+            .querySelector(
+                '#modal-stepper .reports-op-flow__row--new .reports-op-flow__cell-input, #modal-stepper .reports-op-flow__row--new textarea'
+            )
+            ?.focus();
+    }
+
+    function switchToEditMode() {
+        const id = reportsLive.currentIncidentId;
+        if (!id) {
+            return;
+        }
+        const p = reportsLive.reportsById[id];
+        if (!p) {
+            return;
+        }
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        if (!modalOverlay?.classList.contains('is-open')) {
+            openIncident(id, 'edit');
+            return;
+        }
+        setModalMode('edit');
+        populateEditForm(p);
+        pushUrl(id, 'edit');
+        scrollModalToEditPanel();
+        window.requestAnimationFrame(() => focusFirstEditField());
+    }
+
+    function switchToViewMode() {
+        const id = reportsLive.currentIncidentId;
+        if (!id) {
+            return;
+        }
+        if (!reportsLive.reportsById[id]) {
+            return;
+        }
+        setModalMode('view');
+        pushUrl(id, 'view');
+        const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
+        scroller?.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function updateRowFromPayload(p) {
@@ -869,7 +1661,7 @@
                 '</span>';
             row.el.dataset.updatedAt = (p.updated_at || '').substring(0, 10);
         }
-        reportsById[p.id] = p;
+        reportsLive.reportsById[p.id] = p;
     }
 
     function pushUrl(id, mode) {
@@ -885,11 +1677,34 @@
     }
 
     function openIncident(id, mode) {
-        const p = reportsById[id];
-        if (!p || !modalOverlay) return;
+        const p = reportsLive.reportsById[id];
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        if (!p || !modalOverlay) {
+            return;
+        }
 
-        currentIncidentId = id;
-        setModalMode(mode || 'view');
+        const nextMode = mode || 'view';
+        if (
+            reportsLive.currentIncidentId === id &&
+            modalOverlay.classList.contains('is-open')
+        ) {
+            setModalMode(nextMode);
+            renderViewDetails(p);
+            renderHistoryStepper(p.history, p);
+            populateEditForm(p);
+            if (nextMode === 'edit') {
+                scrollModalToEditPanel();
+                window.requestAnimationFrame(() => focusFirstEditField());
+            } else {
+                const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
+                scroller?.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            pushUrl(id, nextMode);
+            return;
+        }
+
+        reportsLive.currentIncidentId = id;
+        setModalMode(nextMode);
 
         const refEl = document.getElementById('modal-ref');
         if (refEl) refEl.textContent = p.ref || '—';
@@ -913,12 +1728,19 @@
         renderHistoryStepper(p.history, p);
         populateEditForm(p);
 
-        if (modalGotoEdit) modalGotoEdit.hidden = false;
+        const modalGotoEdit = document.getElementById('modal-goto-edit');
+        if (modalGotoEdit) {
+            modalGotoEdit.hidden = false;
+        }
 
         modalOverlay.classList.add('is-open');
         modalOverlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
-        pushUrl(id, mode || 'view');
+        pushUrl(id, nextMode);
+        if (nextMode === 'edit') {
+            scrollModalToEditPanel();
+            window.requestAnimationFrame(() => focusFirstEditField());
+        }
 
         reportsIndex.forEach((r) => {
             r.el.classList.toggle('is-selected', r.id === id);
@@ -926,19 +1748,55 @@
     }
 
     function closeModal() {
-        if (!modalOverlay) return;
+        closeReportsImageViewer();
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        const guardGuideOverlay = document.getElementById('reports-guard-guide-overlay');
+        const incidentTypesOverlay = document.getElementById('reports-incident-types-overlay');
+        if (!modalOverlay) {
+            return;
+        }
         modalOverlay.classList.remove('is-open');
         modalOverlay.setAttribute('aria-hidden', 'true');
-        if (!sanctionsOverlay?.classList.contains('is-open')) {
+        if (
+            !guardGuideOverlay?.classList.contains('is-open') &&
+            !incidentTypesOverlay?.classList.contains('is-open')
+        ) {
             document.body.style.overflow = '';
         }
-        currentIncidentId = '';
+        reportsLive.currentIncidentId = '';
         pushUrl('', '');
         reportsIndex.forEach((r) => r.el.classList.remove('is-selected'));
     }
 
-    function applyGuideSearch() {
-        const q = (guideFilterSearch?.value || '').trim().toLowerCase();
+    function applyGuardGuideSearch() {
+        const guardGuideFilterSearch = document.getElementById('reports-guard-guide-search');
+        const guardGuideFilterCountVisible = document.getElementById(
+            'reports-guard-guide-count-visible'
+        );
+        const guardGuideFilterCountSuffix = document.getElementById(
+            'reports-guard-guide-count-suffix'
+        );
+        const guardGuideSearchEmpty = document.getElementById('reports-guard-guide-search-empty');
+        const guardGuideModal = document.getElementById('reports-guard-guide-modal');
+        if (!guardGuideModal) {
+            return;
+        }
+
+        const workflowRows = Array.from(
+            guardGuideModal.querySelectorAll('.reports-workflow-row')
+        );
+        const workflowCategoryRows = Array.from(
+            guardGuideModal.querySelectorAll('.reports-workflow-category')
+        );
+        const guideSections = Array.from(
+            guardGuideModal.querySelectorAll('.reports-guide-section[data-guide-search]')
+        );
+        const guideBlocks = Array.from(
+            guardGuideModal.querySelectorAll('[data-guide-block]')
+        );
+        const guideSearchTotal = workflowRows.length + guideSections.length;
+
+        const q = (guardGuideFilterSearch?.value || '').trim().toLowerCase();
         let workflowVisible = 0;
         let sectionVisible = 0;
 
@@ -981,42 +1839,139 @@
         });
 
         const totalVisible = workflowVisible + sectionVisible;
-        if (guideSearchEmpty) {
-            guideSearchEmpty.hidden = !q || totalVisible > 0;
+        if (guardGuideSearchEmpty) {
+            guardGuideSearchEmpty.hidden = !q || totalVisible > 0;
         }
-        if (guideFilterCountVisible) {
-            guideFilterCountVisible.textContent = String(q ? totalVisible : guideSearchTotal);
+        if (guardGuideFilterCountVisible) {
+            guardGuideFilterCountVisible.textContent = String(q ? totalVisible : guideSearchTotal);
         }
-        if (guideFilterCountSuffix) {
-            guideFilterCountSuffix.textContent = q
+        if (guardGuideFilterCountSuffix) {
+            guardGuideFilterCountSuffix.textContent = q
                 ? ' matches'
                 : ' topics';
         }
     }
 
-    function resetGuideFilters() {
-        if (guideFilterSearch) {
-            guideFilterSearch.value = '';
+    function resetGuardGuideFilters() {
+        const guardGuideFilterSearch = document.getElementById('reports-guard-guide-search');
+        const guardGuideScroller =
+            document
+                .getElementById('reports-guard-guide-modal')
+                ?.querySelector('.reports-modal__body-scroll') ?? null;
+        if (guardGuideFilterSearch) {
+            guardGuideFilterSearch.value = '';
         }
-        applyGuideSearch();
-        guideScroll?.scrollTo(0, 0);
+        applyGuardGuideSearch();
+        guardGuideScroller?.scrollTo(0, 0);
     }
 
-    function openSanctionsGuide() {
-        if (!sanctionsOverlay) return;
+    function openGuardGuide() {
+        const guardGuideOverlay = document.getElementById('reports-guard-guide-overlay');
+        const guardGuideFilterSearch = document.getElementById('reports-guard-guide-search');
+        if (!guardGuideOverlay) {
+            return;
+        }
         closeModal();
-        sanctionsOverlay.classList.add('is-open');
-        sanctionsOverlay.setAttribute('aria-hidden', 'false');
+        closeIncidentTypesCatalog();
+        guardGuideOverlay.classList.add('is-open');
+        guardGuideOverlay.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
-        resetGuideFilters();
-        guideFilterSearch?.focus();
+        resetGuardGuideFilters();
+        guardGuideFilterSearch?.focus();
     }
 
-    function closeSanctionsGuide() {
-        if (!sanctionsOverlay) return;
-        sanctionsOverlay.classList.remove('is-open');
-        sanctionsOverlay.setAttribute('aria-hidden', 'true');
-        if (!modalOverlay?.classList.contains('is-open')) {
+    function closeGuardGuide() {
+        const guardGuideOverlay = document.getElementById('reports-guard-guide-overlay');
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        const incidentTypesOverlay = document.getElementById('reports-incident-types-overlay');
+        if (!guardGuideOverlay) {
+            return;
+        }
+        guardGuideOverlay.classList.remove('is-open');
+        guardGuideOverlay.setAttribute('aria-hidden', 'true');
+        if (
+            !modalOverlay?.classList.contains('is-open') &&
+            !incidentTypesOverlay?.classList.contains('is-open')
+        ) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    function applyIncidentTypesSearch() {
+        const searchInput = document.getElementById('reports-incident-types-search');
+        const countVisible = document.getElementById('reports-incident-types-count-visible');
+        const countSuffix = document.getElementById('reports-incident-types-count-suffix');
+        const searchEmpty = document.getElementById('reports-incident-types-search-empty');
+        const modal = document.getElementById('reports-incident-types-modal');
+        if (!modal) {
+            return;
+        }
+
+        const rows = Array.from(modal.querySelectorAll('.reports-incident-types-row'));
+        const total = rows.length;
+        const q = (searchInput?.value || '').trim().toLowerCase();
+        let visible = 0;
+
+        rows.forEach((row) => {
+            const show = !q || (row.dataset.search || '').includes(q);
+            row.classList.toggle('is-hidden', !show);
+            if (show) {
+                visible += 1;
+            }
+        });
+
+        if (searchEmpty) {
+            searchEmpty.hidden = !q || visible > 0;
+        }
+        if (countVisible) {
+            countVisible.textContent = String(q ? visible : total);
+        }
+        if (countSuffix) {
+            countSuffix.textContent = q ? ' matches' : ' types';
+        }
+    }
+
+    function resetIncidentTypesFilters() {
+        const searchInput = document.getElementById('reports-incident-types-search');
+        const scroller =
+            document
+                .getElementById('reports-incident-types-modal')
+                ?.querySelector('.reports-modal__body-scroll') ?? null;
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        applyIncidentTypesSearch();
+        scroller?.scrollTo(0, 0);
+    }
+
+    function openIncidentTypesCatalog() {
+        const overlay = document.getElementById('reports-incident-types-overlay');
+        const searchInput = document.getElementById('reports-incident-types-search');
+        if (!overlay) {
+            return;
+        }
+        closeModal();
+        closeGuardGuide();
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        resetIncidentTypesFilters();
+        searchInput?.focus();
+    }
+
+    function closeIncidentTypesCatalog() {
+        const overlay = document.getElementById('reports-incident-types-overlay');
+        const modalOverlay = document.getElementById('reports-modal-overlay');
+        const guardGuideOverlay = document.getElementById('reports-guard-guide-overlay');
+        if (!overlay) {
+            return;
+        }
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden', 'true');
+        if (
+            !modalOverlay?.classList.contains('is-open') &&
+            !guardGuideOverlay?.classList.contains('is-open')
+        ) {
             document.body.style.overflow = '';
         }
     }
@@ -1075,64 +2030,46 @@
         });
     });
 
-    root.addEventListener('click', (e) => {
-        if (e.target.closest('.reports-sort')) {
-            return;
+    reportsLive.handlers = {
+        switchToEditMode,
+        switchToViewMode,
+        openIncident,
+        closeModal,
+        openGuardGuide,
+        closeGuardGuide,
+        applyGuardGuideSearch,
+        resetGuardGuideFilters,
+        openIncidentTypesCatalog,
+        closeIncidentTypesCatalog,
+        applyIncidentTypesSearch,
+        resetIncidentTypesFilters,
+        printIncident,
+    };
+    bindReportsModalUi();
+    bindReportsTableUi(root);
+
+    if (isReinit) {
+        if (reportsLive.currentIncidentId && reportsLive.reportsById[reportsLive.currentIncidentId]) {
+            const modalOverlay = document.getElementById('reports-modal-overlay');
+            if (modalOverlay?.classList.contains('is-open')) {
+                openIncident(reportsLive.currentIncidentId, reportsLive.currentMode);
+            }
         }
-
-        const viewBtn = e.target.closest('[data-action="view"]');
-        const editBtn = e.target.closest('[data-action="edit"]');
-        const printBtn = e.target.closest('[data-action="print"]');
-        if (viewBtn) {
-            e.preventDefault();
-            openIncident(viewBtn.dataset.incidentId, 'view');
-            return;
-        }
-        if (editBtn) {
-            e.preventDefault();
-            openIncident(editBtn.dataset.incidentId, 'edit');
-            return;
-        }
-        if (printBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            printIncident(printBtn.dataset.incidentId || '');
-            return;
-        }
-
-        const row = e.target.closest('[data-report-row]');
-        if (row && !e.target.closest('.reports-actions')) {
-            openIncident(row.dataset.id, 'view');
-        }
-    });
-
-    modalGotoEdit?.addEventListener('click', () => {
-        if (currentIncidentId) openIncident(currentIncidentId, 'edit');
-    });
-
-    modalCancelEdit?.addEventListener('click', () => {
-        if (currentIncidentId) openIncident(currentIncidentId, 'view');
-    });
-
-    modalClose?.addEventListener('click', closeModal);
-    modalOverlay?.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) closeModal();
-    });
-    modalEl?.addEventListener('click', (e) => e.stopPropagation());
-
-    sanctionsOpen?.addEventListener('click', openSanctionsGuide);
-    sanctionsClose?.addEventListener('click', closeSanctionsGuide);
-    sanctionsOverlay?.addEventListener('click', (e) => {
-        if (e.target === sanctionsOverlay) closeSanctionsGuide();
-    });
-    sanctionsModal?.addEventListener('click', (e) => e.stopPropagation());
-    guideFilterSearch?.addEventListener('input', applyGuideSearch);
-    guideFilterReset?.addEventListener('click', resetGuideFilters);
+        return;
+    }
 
     document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        if (sanctionsOverlay?.classList.contains('is-open')) {
-            closeSanctionsGuide();
+        if (e.key !== 'Escape') {
+            return;
+        }
+        const incidentTypesOverlay = document.getElementById('reports-incident-types-overlay');
+        if (incidentTypesOverlay?.classList.contains('is-open')) {
+            closeIncidentTypesCatalog();
+            return;
+        }
+        const guideOverlay = document.getElementById('reports-guard-guide-overlay');
+        if (guideOverlay?.classList.contains('is-open')) {
+            closeGuardGuide();
             return;
         }
         closeModal();
@@ -1150,19 +2087,17 @@
     const initialTab = document.body.dataset.statusTab;
     if (initialTab) {
         const tabEl = tabs.find((t) => t.dataset.statusTab === initialTab);
-        if (tabEl) setActiveTab(tabEl);
-        else applyFilters();
+        if (tabEl) {
+            setActiveTab(tabEl);
+        } else {
+            applyFilters();
+        }
     } else {
         applyFilters();
     }
 
-    if (currentIncidentId && reportsById[currentIncidentId]) {
-        document.body.style.overflow = 'hidden';
-        populateEditForm(reportsById[currentIncidentId]);
-        reportsIndex.forEach((r) => {
-            r.el.classList.toggle('is-selected', r.id === currentIncidentId);
-        });
-        setModalMode(currentMode);
+    if (reportsLive.currentIncidentId && reportsLive.reportsById[reportsLive.currentIncidentId]) {
+        openIncident(reportsLive.currentIncidentId, reportsLive.currentMode);
     }
     }
 

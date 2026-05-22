@@ -562,8 +562,8 @@ $kpiIcons = [
     </div>
 </div>
 
-<div id="daily-guide-overlay" class="reports-modal-overlay reports-sanctions-overlay" role="presentation" aria-hidden="true">
-    <div class="reports-modal reports-sanctions-modal reports-guide--simple" id="daily-guide-modal" role="dialog" aria-modal="true" aria-labelledby="daily-guide-title">
+<div id="daily-guide-overlay" class="reports-modal-overlay reports-guard-guide-overlay" role="presentation" aria-hidden="true">
+    <div class="reports-modal reports-guard-guide-modal reports-guide--simple" id="daily-guide-modal" role="dialog" aria-modal="true" aria-labelledby="daily-guide-title">
         <header class="reports-modal__header">
             <div class="reports-modal__identity">
                 <span class="reports-modal__eyebrow"><?= e(ADMIN_ATTENDANCE_REF_CODE) ?></span>
@@ -574,8 +574,8 @@ $kpiIcons = [
         </header>
         <div class="reports-modal__content">
             <div class="reports-modal__body-scroll">
-                <div class="reports-modal-form reports-sanctions-modal__form">
-                    <div class="reports-sanctions__body reports-sanctions__body--guide">
+                <div class="reports-modal-form reports-guard-guide-modal__form">
+                    <div class="reports-guard-guide__body">
                         <?= admin_attendance_monitoring_guide_html() ?>
                     </div>
                 </div>

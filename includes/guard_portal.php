@@ -88,13 +88,29 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
     }
     $limit = max(1, min($limit, 100));
     $offset = max(0, $offset);
-    $res = db_query(
-        $conn,
-        'SELECT Report_Number, Time_of_Report, Status, Template, Establishment
-         FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC LIMIT ? OFFSET ?',
-        'sii',
-        [$companyId, $limit, $offset]
-    );
+    $joinIncident = guard_incident_table_exists($conn);
+    $joinDad = guard_dad_table_exists($conn);
+    if ($joinIncident || $joinDad) {
+        $sql = 'SELECT d.Report_Number, d.Time_of_Report, d.Status, d.Template, d.Establishment';
+        if ($joinIncident) {
+            $sql .= ', i.status AS incident_registry_status';
+        }
+        if ($joinDad) {
+            $sql .= ', dad.status AS dad_registry_status';
+        }
+        $sql .= ' FROM dgd d';
+        if ($joinIncident) {
+            $sql .= ' LEFT JOIN guard_incident_submissions i ON i.dgd_report_number = d.Report_Number';
+        }
+        if ($joinDad) {
+            $sql .= ' LEFT JOIN guard_dad_submissions dad ON dad.dgd_report_number = d.Report_Number';
+        }
+        $sql .= ' WHERE d.Company_ID = ? ORDER BY d.Time_of_Report DESC LIMIT ? OFFSET ?';
+    } else {
+        $sql = 'SELECT Report_Number, Time_of_Report, Status, Template, Establishment
+           FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC LIMIT ? OFFSET ?';
+    }
+    $res = db_query($conn, $sql, 'sii', [$companyId, $limit, $offset]);
     $rows = [];
     if ($res) {
         while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -103,6 +119,16 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
                 $est = 'Secured';
             }
             $r['establishment_label'] = $est !== '' ? $est : '—';
+            $template = (string) ($r['Template'] ?? '');
+            $incidentStatus = trim((string) ($r['incident_registry_status'] ?? ''));
+            if ($joinIncident && $incidentStatus !== '' && guard_incident_is_report_type($template)) {
+                $r['Status'] = guard_incident_guard_portal_status($incidentStatus);
+            }
+            $dadStatus = trim((string) ($r['dad_registry_status'] ?? ''));
+            if ($joinDad && $dadStatus !== '' && guard_dad_is_report_type($template)) {
+                $r['Status'] = guard_dad_guard_portal_status($dadStatus);
+            }
+            unset($r['incident_registry_status'], $r['dad_registry_status']);
             $rows[] = $r;
         }
     }
@@ -236,8 +262,8 @@ function guard_portal_report_history_markup(
 function guard_portal_status_badge_class(string $status): string
 {
     return match (strtoupper(trim($status))) {
-        'APPROVED', 'REVIEWED' => 'guard-badge--approved',
-        'REJECTED' => 'guard-badge--rejected',
+        'CLOSED', 'APPROVED', 'REVIEWED', 'OPEN' => 'guard-badge--approved',
+        'NOT ACCEPTED', 'REJECTED' => 'guard-badge--rejected',
         default => 'guard-badge--pending',
     };
 }

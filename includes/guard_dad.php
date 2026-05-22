@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/document_ai.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/admin_ui_icons.php';
+require_once __DIR__ . '/admin_incident_status.php';
 
 /** Canonical report type label in guard submit flow. */
 const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
@@ -12,7 +13,45 @@ const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
 const GUARD_DTR_REPORT_TYPE_LEGACY = 'Daily Attendance Document';
 
 const GUARD_DAD_REF_PREFIX = 'DTR';
-const GUARD_DAD_STATUS_PENDING = 'pending';
+/** Default registry status for new head-guard DTR submissions (open case). */
+const GUARD_DAD_STATUS_PENDING = ADMIN_INCIDENT_STATUS_ONGOING;
+
+/** Map legacy or registry slug to canonical case status. */
+function guard_dad_status_normalize(string $status): string
+{
+    $status = strtolower(trim($status));
+
+    return match ($status) {
+        'pending', 'nte' => ADMIN_INCIDENT_STATUS_ONGOING,
+        'resolved' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
+        'dismissed' => ADMIN_INCIDENT_STATUS_DENIED,
+        'on_hold' => ADMIN_INCIDENT_STATUS_ON_HOLD,
+        default => admin_incident_status_is_valid($status)
+            ? $status
+            : ADMIN_INCIDENT_STATUS_ONGOING,
+    };
+}
+
+/** Head-guard history label aligned with admin case registry. */
+function guard_dad_guard_portal_status(string $adminStatus): string
+{
+    return admin_incident_status_label(guard_dad_status_normalize($adminStatus));
+}
+
+/** Keep linked dgd row in sync so guard report history reflects registry status. */
+function guard_dad_sync_dgd_portal_status(PDO $conn, int $dgdReportNumber, string $adminStatus): void
+{
+    if ($dgdReportNumber <= 0) {
+        return;
+    }
+
+    db_execute(
+        $conn,
+        'UPDATE dgd SET Status = ? WHERE Report_Number = ? LIMIT 1',
+        'si',
+        [guard_dad_guard_portal_status($adminStatus), $dgdReportNumber]
+    );
+}
 
 function guard_dad_table_exists(PDO $conn): bool
 {
@@ -424,6 +463,10 @@ function guard_dad_create_submission(
         AUTH_ROLE_GUARD
     );
 
+    if ($dgdReportNumber > 0) {
+        guard_dad_sync_dgd_portal_status($conn, $dgdReportNumber, GUARD_DAD_STATUS_PENDING);
+    }
+
     return [
         'ok' => true,
         'dad_id' => $dadId,
@@ -494,7 +537,7 @@ function guard_dad_map_row_for_admin(array $row): ?array
         'issue' => (string) ($row['issue'] ?? 'roster_mismatch'),
         'time_record' => (string) ($row['time_record'] ?? ''),
         'recorded' => (string) ($row['recorded'] ?? 'missing'),
-        'status' => (string) ($row['status'] ?? GUARD_DAD_STATUS_PENDING),
+        'status' => guard_dad_status_normalize((string) ($row['status'] ?? GUARD_DAD_STATUS_PENDING)),
         'summary' => (string) ($row['summary'] ?? ''),
         'submitted_at' => substr($submittedAt, 0, 10),
         'submitted_display' => $submittedAt !== '' ? date('j M Y, H:i', strtotime($submittedAt) ?: time()) : '',

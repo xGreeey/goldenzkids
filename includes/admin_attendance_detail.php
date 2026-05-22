@@ -844,10 +844,17 @@ function admin_attendance_archive(string $id, string $actorId): ?array
         return admin_attendance_normalize($record);
     }
 
-    return admin_attendance_update($id, [
+    $updated = admin_attendance_update($id, [
         'status' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
         'ops_note' => 'Archived from DTR registry.',
     ], $actorId);
+
+    if ($updated !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('dtr', 'archived', $updated, $actorId, $status);
+    }
+
+    return $updated;
 }
 
 /**
@@ -860,6 +867,12 @@ function admin_attendance_delete(string $id): ?array
     $id = trim($id);
     if ($id === '') {
         return null;
+    }
+
+    $record = admin_attendance_find($id);
+    if ($record !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('dtr', 'deleted', $record);
     }
 
     if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^dad-(\d+)$/', $id, $m)) {

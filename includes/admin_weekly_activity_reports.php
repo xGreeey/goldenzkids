@@ -1023,5 +1023,9 @@ function admin_weekly_activity_delete(string $id): ?array
 
     admin_weekly_activity_store_save($remaining);
 
-    return admin_weekly_activity_normalize($deleted);
+    $normalized = admin_weekly_activity_normalize($deleted);
+    require_once __DIR__ . '/admin_report_recovery.php';
+    admin_report_recovery_log('weekly-activity', 'deleted', $normalized);
+
+    return $normalized;
 }

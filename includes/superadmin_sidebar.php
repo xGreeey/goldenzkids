@@ -1,7 +1,16 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/superadmin_report_nav.php';
+require_once __DIR__ . '/admin_ui_icons.php';
+
 $superadminNavActive = $superadminNavActive ?? 'dashboard';
+$saReportNavOpen = superadmin_report_nav_is_open($superadminNavActive);
+$saReportNavItems = superadmin_report_nav_items();
+if (!isset($adminProfile)) {
+    require_once __DIR__ . '/admin_shell.php';
+    $adminProfile = admin_sidebar_profile();
+}
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -21,6 +30,33 @@ $superadminNavActive = $superadminNavActive ?? 'dashboard';
             <i class="fa-solid fa-clipboard-list" aria-hidden="true"></i>
             Audit Log
         </a>
+        <div class="sidebar-nav-group<?= $saReportNavOpen ? ' is-open has-active' : '' ?>" data-sidebar-nav-group>
+            <button type="button"
+                    class="sidebar-nav-group__toggle"
+                    aria-expanded="<?= $saReportNavOpen ? 'true' : 'false' ?>"
+                    aria-controls="sidebarSaReportMenu"
+                    id="sidebarSaReportToggle"<?= ui_tooltip('Deleted & archived reports — weekly, daily, DTR, incident') ?>>
+                <span class="sidebar-nav-group__label">Report</span>
+                <span class="sidebar-nav-group__chevron" aria-hidden="true"><?= admin_ui_icon('chevron-down', 16) ?></span>
+            </button>
+            <div id="sidebarSaReportMenu"
+                 class="sidebar-nav-group__menu"
+                 role="group"
+                 aria-labelledby="sidebarSaReportToggle"
+                 <?= $saReportNavOpen ? '' : ' hidden' ?>>
+                <?php foreach ($saReportNavItems as $item):
+                    $itemActive = in_array($superadminNavActive, $item['active'], true);
+                    ?>
+                <a href="<?= e($item['href']) ?>"
+                   class="sidebar-link sidebar-link--sub<?= $itemActive ? ' active' : '' ?>"
+                   data-nav-slug="<?= e((string) $item['slug']) ?>"
+                   <?= $itemActive ? ' aria-current="page"' : '' ?>
+                   <?= ui_tooltip((string) $item['tip']) ?>>
+                    <?= e((string) ($item['menu_label'] ?? $item['label'])) ?>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </nav>
 
     <div class="sidebar-footer">

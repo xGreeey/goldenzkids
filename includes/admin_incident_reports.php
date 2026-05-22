@@ -1123,10 +1123,17 @@ function admin_incident_archive(string $id, string $actorId): ?array
         return admin_incident_normalize($record);
     }
 
-    return admin_incident_update($id, [
+    $updated = admin_incident_update($id, [
         'progression_only' => true,
         'status' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
     ], $actorId);
+
+    if ($updated !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('incident', 'archived', $updated, $actorId, $status);
+    }
+
+    return $updated;
 }
 
 /**
@@ -1139,6 +1146,13 @@ function admin_incident_delete(string $id): ?array
     $id = trim($id);
     if ($id === '') {
         return null;
+    }
+
+    $record = admin_incident_find($id);
+    if ($record !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        $dbRow = admin_report_recovery_incident_db_row($id);
+        admin_report_recovery_log('incident', 'deleted', $record, null, null, $dbRow);
     }
 
     if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^inc-(\d+)$/', $id, $m)) {

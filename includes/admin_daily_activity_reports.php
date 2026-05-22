@@ -423,9 +423,17 @@ function admin_daily_activity_archive(string $id, string $actorId): ?array
         return admin_daily_activity_normalize($report);
     }
 
-    return admin_daily_activity_update($id, [
+    $previousStatus = (string) ($report['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+    $updated = admin_daily_activity_update($id, [
         'status' => ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED,
     ], $actorId);
+
+    if ($updated !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('daily-activity', 'archived', $updated, $actorId, $previousStatus);
+    }
+
+    return $updated;
 }
 
 function admin_daily_activity_action_icon(string $action): string

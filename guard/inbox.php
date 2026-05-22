@@ -27,6 +27,7 @@ $messagingHeadGuardOptions = [];
 $messagingGroupPostUrl = 'send-group-message.php';
 $messagingCreateGroupUrl = '';
 $messagingThreadApi = 'messaging-thread.php';
+$messagingPollApi = 'messaging-poll.php';
 $messagingActionUrl = 'messaging-action.php';
 $groupsAvailable = false;
 $messagingShowDirect = true;

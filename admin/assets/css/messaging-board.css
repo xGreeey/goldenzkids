@@ -101,6 +101,7 @@
     --messaging-navy: #023047;
     --messaging-navy-soft: #e8f4fa;
     --messaging-panel-bg: #f8fafc;
+    --messaging-thread-bg: #ffffff;
     --messaging-border: #e2e8f0;
 }
 
@@ -318,8 +319,12 @@
 }
 
 .messaging-board--split .messaging-board__thread {
-    background: #ffffff;
+    background: var(--messaging-thread-bg, #ffffff);
     min-width: 0;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
 }
 
 .messaging-contact-list {
@@ -546,6 +551,12 @@ body.guard-portal .guard-app__drawer-link {
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+#messagingThreadPane.messaging-board__thread {
+    flex: 1 1 0;
 }
 
 .messaging-thread__header {
@@ -557,7 +568,7 @@ body.guard-portal .guard-app__drawer-link {
     justify-content: space-between;
     gap: 10px;
     min-width: 0;
-    background: #ffffff;
+    background: var(--messaging-thread-bg, #ffffff);
     flex-shrink: 0;
 }
 
@@ -657,14 +668,38 @@ body.guard-portal .guard-app__drawer-link {
 }
 
 .messaging-thread__messages {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
+    max-height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
+    overflow-anchor: none;
     padding: 18px 18px 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     background: var(--messaging-panel-bg, #f8fafc);
+}
+
+@keyframes messaging-bubble-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.messaging-bubble--incoming {
+    animation: messaging-bubble-in 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .messaging-bubble--incoming {
+        animation: none;
+    }
 }
 
 .messaging-bubble {
@@ -713,7 +748,7 @@ body.guard-portal .guard-app__drawer-link {
     border-top: 1px solid var(--messaging-border, var(--border));
     margin-top: auto;
     flex-shrink: 0;
-    background: #ffffff;
+    background: var(--messaging-thread-bg, #ffffff);
 }
 
 .messaging-compose__bar {
@@ -1173,16 +1208,40 @@ body:not(.light-mode) .messaging-board--split .messaging-board__contacts {
     background: rgba(15, 23, 42, 0.5);
 }
 
-body:not(.light-mode) .messaging-board--split .messaging-board__thread {
-    background: var(--app-card-bg);
+body:not(.light-mode) .messaging-board--split {
+    --messaging-thread-bg: var(--app-card-bg, #1e293b);
+    --messaging-panel-bg: rgba(15, 23, 42, 0.85);
+    --messaging-border: var(--app-border-on-dark, #334155);
+}
+
+body:not(.light-mode) .messaging-board--split .messaging-board__thread,
+body:not(.light-mode) #messagingThreadPane.messaging-board__thread {
+    background: var(--messaging-thread-bg);
+    color: var(--app-ink-on-dark, #f1f5f9);
+}
+
+body:not(.light-mode) .messaging-thread__header {
+    background: var(--messaging-thread-bg);
+    border-bottom-color: var(--messaging-border);
 }
 
 body:not(.light-mode) .messaging-board--split .messaging-thread__messages {
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--messaging-panel-bg);
 }
 
 body:not(.light-mode) .messaging-board--split .messaging-compose {
-    background: var(--app-card-bg);
+    background: var(--messaging-thread-bg);
+}
+
+body:not(.light-mode) .messaging-compose__attach {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: var(--messaging-border);
+    color: var(--app-ink-on-dark, #e2e8f0);
+}
+
+body:not(.light-mode) .messaging-board__idle,
+body:not(.light-mode) .messaging-board__placeholder {
+    color: var(--app-ink-muted-on-dark, #94a3b8);
 }
 
 body:not(.light-mode) .messaging-board--split .messaging-contact.is-active {

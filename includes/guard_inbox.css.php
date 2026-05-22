@@ -79,9 +79,17 @@ function guard_inbox_styles(): void
             border-right-color: var(--guard-ui-border);
         }
 
-        body.guard-portal .guard-inbox-page .messaging-board--split .messaging-board__thread {
-            background: var(--guard-ui-surface);
+        body.guard-portal .guard-inbox-page .messaging-board--split .messaging-board__thread,
+        body.guard-portal .guard-inbox-page #messagingThreadPane.messaging-board__thread {
+            flex: 1 1 0;
             min-height: 0;
+            max-height: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: var(--guard-ui-surface);
+            color: var(--guard-ui-primary);
         }
 
         body.guard-portal .guard-inbox-page .messaging-board--split .messaging-board__unread-banner {
@@ -175,9 +183,12 @@ function guard_inbox_styles(): void
             font-size: 0.6rem;
         }
 
-        /* Thread pane */
+        /* Thread pane — fixed column; only the message list scrolls */
         body.guard-portal .guard-inbox-page #messagingThreadPane {
+            flex: 1 1 0;
             min-height: 0;
+            max-height: 100%;
+            height: 100%;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -260,15 +271,70 @@ function guard_inbox_styles(): void
 
         body.guard-portal .guard-inbox-page #messagingThreadScroll,
         body.guard-portal .guard-inbox-page .messaging-thread__messages {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             min-height: 0;
+            max-height: 100%;
             overflow-y: auto;
             overflow-x: hidden;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
+            overflow-anchor: none;
             padding: 10px 10px 8px;
             gap: 8px;
             background: var(--messaging-panel-bg);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-board--split .messaging-board__thread,
+        body.guard-portal:not(.light-mode) .guard-inbox-page #messagingThreadPane {
+            background: var(--guard-ui-surface);
+            color: var(--guard-ui-primary);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-thread__header {
+            background: var(--guard-ui-surface);
+            border-bottom-color: var(--guard-ui-border);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-thread__name {
+            color: var(--guard-ui-primary);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-thread__status {
+            color: var(--guard-ui-subtle);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page #messagingThreadScroll,
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-thread__messages {
+            background: var(--messaging-panel-bg);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-compose {
+            background: var(--guard-ui-surface);
+            border-top-color: var(--guard-ui-border);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-compose__attach {
+            background: rgba(15, 23, 42, 0.65);
+            border-color: var(--guard-ui-border);
+            color: var(--guard-ui-primary);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-board__placeholder,
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-board__idle,
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-board__notice {
+            color: var(--guard-ui-subtle);
+            background: transparent;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-bubble--theirs,
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-bubble:not(.messaging-bubble--mine) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--guard-ui-border);
+            color: var(--guard-ui-primary);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-inbox-page .messaging-bubble__sender {
+            color: var(--guard-ui-subtle);
         }
 
         body.guard-portal .guard-inbox-page .messaging-bubble {

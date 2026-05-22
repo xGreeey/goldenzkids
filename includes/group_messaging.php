@@ -503,6 +503,66 @@ function group_messaging_fetch_messages(PDO $conn, int $groupId, string $viewerI
     return $messages;
 }
 
+/**
+ * @return list<array{message_id:int,sender_company_id:string,sender_label:string,body_text:string,is_mine:bool,created_at:string}>
+ */
+function group_messaging_fetch_messages_since(
+    PDO $conn,
+    int $groupId,
+    string $viewerId,
+    int $afterMessageId,
+    int $limit = 100
+): array {
+    if (!group_messaging_user_in_group($conn, $groupId, $viewerId) || $afterMessageId < 1) {
+        return [];
+    }
+
+    $limit = max(1, min(200, $limit));
+    $hgJoin = callout_head_guards_table_exists($conn)
+        ? 'LEFT JOIN callout_head_guards hg ON hg.company_id = msg.sender_company_id AND hg.is_active = 1'
+        : '';
+    $hgPrefix = callout_head_guards_table_exists($conn)
+        ? "NULLIF(TRIM(hg.display_name), ''),"
+        : '';
+    $senderLabelSql = messaging_sql_label_with_prefix($conn, $hgPrefix, 'u', 'g');
+    $sql = "SELECT msg.message_id, msg.sender_company_id, msg.body_text, msg.created_at,
+                   {$senderLabelSql} AS sender_label
+            FROM message_group_messages msg
+            INNER JOIN users u ON u.Company_ID = msg.sender_company_id
+            LEFT JOIN guards g ON g.Company_ID = msg.sender_company_id
+            {$hgJoin}
+            WHERE msg.group_id = ? AND msg.message_id > ?
+            ORDER BY msg.created_at ASC
+            LIMIT {$limit}";
+
+    $stmt = db_query($conn, $sql, 'ii', [$groupId, $afterMessageId]);
+    if ($stmt === false) {
+        return [];
+    }
+
+    $messages = [];
+    $lastMessageId = 0;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $messageId = (int) $row['message_id'];
+        $lastMessageId = $messageId;
+        $senderId = (string) $row['sender_company_id'];
+        $messages[] = [
+            'message_id' => $messageId,
+            'sender_company_id' => $senderId,
+            'sender_label' => (string) $row['sender_label'],
+            'body_text' => (string) $row['body_text'],
+            'is_mine' => $senderId === $viewerId,
+            'created_at' => (string) $row['created_at'],
+        ];
+    }
+
+    if ($lastMessageId > 0) {
+        group_messaging_mark_read($conn, $groupId, $viewerId, $lastMessageId);
+    }
+
+    return $messages;
+}
+
 function group_messaging_mark_read(PDO $conn, int $groupId, string $companyId, int $lastMessageId): void
 {
     if ($groupId < 1 || $companyId === '' || $lastMessageId < 1) {
@@ -521,19 +581,20 @@ function group_messaging_mark_read(PDO $conn, int $groupId, string $companyId, i
     );
 }
 
-function group_messaging_send(PDO $conn, int $groupId, string $senderId, string $body): bool
+/** @return int New message_id, or 0 on failure. */
+function group_messaging_send(PDO $conn, int $groupId, string $senderId, string $body): int
 {
     if (!message_groups_table_exists($conn)) {
-        return false;
+        return 0;
     }
 
     $body = xss_sanitize_plaintext(trim($body), 8000);
     if ($groupId < 1 || $senderId === '' || $body === '') {
-        return false;
+        return 0;
     }
 
     if (!group_messaging_user_in_group($conn, $groupId, $senderId)) {
-        return false;
+        return 0;
     }
 
     $ok = db_execute(
@@ -558,7 +619,9 @@ function group_messaging_send(PDO $conn, int $groupId, string $senderId, string 
             $senderId,
             auth_user_role()
         );
+
+        return $messageId;
     }
 
-    return $ok;
+    return 0;
 }

@@ -124,6 +124,7 @@ function admin_daily_detail_row_attrs(array $record): string
         'data-sort-guard="' . e(strtolower((string) ($record['guard_name'] ?? ''))) . '"',
         'data-sort-issue="' . e(strtolower((string) ($record['issue_label'] ?? ''))) . '"',
         'data-search="' . e(admin_attendance_search_blob($record)) . '"',
+        'data-detail="' . e($detailJson) . '"',
     ]);
 }
 
@@ -410,6 +411,13 @@ $kpiIcons = [
                 </footer>
             </section>
         </div>
+
+        <script type="application/json" id="daily-detail-data-json"><?=
+            json_encode($attendanceRecords, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
+        <script type="application/json" id="daily-status-labels"><?=
+            json_encode(admin_attendance_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
     </main>
 </div>
 
@@ -576,15 +584,7 @@ $kpiIcons = [
     </div>
 </div>
 
-<script type="application/json" id="daily-detail-data-json"><?=
-    json_encode($attendanceRecords, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-<script type="application/json" id="daily-status-labels"><?=
-    json_encode(admin_attendance_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-
 <?php admin_shell_scripts(); ?>
-<script src="assets/js/daily-detail.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/daily-detail.js') ?>" defer></script>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

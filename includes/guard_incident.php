@@ -734,6 +734,31 @@ function guard_incident_find_by_id(PDO $conn, string $id): ?array
     return guard_incident_map_row_for_admin($row);
 }
 
+/** Head-guard history label aligned with admin incident registry status. */
+function guard_incident_guard_portal_status(string $adminStatus): string
+{
+    if (!admin_incident_status_is_valid($adminStatus)) {
+        return 'Pending';
+    }
+
+    return admin_incident_status_label($adminStatus);
+}
+
+/** Keep linked dgd row in sync so guard report history reflects registry status. */
+function guard_incident_sync_dgd_portal_status(PDO $conn, int $dgdReportNumber, string $adminStatus): void
+{
+    if ($dgdReportNumber <= 0) {
+        return;
+    }
+
+    db_execute(
+        $conn,
+        'UPDATE dgd SET Status = ? WHERE Report_Number = ? LIMIT 1',
+        'si',
+        [guard_incident_guard_portal_status($adminStatus), $dgdReportNumber]
+    );
+}
+
 /**
  * @param array<string, mixed> $input
  */
@@ -841,6 +866,8 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
             return null;
         }
 
+        guard_incident_sync_dgd_portal_status($conn, (int) ($row['dgd_report_number'] ?? 0), $status);
+
         $ref = (string) ($row['reference_code'] ?? ('inc-' . $incId));
         require_once __DIR__ . '/portal_audit.php';
         portal_audit_log(
@@ -876,6 +903,12 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
         if (!$ok) {
             return null;
         }
+
+        guard_incident_sync_dgd_portal_status(
+            $conn,
+            (int) ($row['dgd_report_number'] ?? 0),
+            (string) ($updated['status'] ?? $status)
+        );
 
         $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
 
@@ -929,6 +962,8 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
     if (!$ok) {
         return null;
     }
+
+    guard_incident_sync_dgd_portal_status($conn, (int) ($row['dgd_report_number'] ?? 0), $status);
 
     $ref = (string) ($row['reference_code'] ?? ('inc-' . $incId));
     require_once __DIR__ . '/portal_audit.php';

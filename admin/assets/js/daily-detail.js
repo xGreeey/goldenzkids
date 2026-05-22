@@ -85,7 +85,7 @@
         const guideClose = document.getElementById('daily-guide-close');
         const guideModal = document.getElementById('daily-guide-modal');
 
-        const STATUS_SORT = { pending: 1, nte: 2, on_hold: 3, resolved: 4, dismissed: 5 };
+        const STATUS_SORT = { ongoing: 1, on_hold: 2, accomplished: 3, denied: 4 };
 
         let activeStatus = document.body.dataset.statusTab || 'all';
         if (!activeStatus) {
@@ -145,7 +145,7 @@
         }
 
         function updateKpis() {
-            const counts = { all: 0, pending: 0, nte: 0, on_hold: 0, resolved: 0, dismissed: 0 };
+            const counts = { all: 0, ongoing: 0, on_hold: 0, accomplished: 0, denied: 0 };
             recordsIndex.forEach((r) => {
                 if (r.el.classList.contains('is-filtered-out')) {
                     return;
@@ -309,7 +309,7 @@
         }
 
         function statusBadgeHtml(p) {
-            const slug = p.status || 'pending';
+            const slug = p.status || 'ongoing';
             const label = p.status_label || slug;
             return (
                 '<span class="reports-badge reports-badge--' +

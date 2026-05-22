@@ -6,6 +6,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/admin_incident_reports.php';
+require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/guard_dad.php';
 
 const ADMIN_ATTENDANCE_SESSION_KEY = 'admin_attendance_detail_store';
@@ -24,78 +25,72 @@ function admin_attendance_page_path(): string
     return ADMIN_ATTENDANCE_PAGE;
 }
 
-const ADMIN_ATTENDANCE_STATUS_PENDING = 'pending';
-const ADMIN_ATTENDANCE_STATUS_NTE = 'nte';
-const ADMIN_ATTENDANCE_STATUS_ON_HOLD = 'on_hold';
-const ADMIN_ATTENDANCE_STATUS_RESOLVED = 'resolved';
-const ADMIN_ATTENDANCE_STATUS_DISMISSED = 'dismissed';
+/** @deprecated Use ADMIN_INCIDENT_STATUS_ONGOING */
+const ADMIN_ATTENDANCE_STATUS_PENDING = ADMIN_INCIDENT_STATUS_ONGOING;
+/** @deprecated Legacy slug; maps to open */
+const ADMIN_ATTENDANCE_STATUS_NTE = ADMIN_INCIDENT_STATUS_ONGOING;
+const ADMIN_ATTENDANCE_STATUS_ON_HOLD = ADMIN_INCIDENT_STATUS_ON_HOLD;
+/** @deprecated Use ADMIN_INCIDENT_STATUS_ACCOMPLISHED */
+const ADMIN_ATTENDANCE_STATUS_RESOLVED = ADMIN_INCIDENT_STATUS_ACCOMPLISHED;
+/** @deprecated Use ADMIN_INCIDENT_STATUS_DENIED */
+const ADMIN_ATTENDANCE_STATUS_DISMISSED = ADMIN_INCIDENT_STATUS_DENIED;
+
+/** Map legacy DTR status slugs to the shared case registry. */
+function admin_attendance_status_normalize(string $status): string
+{
+    $status = strtolower(trim($status));
+
+    return match ($status) {
+        'pending', 'nte' => ADMIN_INCIDENT_STATUS_ONGOING,
+        'resolved' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
+        'dismissed' => ADMIN_INCIDENT_STATUS_DENIED,
+        'on_hold' => ADMIN_INCIDENT_STATUS_ON_HOLD,
+        default => admin_incident_status_is_valid($status)
+            ? $status
+            : ADMIN_INCIDENT_STATUS_ONGOING,
+    };
+}
 
 /**
- * @return array<string, array{label: string, tab: string, kpi: string, description: string}>
+ * Case registry aligned with incident reports (Open, On hold, Closed, Not accepted).
+ *
+ * @return array<string, array{label: string, tab: string, kpi: string, description: string, closed: bool}>
  */
 function admin_attendance_status_definitions(): array
 {
-    return [
-        ADMIN_ATTENDANCE_STATUS_PENDING => [
-            'label' => 'Pending review',
-            'tab' => 'Pending',
-            'kpi' => 'Pending',
-            'description' => 'Missing or wrong time-in/out, or roster mismatch — awaiting admin validation.',
-        ],
-        ADMIN_ATTENDANCE_STATUS_NTE => [
-            'label' => 'NTE issued',
-            'tab' => 'NTE',
-            'kpi' => 'NTE open',
-            'description' => 'Notice to Explain sent — guard must respond before close.',
-        ],
-        ADMIN_ATTENDANCE_STATUS_ON_HOLD => [
-            'label' => 'On hold',
-            'tab' => 'On hold',
-            'kpi' => 'On hold',
-            'description' => 'Paused — waiting for timekeeping export, HR, or head guard clarification.',
-        ],
-        ADMIN_ATTENDANCE_STATUS_RESOLVED => [
-            'label' => 'Resolved',
-            'tab' => 'Resolved',
-            'kpi' => 'Resolved',
-            'description' => 'Corrected in timekeeping or coaching logged — no further action.',
-        ],
-        ADMIN_ATTENDANCE_STATUS_DISMISSED => [
-            'label' => 'Dismissed',
-            'tab' => 'Dismissed',
-            'kpi' => 'Dismissed',
-            'description' => 'Scheduling error or duplicate flag — no discipline.',
-        ],
-    ];
+    $defs = admin_incident_status_definitions();
+    $defs[ADMIN_INCIDENT_STATUS_ONGOING]['description'] =
+        'Open DTR case — missing or wrong time-in/out, roster mismatch, or NTE under review.';
+    $defs[ADMIN_INCIDENT_STATUS_ON_HOLD]['description'] =
+        'Case paused — waiting for timekeeping export, HR, or head guard clarification.';
+    $defs[ADMIN_INCIDENT_STATUS_ACCOMPLISHED]['description'] =
+        'Case closed — corrected in timekeeping, coaching logged, or client sign-off on file.';
+    $defs[ADMIN_INCIDENT_STATUS_DENIED]['description'] =
+        'Case closed without action — scheduling error, duplicate flag, or withdrawn filing.';
+
+    return $defs;
 }
 
 /** @return list<string> */
 function admin_attendance_status_slugs(): array
 {
-    return array_keys(admin_attendance_status_definitions());
+    return admin_incident_status_slugs();
 }
 
 /** @return array<string, string> */
 function admin_attendance_status_options(): array
 {
-    $options = [];
-    foreach (admin_attendance_status_definitions() as $slug => $def) {
-        $options[$slug] = $def['label'];
-    }
-
-    return $options;
+    return admin_incident_status_options();
 }
 
 function admin_attendance_status_label(string $status): string
 {
-    $defs = admin_attendance_status_definitions();
-
-    return $defs[$status]['label'] ?? $defs[ADMIN_ATTENDANCE_STATUS_PENDING]['label'];
+    return admin_incident_status_label(admin_attendance_status_normalize($status));
 }
 
 function admin_attendance_status_is_valid(string $status): bool
 {
-    return array_key_exists($status, admin_attendance_status_definitions());
+    return admin_incident_status_is_valid(admin_attendance_status_normalize($status));
 }
 
 /**
@@ -167,7 +162,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'missing',
             'submitted_at' => '2026-05-20',
             'submitted_display' => '20 May 2026, 19:10',
-            'status' => 'pending',
+            'status' => 'ongoing',
             'summary' => 'Guard forgot morning punch. Head guard flagged before payroll cutoff.',
             'history' => [
                 ['at' => '20 May 2026, 19:10', 'event' => 'Flagged by head guard', 'note' => 'Auto-alert from DTR sheet.'],
@@ -187,7 +182,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'late',
             'submitted_at' => '2026-05-19',
             'submitted_display' => '19 May 2026, 08:30',
-            'status' => 'nte',
+            'status' => 'ongoing',
             'summary' => 'Twelve-minute overrun; NTE issued for repeated late time-out at same post.',
             'history' => [
                 ['at' => '19 May 2026, 08:30', 'event' => 'Flagged by head guard', 'note' => ''],
@@ -227,7 +222,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'late',
             'submitted_at' => '2026-05-17',
             'submitted_display' => '17 May 2026, 09:00',
-            'status' => 'resolved',
+            'status' => 'accomplished',
             'summary' => 'Traffic delay documented; coaching note on file. Equivalence set to 0.50.',
             'history' => [
                 ['at' => '17 May 2026, 09:00', 'event' => 'Flagged late', 'note' => ''],
@@ -247,7 +242,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'missing',
             'submitted_at' => '2026-05-16',
             'submitted_display' => '16 May 2026, 23:50',
-            'status' => 'pending',
+            'status' => 'ongoing',
             'summary' => 'Forgot logout after handover; patrol log shows guard left post 06:02.',
             'history' => [
                 ['at' => '16 May 2026, 23:50', 'event' => 'Flagged by head guard', 'note' => 'Pending DGD cross-check.'],
@@ -266,7 +261,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'present',
             'submitted_at' => '2026-05-15',
             'submitted_display' => '15 May 2026, 08:20',
-            'status' => 'dismissed',
+            'status' => 'denied',
             'summary' => 'Early punch from previous relief still active — scheduling error, no sanction.',
             'history' => [
                 ['at' => '15 May 2026, 08:20', 'event' => 'Flagged', 'note' => ''],
@@ -286,7 +281,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'present',
             'submitted_at' => '2026-05-14',
             'submitted_display' => '14 May 2026, 22:10',
-            'status' => 'resolved',
+            'status' => 'accomplished',
             'summary' => 'Biometric double tap removed; no pay impact.',
             'history' => [
                 ['at' => '14 May 2026, 22:10', 'event' => 'System flag', 'note' => ''],
@@ -306,7 +301,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'missing',
             'submitted_at' => '2026-05-12',
             'submitted_display' => '12 May 2026, 09:45',
-            'status' => 'nte',
+            'status' => 'ongoing',
             'summary' => 'Third roster conflict this month; NTE and supervisor interview required.',
             'history' => [
                 ['at' => '12 May 2026, 09:45', 'event' => 'Flagged', 'note' => ''],
@@ -326,7 +321,7 @@ function admin_attendance_seed_templates(): array
             'recorded' => 'missing',
             'submitted_at' => '2026-05-10',
             'submitted_display' => '10 May 2026, 17:00',
-            'status' => 'resolved',
+            'status' => 'accomplished',
             'summary' => 'Paper DGD signed; backfilled time-in/out after biometric outage.',
             'history' => [
                 ['at' => '10 May 2026, 17:00', 'event' => 'Flagged', 'note' => 'Biometric offline 6h.'],
@@ -372,10 +367,7 @@ function admin_attendance_normalize(array $row): array
         $row['ref'] = ADMIN_ATTENDANCE_REF_CODE . '-' . $m[1];
     }
 
-    $status = (string) ($row['status'] ?? ADMIN_ATTENDANCE_STATUS_PENDING);
-    if (!admin_attendance_status_is_valid($status)) {
-        $status = ADMIN_ATTENDANCE_STATUS_PENDING;
-    }
+    $status = admin_attendance_status_normalize((string) ($row['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING));
 
     $issue = (string) ($row['issue'] ?? 'missing_time_in');
     if (!array_key_exists($issue, admin_attendance_issue_options())) {
@@ -497,7 +489,7 @@ function admin_attendance_status_counts(array $records): array
         $counts[$slug] = 0;
     }
     foreach ($records as $row) {
-        $slug = (string) ($row['status'] ?? '');
+        $slug = admin_attendance_status_normalize((string) ($row['status'] ?? ''));
         if (isset($counts[$slug])) {
             $counts[$slug] += 1;
         }
@@ -529,7 +521,7 @@ function admin_attendance_search_blob(array $record): string
  */
 function admin_attendance_status_badge_html(array $record): string
 {
-    $slug = (string) ($record['status'] ?? ADMIN_ATTENDANCE_STATUS_PENDING);
+    $slug = admin_attendance_status_normalize((string) ($record['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING));
     $label = (string) ($record['status_label'] ?? admin_attendance_status_label($slug));
 
     $tip = admin_attendance_status_definitions()[$slug]['description'] ?? '';
@@ -661,11 +653,8 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
         return null;
     }
 
-    $oldStatus = (string) $mapped['status'];
-    $newStatus = (string) ($input['status'] ?? $oldStatus);
-    if (!admin_attendance_status_is_valid($newStatus)) {
-        $newStatus = $oldStatus;
-    }
+    $oldStatus = admin_attendance_status_normalize((string) $mapped['status']);
+    $newStatus = admin_attendance_status_normalize((string) ($input['status'] ?? $oldStatus));
 
     $issue = (string) ($input['issue'] ?? $mapped['issue']);
     if (!array_key_exists($issue, admin_attendance_issue_options())) {
@@ -686,9 +675,10 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
     if ($newStatus !== $oldStatus) {
         $mapped = admin_incident_append_history(
             $mapped,
-            'Status: ' . admin_attendance_status_label($newStatus),
-            'Changed from ' . admin_attendance_status_label($oldStatus),
-            $actorId
+            'Registry: ' . admin_attendance_status_label($newStatus),
+            'Registry status updated.',
+            $actorId,
+            ['source' => 'admin', 'kind' => 'status']
         );
         $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : $history;
     }
@@ -715,6 +705,8 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
             $dadId,
         ]
     );
+
+    guard_dad_sync_dgd_portal_status($conn, (int) ($row['dgd_report_number'] ?? 0), $newStatus);
 
     $fresh = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
     $mappedFresh = $fresh !== null ? guard_dad_map_row_for_admin($fresh) : null;
@@ -786,11 +778,8 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
         return null;
     }
 
-    $oldStatus = (string) $found['status'];
-    $newStatus = (string) ($input['status'] ?? $oldStatus);
-    if (!admin_attendance_status_is_valid($newStatus)) {
-        $newStatus = $oldStatus;
-    }
+    $oldStatus = admin_attendance_status_normalize((string) $found['status']);
+    $newStatus = admin_attendance_status_normalize((string) ($input['status'] ?? $oldStatus));
 
     $found['status'] = $newStatus;
 
@@ -816,9 +805,10 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
     if ($newStatus !== $oldStatus) {
         $found = admin_incident_append_history(
             $found,
-            'Status: ' . admin_attendance_status_label($newStatus),
-            'Changed from ' . admin_attendance_status_label($oldStatus),
-            $actorId
+            'Registry: ' . admin_attendance_status_label($newStatus),
+            'Registry status updated.',
+            $actorId,
+            ['source' => 'admin', 'kind' => 'status']
         );
     }
 

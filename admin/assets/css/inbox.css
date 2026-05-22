@@ -39,6 +39,22 @@ body.guard-portal .guard-inbox-page .inbox-messaging-solo {
     max-width: 720px;
 }
 
+.memo-compose-hint {
+    margin: 0 0 1rem;
+    font-size: var(--font-body-size-sm);
+    line-height: 1.5;
+    color: var(--app-ink-muted);
+}
+
+body:not(.light-mode) .memo-compose-hint {
+    color: var(--app-ink-muted-on-dark);
+}
+
+.field-hint--alert {
+    color: var(--warning, #b45309);
+    margin-bottom: 1rem;
+}
+
 .announcement-layout .panel--inbox {
     align-self: stretch;
     position: static;

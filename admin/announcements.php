@@ -5,8 +5,6 @@ require_once __DIR__ . '/../config/app.php';
 
 auth_require_permission('admin.memo.send');
 
-$memo_guards_query = $conn->query('SELECT Company_ID, First_Name, Last_Name FROM guards ORDER BY Last_Name ASC');
-
 $adminNavActive = 'announcements';
 ?>
 <!DOCTYPE html>
@@ -29,11 +27,11 @@ $adminNavActive = 'announcements';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Announcement</h1>
-            <p class="page-subtitle">Publish company-wide or targeted secured memos to field personnel.</p>
+            <p class="page-subtitle">Publish secured memos to all head guards. Each memo appears on Guard corner → Board → Announcement.</p>
         </header>
 
         <div class="announcement-layout">
-            <?php require __DIR__ . '/../includes/admin_internal_communications.php'; ?>
+            <?php require __DIR__ . '/../includes/admin_memo_compose.php'; ?>
         </div>
     </main>
 </div>

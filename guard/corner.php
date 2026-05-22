@@ -7,7 +7,8 @@ require_once __DIR__ . '/../includes/guard_portal.php';
 
 auth_require_permission('guard.corner.view');
 
-$announcements = guard_portal_announcements($conn);
+$companyId = (string) ($_SESSION['company_id'] ?? '');
+$announcements = guard_portal_announcements($conn, $companyId);
 $policies = guard_portal_policy_sections();
 $socialFeeds = guard_portal_social_feeds();
 
@@ -34,19 +35,26 @@ guard_layout_head('Guard Corner');
         <section class="guard-hub-panel<?= $hubTab === 'announce' ? ' is-active' : '' ?>" data-guard-hub-panel="announce" role="tabpanel">
             <div class="guard-card">
                 <div class="guard-card__head">
-                    <h2 class="panel-title">Messaging board</h2>
+                    <h2 class="panel-title">Announcement</h2>
                 </div>
                 <?php if ($announcements === []): ?>
-                    <p class="empty-state">No announcements yet.</p>
+                    <p class="empty-state">No announcements yet. Admin memos published from the portal will appear here.</p>
                 <?php else: ?>
                     <div class="guard-feed">
-                        <?php foreach ($announcements as $item): ?>
-                            <article class="guard-feed__item">
+                        <?php foreach ($announcements as $item):
+                            $isUnread = empty($item['is_read']);
+                            ?>
+                            <article class="guard-feed__item<?= $isUnread ? ' guard-feed__item--unread' : '' ?>">
                                 <div class="guard-feed__head">
                                     <div>
-                                        <h3 class="guard-feed__title"><?= e((string) ($item['title'] ?? '')) ?></h3>
+                                        <h3 class="guard-feed__title">
+                                            <?= e((string) ($item['title'] ?? '')) ?>
+                                            <?php if ($isUnread): ?>
+                                                <span class="guard-badge guard-badge--pending">New</span>
+                                            <?php endif; ?>
+                                        </h3>
                                         <time class="guard-feed__time" datetime="<?= e((string) ($item['created_at'] ?? '')) ?>">
-                                            <?= e((string) ($item['created_at'] ?? '')) ?>
+                                            <?= e((string) ($item['created_display'] ?? $item['created_at'] ?? '')) ?>
                                         </time>
                                     </div>
                                 </div>

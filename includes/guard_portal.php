@@ -1,20 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** @return list<array<string,mixed>> */
-function guard_portal_announcements(PDO $conn, int $limit = 20): array
-{
-    if (!db_table_exists($conn, 'guard_announcements')) {
-        return [];
-    }
-    $limit = max(1, min($limit, 50));
-
-    return db_fetch_all(
-        $conn,
-        'SELECT id, title, body, created_at FROM guard_announcements
-         WHERE is_active = 1 ORDER BY created_at DESC LIMIT ' . $limit
-    );
-}
+require_once __DIR__ . '/memo_portal.php';
 
 /** @return list<array<string,mixed>> */
 function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50): array

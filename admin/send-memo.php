@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
-require_once __DIR__ . '/../includes/portal_audit.php';
+require_once APP_ROOT . '/includes/portal_audit.php';
+require_once APP_ROOT . '/includes/memo_portal.php';
 
 auth_require_permission('admin.memo.send');
 
@@ -11,34 +12,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     exit();
 }
 
+csrf_verify();
+
 $senderId = (string) ($_SESSION['company_id'] ?? '');
 $distributionType = trim((string) ($_POST['distribution_type'] ?? ''));
+$recipientScope = trim((string) ($_POST['recipient_scope'] ?? ''));
 $targetGuard = trim((string) ($_POST['target_guard'] ?? ''));
 $memoType = trim((string) ($_POST['memo_type'] ?? ''));
 $bodyText = xss_sanitize_plaintext(trim((string) ($_POST['content'] ?? '')), 16000);
 
-if ($senderId === '' || $distributionType === '' || $memoType === '' || $bodyText === '') {
+if ($senderId === '' || $memoType === '' || $bodyText === '') {
     redirect_with_alert('Please complete all required memo fields.', 'announcements.php');
 }
 
-if ($distributionType === 'targeted' && $targetGuard === '') {
-    redirect_with_alert('Select a recipient for a targeted memo.', 'announcements.php');
+if (!memo_portal_tables_ready($conn)) {
+    redirect_with_alert('Memo tables are not set up. Run database migrations first.', 'announcements.php');
 }
 
 $recipientIds = [];
-if ($distributionType === 'broadcast') {
-    $rows = db_fetch_all(
-        $conn,
-        "SELECT DISTINCT Company_ID FROM guards WHERE Company_ID IS NOT NULL AND Company_ID != ''"
-    );
-    foreach ($rows as $row) {
-        $recipientIds[] = (string) $row['Company_ID'];
-    }
+if ($recipientScope === 'head_guards' || $distributionType === 'broadcast') {
+    $recipientIds = memo_portal_head_guard_recipient_ids($conn);
     if ($recipientIds === []) {
-        redirect_with_alert('No guards found on the roster for broadcast.', 'announcements.php');
+        redirect_with_alert('No active head guard accounts found to receive this memo.', 'announcements.php');
     }
-} else {
+    $distributionType = 'broadcast';
+} elseif ($distributionType === 'targeted') {
+    if ($targetGuard === '') {
+        redirect_with_alert('Select a recipient for a targeted memo.', 'announcements.php');
+    }
     $recipientIds[] = strtoupper($targetGuard);
+} else {
+    redirect_with_alert('Invalid memo delivery scope.', 'announcements.php');
 }
 
 $conn->beginTransaction();
@@ -68,19 +72,22 @@ try {
 
     $conn->commit();
 
-    $recipientSummary = $distributionType === 'broadcast'
-        ? 'Broadcast to ' . count($recipientIds) . ' guard(s)'
+    $recipientSummary = $recipientScope === 'head_guards' || count($recipientIds) > 1
+        ? 'Broadcast to ' . count($recipientIds) . ' head guard(s)'
         : 'To ' . $recipientIds[0];
     portal_audit_log(
         $conn,
         'MEMO_SENT',
         $recipientSummary . '; category: ' . $memoType,
-        $distributionType === 'targeted' ? $recipientIds[0] : null,
+        count($recipientIds) === 1 ? $recipientIds[0] : null,
         $senderId,
         auth_user_role()
     );
 
-    redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'announcements.php');
+    redirect_with_alert(
+        'Memo published to all head guards. It will appear on Guard corner → Announcement.',
+        'announcements.php'
+    );
 } catch (Throwable $e) {
     $conn->rollBack();
     error_log('send-memo: ' . $e->getMessage());

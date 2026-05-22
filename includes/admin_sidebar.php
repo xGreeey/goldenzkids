@@ -49,7 +49,7 @@ $reportNavItems = [
             <?= admin_nav_icon('inbox') ?>
             Inbox
         </a>
-        <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Secured memos and internal announcements') ?>>
+        <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Publish memos to all head guards — Guard corner announcements') ?>>
             <?= admin_nav_icon('bullhorn') ?>
             Announcement
         </a>

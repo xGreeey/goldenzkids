@@ -107,6 +107,8 @@ function guard_layout_end(): void
 
     echo '</div>';
 
+    require __DIR__ . '/guard_policy_modal.php';
+
     guard_ui_drawer_markup($navActive);
 
     admin_shell_scripts();

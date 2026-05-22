@@ -432,6 +432,61 @@ function guard_portal_store_report_evidence(
     return $saved;
 }
 
+/**
+ * Numbered policy text → HTML list (one counter; numbers stripped from item text).
+ */
+function guard_portal_policy_body_html(string $body): string
+{
+    $body = trim($body);
+    if ($body === '') {
+        return '';
+    }
+
+    $items = guard_portal_policy_numbered_items($body);
+    if (count($items) < 2) {
+        return nl2br(e($body));
+    }
+
+    $html = '<ul class="guard-policy-modal__list">';
+    foreach ($items as $item) {
+        $html .= '<li>' . e($item) . '</li>';
+    }
+    $html .= '</ul>';
+
+    return $html;
+}
+
+/** @return list<string> */
+function guard_portal_policy_numbered_items(string $body): array
+{
+    $lines = preg_split('/\r\n|\r|\n/', $body) ?: [];
+    $items = [];
+    $current = '';
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        if (preg_match('/^\d+\.\s*(.*)$/u', $line, $matches)) {
+            if ($current !== '') {
+                $items[] = trim($current);
+            }
+            $current = trim((string) ($matches[1] ?? ''));
+            continue;
+        }
+        if ($current !== '') {
+            $current .= ' ' . $line;
+        }
+    }
+
+    if ($current !== '') {
+        $items[] = trim($current);
+    }
+
+    return array_values(array_filter($items, static fn (string $item): bool => $item !== ''));
+}
+
 /** @return list<array{title:string,slug:string,body:string}> */
 function guard_portal_policy_sections(): array
 {
@@ -439,17 +494,71 @@ function guard_portal_policy_sections(): array
         [
             'title' => '11 General Orders',
             'slug' => 'general-orders',
-            'body' => '1. Know your post orders. 2. Report all incidents immediately. 3. Maintain professional conduct at all times. 4. Coordinate with head guard and operations. (Summary — refer to official handbook.)',
+            'body' => <<<'TEXT'
+1. To take charge of my post and all company properties in view and protect/preserve the same with utmost diligence;
+
+2. To walk in an alert manner during my tour of duty observing everything that takes place within sight or hearing;
+
+3. To report all violation of regulations and orders that I am instructed to enforce;
+
+4. To relay all calls from posts more distant from the security house where I am stationed;
+
+5. To quit my post only when properly relieved;
+
+6. To receive, obey and pass to the relieving guard all orders from company officers or officials, superiors, post in-charge or shift leaders;
+
+7. To talk to no one except in line of duty;
+
+8. To sound or call the alarm in case of fire or disorder;
+
+9. To call the superior officer in any case not covered by instructions;
+
+10. To salute all company officials, superiors in the agency, ranking public officials and officers of the Armed Forces of the Philippines and Philippine National Police; and
+
+11. To be especially watchful at night and during the time of challenging, to challenge all persons on or near my post and to allow no one to pass or loiter without proper authority.
+TEXT,
         ],
         [
             'title' => 'Code of Ethics',
             'slug' => 'ethics',
-            'body' => 'Guards shall act with integrity, respect, and accountability. Confidentiality of client information must be preserved. Use of force only as authorized by law and agency policy.',
+            'body' => <<<'TEXT'
+1. As a security agent, his fundamental duty is to serve the interest or mission of his agency in compliance with the contract entered into with the clients of the agency he is supposed to serve.
+
+2. He shall be honest in thoughts and deeds both in his personal and official actuations, obeying the law of the land and the regulations prescribed by his agency and those established by the company he is supposed to protect.
+
+3. He shall not reveal any confidential matter that is confided to him as security guard and such other matters imposed upon him by law.
+
+4. He shall act at all times with decorum and shall not permit personal feelings, prejudices and undue friendship to influence his actuation in the performance of his official functions.
+
+5. He shall not compromise with criminals and other lawless elements to the prejudice of the customer or his client but assist government in its relentless drive against lawlessness and other forms of criminality.
+
+6. He must carry his assigned duties as security guard or watchman as required by law to the best of his ability and safeguard life and property to the establishment he is assigned.
+
+7. He shall wear his uniform, badge, patches and insignia properly as a symbol of public trust and confidence as an honest and trustworthy security guard, watchman and private detective.
+
+8. He must keep his allegiance first to the government, to the agency he is and to the establishment he is assigned to serve with loyalty and dedicated service.
+
+9. He shall diligently and progressively familiarize himself with the rules and regulations laid down by his agency and that of the customer or clients.
+
+10. He shall at all times be courteous, respectful and salute to his superior officers, government officials and officials of the establishment where he is assigned and the company he is supposed to serve.
+
+11. He shall report to perform his duties always in proper uniform and neat in his appearance.
+
+12. He shall learn at heart or memorize and strictly observe the laws and regulations governing the use of firearms.
+TEXT,
         ],
         [
-            'title' => 'Firearm Safety',
+            'title' => 'Cardinal Rules of Gun Safety',
             'slug' => 'firearm',
-            'body' => 'Treat every firearm as loaded. Finger off trigger until ready to fire. Never point at anything you do not intend to shoot. Secure weapons before and after duty per post protocol.',
+            'body' => <<<'TEXT'
+1. Treat all guns as if they are always loaded.
+
+2. Never point a gun at anything you are not willing to destroy.
+
+3. Keep your finger off the trigger until you are ready to shoot.
+
+4. Be sure of your target and what lies beyond it.
+TEXT,
         ],
     ];
 }

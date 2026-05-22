@@ -8,6 +8,10 @@ require_once __DIR__ . '/admin_incident_status.php';
 const GUARD_INCIDENT_REF_PREFIX = 'INC';
 const GUARD_INCIDENT_CATEGORY_PER_POST = 'per_post';
 const GUARD_INCIDENT_CATEGORY_OUTSIDE_POST = 'outside_post';
+/** Canonical guard portal label for incident report submissions. */
+const GUARD_INCIDENT_REPORT_TYPE = 'Incident Report';
+/** Legacy value stored on older dgd rows before rename. */
+const GUARD_INCIDENT_REPORT_TYPE_LEGACY = 'Post incident';
 
 function guard_incident_table_exists(PDO $conn): bool
 {
@@ -22,7 +26,7 @@ function guard_incident_table_exists(PDO $conn): bool
 
 function guard_incident_is_report_type(string $reportType): bool
 {
-    return $reportType === 'Post incident';
+    return in_array(trim($reportType), [GUARD_INCIDENT_REPORT_TYPE, GUARD_INCIDENT_REPORT_TYPE_LEGACY, 'Incident'], true);
 }
 
 /**

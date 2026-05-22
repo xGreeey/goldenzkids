@@ -631,7 +631,7 @@ function guard_hub_scripts(): void
         var reportFile = null;
         var evidences = [];
         var DTR_TYPE = 'Daily Time Record';
-        var INCIDENT_TYPE = 'Post incident';
+        var INCIDENT_TYPE = 'Incident Report';
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;
         var ocrPreview = qs('[data-guard-ocr-preview]', form);
@@ -771,7 +771,7 @@ function guard_hub_scripts(): void
                 submitSubtitle.textContent = dad
                     ? 'Daily attendance: GPS is stamped when you scan the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
                     : incident
-                      ? 'Post incident: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
+                      ? 'Incident report: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
                       : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
             }
             if (!usesOcrPreview() && ocrPreview) {

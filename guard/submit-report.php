@@ -10,8 +10,16 @@ auth_require_permission('guard.reports.submit');
 
 $companyId = (string) $_SESSION['company_id'];
 $reportTypes = guard_portal_report_types();
-$reports = guard_portal_user_reports($conn, $companyId);
 $showHistory = (($_GET['view'] ?? '') === 'history');
+$historyPage = $showHistory ? max(1, (int) ($_GET['page'] ?? 1)) : 1;
+$reportTotal = guard_portal_user_reports_count($conn, $companyId);
+$historyPager = guard_portal_report_history_pagination_state($reportTotal, $historyPage);
+$reports = guard_portal_user_reports(
+    $conn,
+    $companyId,
+    $historyPager['per_page'],
+    $historyPager['offset']
+);
 $guardNavActive = 'submit';
 guard_layout_head('Submit report');
 ?>
@@ -34,7 +42,12 @@ guard_layout_head('Submit report');
                 <?= $showHistory ? '' : 'hidden' ?>
                 aria-labelledby="guard-submit-card-heading"
             >
-                <?php guard_portal_report_history_markup($reports); ?>
+                <?php guard_portal_report_history_markup(
+                    $reports,
+                    $historyPager['page'],
+                    $historyPager['total_pages'],
+                    $historyPager['total']
+                ); ?>
             </div>
             <form
                 class="guard-wizard"

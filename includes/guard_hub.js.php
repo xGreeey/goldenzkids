@@ -2031,6 +2031,7 @@ function guard_hub_scripts(): void
                     url.searchParams.set('view', 'history');
                 } else {
                     url.searchParams.delete('view');
+                    url.searchParams.delete('page');
                 }
                 history.replaceState({ panelNav: true, url: url.href }, '', url.href);
                 persistGuardLocation(url.href);

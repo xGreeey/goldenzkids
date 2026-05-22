@@ -786,7 +786,9 @@ function guard_hub_scripts(): void
             if (step2Hint) {
                 step2Hint.textContent = dad
                     ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DTR).'
-                    : 'Photos are tagged with device date/time and GPS when available.';
+                    : incident
+                      ? 'Allow location when prompted. GPS is stamped when you open this step and again per photo when possible.'
+                      : 'Photos are tagged with device date/time and GPS when available.';
             }
             if (sheetLocPanel) sheetLocPanel.hidden = !dad;
             if (step1Next) {
@@ -1379,7 +1381,11 @@ function guard_hub_scripts(): void
         }
 
         function reverseGeocode(lat, lng, accuracyM) {
-            var url = 'api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng);
+            var geocodePath = 'api/geocode.php';
+            try {
+                geocodePath = new URL(geocodePath, window.location.href).pathname;
+            } catch (e) { /* keep relative */ }
+            var url = geocodePath + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng);
             if (accuracyM != null && !isNaN(accuracyM)) {
                 url += '&accuracy_m=' + encodeURIComponent(accuracyM);
             }
@@ -1536,10 +1542,37 @@ function guard_hub_scripts(): void
             panes.forEach(function (p) {
                 p.classList.toggle('is-active', parseInt(p.getAttribute('data-wizard-pane'), 10) === n);
             });
-            if (n === 2 && isDadMode()) {
+            if (n === 2) {
                 syncDadSheetPreview();
-                stampLocation('evidence');
+                if (!isDailyActivityMode()) {
+                    stampLocation('evidence');
+                }
             }
+        }
+
+        function applyEvidenceGpsFix(fix, statusPrefix) {
+            if (!fix || fix.lat == null || fix.lng == null) {
+                return;
+            }
+            var prefix = statusPrefix || 'Evidence location';
+            evidenceLocationFix = {
+                lat: fix.lat,
+                lng: fix.lng,
+                accuracy: fix.accuracy,
+                label: evidenceLocationFix && evidenceLocationFix.label ? evidenceLocationFix.label : ''
+            };
+            updateLocationUi('evidence', fix.lat, fix.lng, fix.accuracy, evidenceLocationFix.label, prefix + ' — resolving address…');
+            reverseGeocode(fix.lat, fix.lng, fix.accuracy).then(function (geo) {
+                evidenceLocationFix.label = geo.label;
+                var statusMsg = prefix + ' stamped — add photos or continue.';
+                if (geo.accuracyWarning) {
+                    statusMsg = geo.accuracyWarning;
+                    window.guardShowToast(geo.accuracyWarning, 'error');
+                } else if (geo.locality) {
+                    statusMsg += ' City: ' + geo.locality + '.';
+                }
+                updateLocationUi('evidence', fix.lat, fix.lng, fix.accuracy, geo.label, statusMsg);
+            });
         }
 
         function isMobileScanner() {
@@ -1823,7 +1856,12 @@ function guard_hub_scripts(): void
                 };
                 if (navigator.geolocation) {
                     acquireGpsFix({ timeoutMs: 22000, targetAccuracyM: 40 })
-                        .then(function (fix) { done(fix); })
+                        .then(function (fix) {
+                            if (!evidenceLocationFix) {
+                                applyEvidenceGpsFix(fix, 'Evidence location from photo');
+                            }
+                            done(fix);
+                        })
                         .catch(function () { done(null); });
                 } else {
                     done(null);
@@ -2025,7 +2063,7 @@ function guard_hub_scripts(): void
                 if (sheetLocationFix.accuracy != null) fd.append('sheet_accuracy_m', String(sheetLocationFix.accuracy));
                 if (sheetLocationFix.label) fd.append('sheet_location_label', sheetLocationFix.label);
             }
-            if (isDadMode() && evidenceLocationFix) {
+            if (evidenceLocationFix) {
                 fd.append('evidence_latitude', String(evidenceLocationFix.lat));
                 fd.append('evidence_longitude', String(evidenceLocationFix.lng));
                 if (evidenceLocationFix.accuracy != null) fd.append('evidence_accuracy_m', String(evidenceLocationFix.accuracy));

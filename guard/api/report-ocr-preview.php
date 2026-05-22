@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../includes/guard_portal.php';
 require_once __DIR__ . '/../../includes/document_ai.php';
 require_once __DIR__ . '/../../includes/guard_dad.php';
+require_once __DIR__ . '/../../includes/guard_incident.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -83,4 +84,10 @@ echo json_encode([
     'dad_fields' => guard_dad_is_report_type($reportType)
         ? guard_dad_fields_from_ocr($structured, guard_portal_assigned_post($conn, (string) ($_SESSION['company_id'] ?? '')))
         : null,
+    'extraction' => guard_incident_is_report_type($reportType)
+        ? document_ai_incident_extraction_json($structured)
+        : null,
+    'assigned_post' => guard_incident_is_report_type($reportType)
+        ? guard_portal_assigned_post($conn, (string) ($_SESSION['company_id'] ?? ''))
+        : '',
 ]);

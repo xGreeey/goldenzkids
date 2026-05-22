@@ -744,15 +744,22 @@ function guard_hub_scripts(): void
                 }
                 if (ocrAsIs) {
                     ocrAsIs.hidden = false;
-                    var desc = escapeOcrHtml(structured.incident_description || '').replace(/\n/g, '<br>');
-                    var action = escapeOcrHtml(structured.action_taken || '').replace(/\n/g, '<br>');
                     var meta = '';
-                    if (structured.name) {
-                        meta += '<p class="form-hint" style="margin:0 0 8px;">Subject: ' + escapeOcrHtml(structured.name) + '</p>';
+                    var extract = structured.extraction && typeof structured.extraction === 'object'
+                        ? structured.extraction
+                        : {};
+                    var guardName = extract.name_of_guard || structured.name || '';
+                    if (guardName) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Name of guard: ' + escapeOcrHtml(guardName) + '</p>';
+                    }
+                    if (data.assigned_post) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Duty post: ' + escapeOcrHtml(data.assigned_post) + '</p>';
                     }
                     if (structured.date) {
                         meta += '<p class="form-hint" style="margin:0 0 8px;">Date: ' + escapeOcrHtml(structured.date) + '</p>';
                     }
+                    var desc = escapeOcrHtml(extract.incident_description || structured.incident_description || '').replace(/\n/g, '<br>');
+                    var action = escapeOcrHtml(extract.action_taken || structured.action_taken || '').replace(/\n/g, '<br>');
                     ocrAsIs.innerHTML =
                         meta +
                         '<div class="guard-ocr-preview__col"><span class="guard-ocr-preview__col-label">Incident description</span>' +

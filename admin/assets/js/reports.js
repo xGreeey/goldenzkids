@@ -805,6 +805,7 @@
 
         const person = String(p.person_involved || p.guard_involved || '').trim();
         const formName = String(p.form_name || '').trim();
+        const formPost = String(p.form_post || '').trim();
         const formDate = String(p.form_date || '').trim();
         let html =
             '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
@@ -816,11 +817,12 @@
             sheetField('Guard', person) +
             '</div></section>';
 
-        if (formName || formDate) {
+        if (formName || formPost || formDate) {
             html +=
                 '<section class="reports-detail-sheet__section" aria-label="Form header">' +
                 '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
-                (formName ? sheetField('Subject (form)', formName) : '') +
+                (formName ? sheetField('Name of guard (form)', formName) : '') +
+                (formPost ? sheetField('Post (form)', formPost) : '') +
                 (formDate ? sheetField('Date (form)', formDate) : '') +
                 '</div></section>';
         }

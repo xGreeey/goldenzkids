@@ -1798,7 +1798,7 @@ body:not(.light-mode) .reports-empty {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted, #5c6470);
+    color: var(--report-text-muted);
 }
 
 .reports-incident-as-is {
@@ -1810,7 +1810,7 @@ body:not(.light-mode) .reports-empty {
 }
 
 .reports-incident-as-is.is-empty .reports-incident-as-is__body {
-    color: var(--text-muted, #8a9199);
+    color: var(--report-text-muted);
     font-style: italic;
 }
 
@@ -1820,9 +1820,13 @@ body:not(.light-mode) .reports-empty {
     gap: 8px;
     min-width: 0;
     padding: 12px 14px;
-    border: 1px solid var(--border-subtle, #e2e6eb);
-    border-radius: 8px;
-    background: var(--surface-raised, #fafbfc);
+    border: 1px solid var(--app-input-border, var(--app-border));
+    border-radius: var(--radius-sm, 8px);
+    background-color: var(--app-input-bg, #fff);
+    transition:
+        background-color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease);
 }
 
 .reports-incident-as-is__label {
@@ -1830,7 +1834,7 @@ body:not(.light-mode) .reports-empty {
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--text-muted, #5c6470);
+    color: var(--report-text-muted);
 }
 
 .reports-incident-as-is__body {
@@ -1838,7 +1842,7 @@ body:not(.light-mode) .reports-empty {
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--text-primary, #1a1d21);
+    color: var(--report-text);
 }
 
 .reports-report-body-edit {
@@ -1846,11 +1850,39 @@ body:not(.light-mode) .reports-empty {
 }
 
 .reports-incident-as-is--editable .reports-report-body-edit__input {
+    box-sizing: border-box;
     width: 100%;
     min-height: 7rem;
+    margin: 0;
+    padding: 9px 12px;
+    font-family: inherit;
     font-size: 0.9375rem;
     line-height: 1.55;
     resize: vertical;
+    color: var(--app-input-text, var(--report-text));
+    background-color: var(--app-input-bg, #fff);
+    border: 1px solid var(--app-input-border, var(--app-border));
+    border-radius: var(--radius-sm, 8px);
+    color-scheme: light;
+    transition:
+        background-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease);
+}
+
+.reports-incident-as-is--editable .reports-report-body-edit__input::placeholder {
+    color: var(--report-text-muted);
+    opacity: 1;
+}
+
+.reports-incident-as-is--editable .reports-report-body-edit__input:focus {
+    outline: 2px solid var(--app-accent-soft);
+    outline-offset: 1px;
+    border-color: var(--app-accent-text);
+}
+
+body:not(.light-mode) .reports-incident-as-is--editable .reports-report-body-edit__input {
+    color-scheme: dark;
 }
 
 .reports-op-flow__submission-hint {

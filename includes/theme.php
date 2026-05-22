@@ -954,6 +954,36 @@ function theme_render_css(): void
             box-shadow: none;
             outline: none;
         }
+        /* Login card stays white in light and dark — placeholders must stay navy-tinted */
+        body.auth-shell.auth-sign-in .login-card .form-input {
+            color: var(--color-primary);
+            background: var(--color-white);
+            -webkit-text-fill-color: var(--color-primary);
+        }
+        body.auth-shell.auth-sign-in .login-card .form-input::placeholder {
+            color: rgba(var(--color-primary-rgb), 0.52);
+            opacity: 1;
+        }
+        body.auth-shell.auth-sign-in .login-card .form-input::-webkit-input-placeholder {
+            color: rgba(var(--color-primary-rgb), 0.52);
+            opacity: 1;
+        }
+        body.auth-shell.auth-sign-in .login-card .form-input::-moz-placeholder {
+            color: rgba(var(--color-primary-rgb), 0.52);
+            opacity: 1;
+        }
+        body.auth-shell.auth-sign-in.dark-mode .login-card .form-input,
+        body.auth-shell.auth-sign-in.dark-mode .login-card .form-input:focus {
+            color: var(--color-primary);
+            background: var(--color-white);
+            -webkit-text-fill-color: var(--color-primary);
+        }
+        body.auth-shell.auth-sign-in.dark-mode .login-card .form-input::placeholder,
+        body.auth-shell.auth-sign-in.dark-mode .login-card .form-input::-webkit-input-placeholder,
+        body.auth-shell.auth-sign-in.dark-mode .login-card .form-input::-moz-placeholder {
+            color: rgba(var(--color-primary-rgb), 0.52);
+            opacity: 1;
+        }
         body.auth-shell.auth-sign-in .login-form {
             display: flex;
             flex-direction: column;
@@ -1202,7 +1232,8 @@ function theme_render_css(): void
         body.auth-shell .input-wrap .form-input:not(.no-toggle) { padding-right: 44px; }
         body.auth-shell .btn-toggle-pin {
             position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; color: var(--color-text-muted);
+            background: none; border: none;
+            color: var(--color-text);
             cursor: pointer; padding: 0; line-height: 1;
             min-width: 44px; min-height: 44px;
             display: inline-flex; align-items: center; justify-content: center;
@@ -1210,12 +1241,27 @@ function theme_render_css(): void
             border-radius: 6px;
         }
         body.auth-shell .btn-toggle-pin .toggle-pin-icon {
-            width: 19px;
-            height: 19px;
+            width: 20px;
+            height: 20px;
             display: block;
+            flex-shrink: 0;
+            stroke: currentColor;
+            color: inherit;
             transition: opacity 0.18s ease, transform 0.18s ease;
             opacity: 1;
             transform: scale(1);
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon--hide {
+            opacity: 0;
+            transform: scale(0.9);
+            position: absolute;
+            pointer-events: none;
+        }
+        body.auth-shell .btn-toggle-pin .toggle-pin-icon--hide:not(.is-hidden) {
+            opacity: 1;
+            transform: scale(1);
+            position: static;
+            pointer-events: none;
         }
         body.auth-shell .btn-toggle-pin .toggle-pin-icon.is-hidden {
             opacity: 0;
@@ -1227,8 +1273,10 @@ function theme_render_css(): void
             opacity: 0.86;
             transform: scale(0.96);
         }
-        body.auth-shell .btn-toggle-pin:hover {
-            color: var(--color-text);
+        body.auth-shell .btn-toggle-pin:hover,
+        body.auth-shell .btn-toggle-pin:focus-visible {
+            color: var(--color-primary);
+            background: rgba(var(--color-primary-rgb), 0.08);
         }
         body.auth-shell .btn-toggle-pin:focus-visible {
             outline: 2px solid var(--color-focus-ring);

@@ -152,6 +152,16 @@ function group_messaging_create_group(
 
         $conn->commit();
 
+        require_once __DIR__ . '/portal_audit.php';
+        portal_audit_log(
+            $conn,
+            'GROUP_CREATED',
+            $groupName . ' (' . count($members) . ' members)',
+            null,
+            $creatorId,
+            auth_user_role()
+        );
+
         return $groupId;
     } catch (Throwable $e) {
         $conn->rollBack();
@@ -542,6 +552,16 @@ function group_messaging_send(PDO $conn, int $groupId, string $senderId, string 
 
     if ($ok && $messageId > 0) {
         group_messaging_mark_read($conn, $groupId, $senderId, $messageId);
+        require_once __DIR__ . '/portal_audit.php';
+        $preview = strlen($body) > 80 ? substr($body, 0, 77) . '…' : $body;
+        portal_audit_log(
+            $conn,
+            'GROUP_MESSAGE_SENT',
+            'Group #' . $groupId . ': ' . $preview,
+            null,
+            $senderId,
+            auth_user_role()
+        );
     }
 
     return $ok;

@@ -124,6 +124,7 @@ function admin_daily_detail_row_attrs(array $record): string
         'data-sort-guard="' . e(strtolower((string) ($record['guard_name'] ?? ''))) . '"',
         'data-sort-issue="' . e(strtolower((string) ($record['issue_label'] ?? ''))) . '"',
         'data-search="' . e(admin_attendance_search_blob($record)) . '"',
+        'data-detail="' . e($detailJson) . '"',
     ]);
 }
 
@@ -410,6 +411,13 @@ $kpiIcons = [
                 </footer>
             </section>
         </div>
+
+        <script type="application/json" id="daily-detail-data-json"><?=
+            json_encode($attendanceRecords, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
+        <script type="application/json" id="daily-status-labels"><?=
+            json_encode(admin_attendance_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
     </main>
 </div>
 
@@ -554,8 +562,8 @@ $kpiIcons = [
     </div>
 </div>
 
-<div id="daily-guide-overlay" class="reports-modal-overlay reports-sanctions-overlay" role="presentation" aria-hidden="true">
-    <div class="reports-modal reports-sanctions-modal reports-guide--simple" id="daily-guide-modal" role="dialog" aria-modal="true" aria-labelledby="daily-guide-title">
+<div id="daily-guide-overlay" class="reports-modal-overlay reports-guard-guide-overlay" role="presentation" aria-hidden="true">
+    <div class="reports-modal reports-guard-guide-modal reports-guide--simple" id="daily-guide-modal" role="dialog" aria-modal="true" aria-labelledby="daily-guide-title">
         <header class="reports-modal__header">
             <div class="reports-modal__identity">
                 <span class="reports-modal__eyebrow"><?= e(ADMIN_ATTENDANCE_REF_CODE) ?></span>
@@ -566,8 +574,8 @@ $kpiIcons = [
         </header>
         <div class="reports-modal__content">
             <div class="reports-modal__body-scroll">
-                <div class="reports-modal-form reports-sanctions-modal__form">
-                    <div class="reports-sanctions__body reports-sanctions__body--guide">
+                <div class="reports-modal-form reports-guard-guide-modal__form">
+                    <div class="reports-guard-guide__body">
                         <?= admin_attendance_monitoring_guide_html() ?>
                     </div>
                 </div>
@@ -576,15 +584,7 @@ $kpiIcons = [
     </div>
 </div>
 
-<script type="application/json" id="daily-detail-data-json"><?=
-    json_encode($attendanceRecords, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-<script type="application/json" id="daily-status-labels"><?=
-    json_encode(admin_attendance_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-
 <?php admin_shell_scripts(); ?>
-<script src="assets/js/daily-detail.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/daily-detail.js') ?>" defer></script>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

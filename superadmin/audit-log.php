@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/superadmin_accountability.php';
 
 auth_require_permission('superadmin.audit.view');
 
-$perPage = 10;
+$perPage = 25;
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($page - 1) * $perPage;
 
@@ -24,12 +24,19 @@ if ($eventFilter === 'LOGIN' || $eventFilter === 'LOGOUT') {
     $types .= 's';
 } elseif ($eventFilter === 'ACCOUNT') {
     $where[] = "Event LIKE 'ACCOUNT_%'";
+} elseif ($eventFilter === 'PORTAL') {
+    $where[] = "Event NOT IN ('LOGIN', 'LOGOUT') AND Event NOT LIKE 'ACCOUNT_%'";
 }
 
-if ($searchId !== '' && preg_match('/^ABC-2[0-9]{3}-[0-9]{4}$/', $searchId)) {
-    $where[] = 'Company_ID = ?';
-    $params[] = $searchId;
-    $types .= 's';
+if ($searchId !== '') {
+    $needle = strtoupper($searchId);
+    $like = '%' . $needle . '%';
+    $where[] = '(UPPER(Company_ID) = ? OR UPPER(actor_company_id) = ? OR UPPER(Company_ID) LIKE ? OR UPPER(actor_company_id) LIKE ?)';
+    $params[] = $needle;
+    $params[] = $needle;
+    $params[] = $like;
+    $params[] = $like;
+    $types .= 'ssss';
 }
 
 if ($performedByFilter === 'SUPERADMIN') {
@@ -40,11 +47,13 @@ if ($performedByFilter === 'SUPERADMIN') {
     $where[] = 'Designation LIKE ?';
     $params[] = 'ADMIN%';
     $types .= 's';
-} elseif ($performedByFilter === 'LEGACY') {
-    $where[] = '(Designation LIKE ? OR Designation LIKE ?)';
-    $params[] = 'HEADGUARD%';
+} elseif ($performedByFilter === 'GUARD' || $performedByFilter === 'LEGACY') {
+    $where[] = '(Designation LIKE ? OR Designation LIKE ? OR Designation IN (?, ?))';
     $params[] = 'GUARD%';
-    $types .= 'ss';
+    $params[] = 'HEADGUARD%';
+    $params[] = 'GUARD';
+    $params[] = 'HEADGUARD';
+    $types .= 'ssss';
 }
 
 $whereSql = $where !== [] ? ' WHERE ' . implode(' AND ', $where) : '';
@@ -120,14 +129,14 @@ $superadminMobileTitle = 'Audit Log';
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Audit log</h1>
-            <p class="page-subtitle">Review sign-ins, sign-outs, and account changes recorded for accountability.</p>
+            <p class="page-subtitle">Review sign-ins, sign-outs, account changes, and portal actions across all users.</p>
         </header>
 
         <div class="toolbar">
             <form method="GET" class="filter-form" id="auditFilterForm">
                 <div class="form-field">
                     <label for="company_id" class="label-with-icon"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Employee ID</label>
-                    <input type="text" id="company_id" name="company_id" value="<?= e($searchId) ?>" placeholder="ABC-2024-0001">
+                    <input type="text" id="company_id" name="company_id" value="<?= e($searchId) ?>" placeholder="Employee ID">
                 </div>
                 <div class="form-field">
                     <label for="event" class="label-with-icon"><i class="fa-solid fa-filter" aria-hidden="true"></i> Event</label>
@@ -136,6 +145,7 @@ $superadminMobileTitle = 'Audit Log';
                         <option value="LOGIN"<?= $eventFilter === 'LOGIN' ? ' selected' : '' ?>>Login</option>
                         <option value="LOGOUT"<?= $eventFilter === 'LOGOUT' ? ' selected' : '' ?>>Logout</option>
                         <option value="ACCOUNT"<?= $eventFilter === 'ACCOUNT' ? ' selected' : '' ?>>Account changes</option>
+                        <option value="PORTAL"<?= $eventFilter === 'PORTAL' ? ' selected' : '' ?>>Portal actions</option>
                     </select>
                 </div>
                 <div class="form-field">
@@ -144,7 +154,7 @@ $superadminMobileTitle = 'Audit Log';
                         <option value=""<?= $performedByFilter === '' ? ' selected' : '' ?>>All roles</option>
                         <option value="SUPERADMIN"<?= $performedByFilter === 'SUPERADMIN' ? ' selected' : '' ?>>SUPERADMIN</option>
                         <option value="ADMIN"<?= $performedByFilter === 'ADMIN' ? ' selected' : '' ?>>ADMIN</option>
-                        <option value="LEGACY"<?= $performedByFilter === 'LEGACY' ? ' selected' : '' ?>>Legacy guard (log)</option>
+                        <option value="GUARD"<?= $performedByFilter === 'GUARD' || $performedByFilter === 'LEGACY' ? ' selected' : '' ?>>Head guard</option>
                     </select>
                 </div>
                 <button type="button" class="btn-primary" id="resetAuditFilters" aria-label="Reset filters">
@@ -175,14 +185,10 @@ $superadminMobileTitle = 'Audit Log';
                             <?php foreach ($entries as $entry): ?>
                                 <?php
                                 $ev = strtoupper((string) ($entry['Event'] ?? ''));
-                                $designation = strtoupper((string) ($entry['Designation'] ?? ''));
-                                $actorRole = str_starts_with($designation, 'SUPERADMIN')
-                                    ? 'SUPERADMIN'
-                                    : (str_starts_with($designation, 'ADMIN')
-                                        ? 'ADMIN'
-                                        : ((str_contains($designation, 'HEADGUARD') || str_contains($designation, 'GUARD'))
-                                            ? 'LEGACY'
-                                            : ''));
+                                $actorRole = portal_audit_designation_role((string) ($entry['Designation'] ?? ''));
+                                if ($actorRole === '' && !empty($entry['actor_company_id'])) {
+                                    $actorRole = 'SUPERADMIN';
+                                }
                                 $badgeClass = match ($ev) {
                                     'LOGOUT' => 'badge--logout',
                                     'LOGIN' => 'badge--login',
@@ -277,6 +283,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (filterEvent === 'ACCOUNT') {
             return rowEvent.indexOf('ACCOUNT_') === 0;
+        }
+        if (filterEvent === 'PORTAL') {
+            return rowEvent !== 'LOGIN' && rowEvent !== 'LOGOUT' && rowEvent.indexOf('ACCOUNT_') !== 0;
         }
         return rowEvent === filterEvent;
     }

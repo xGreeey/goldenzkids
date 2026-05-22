@@ -2,18 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/superadmin_page.css.php';
-
-function recording_supports_audit_detail(PDO $conn): bool
-{
-    static $cached = null;
-    if ($cached !== null) {
-        return $cached;
-    }
-
-    $cached = db_column_exists($conn, 'recording', 'event_detail');
-
-    return $cached;
-}
+require_once __DIR__ . '/portal_audit.php';
 
 /**
  * Append-only audit entry. Staff cannot delete these from the portal.
@@ -36,28 +25,7 @@ function superadmin_log_account_event(
         return;
     }
 
-    $actor = (string) ($_SESSION['company_id'] ?? '');
-    $actorRole = auth_role_label_for_recording(auth_user_role());
-    $designation = $actor !== '' ? "{$actorRole}:{$actor}" : $actorRole;
-    $time = date('Y-m-d H:i:s');
-
-    if (recording_supports_audit_detail($conn)) {
-        db_execute(
-            $conn,
-            'INSERT INTO recording (Company_ID, actor_company_id, Designation, Event, event_detail, Time_Of_Event)
-             VALUES (?, ?, ?, ?, ?, ?)',
-            'ssssss',
-            [$targetCompanyId, $actor !== '' ? $actor : null, $designation, $event, $detail, $time]
-        );
-        return;
-    }
-
-    db_execute(
-        $conn,
-        'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)',
-        'ssss',
-        [$targetCompanyId, $designation, $event, $time]
-    );
+    portal_audit_log($conn, $event, $detail, $targetCompanyId);
 }
 
 /**
@@ -122,11 +90,11 @@ function superadmin_account_audit_trail(PDO $conn, string $companyId, int $limit
             $conn,
             'SELECT id, Company_ID, actor_company_id, Designation, Event, event_detail, Time_Of_Event
              FROM recording
-             WHERE Company_ID = ?
+             WHERE Company_ID = ? OR actor_company_id = ?
              ORDER BY Time_Of_Event DESC
              LIMIT ?',
-            'si',
-            [$companyId, $limit]
+            'ssi',
+            [$companyId, $companyId, $limit]
         );
     } else {
         $result = db_query(
@@ -186,49 +154,17 @@ function superadmin_recent_account_changes(PDO $conn, int $limit = 10): array
 
 function superadmin_audit_actor_label(array $entry): string
 {
-    if (!empty($entry['actor_company_id'])) {
-        return (string) $entry['actor_company_id'];
-    }
-
-    $designation = (string) ($entry['Designation'] ?? '');
-    if (str_contains($designation, ':')) {
-        return substr($designation, (int) strrpos($designation, ':') + 1);
-    }
-    if (str_starts_with($designation, 'SUPERADMIN:')) {
-        return substr($designation, 11);
-    }
-
-    return $designation !== '' ? $designation : '—';
+    return portal_audit_actor_label($entry);
 }
 
 function superadmin_event_label(string $event): string
 {
-    return match (strtoupper($event)) {
-        'ACCOUNT_CREATED' => 'Account created',
-        'ACCOUNT_UPDATED' => 'Account updated',
-        'ACCOUNT_ENABLED' => 'Account activated',
-        'ACCOUNT_DISABLED' => 'Account deactivated',
-        'ACCOUNT_PASSWORD_RESET' => 'Access code reset',
-        'ACCOUNT_ROLE_CHANGED' => 'Role changed',
-        'LOGIN' => 'Signed in',
-        'LOGOUT' => 'Signed out',
-        default => $event,
-    };
+    return portal_audit_event_label($event);
 }
 
 function superadmin_event_icon(string $event): string
 {
-    return match (strtoupper($event)) {
-        'ACCOUNT_CREATED' => 'fa-user-plus',
-        'ACCOUNT_UPDATED' => 'fa-pen-to-square',
-        'ACCOUNT_ENABLED' => 'fa-user-check',
-        'ACCOUNT_DISABLED' => 'fa-user-slash',
-        'ACCOUNT_PASSWORD_RESET' => 'fa-key',
-        'ACCOUNT_ROLE_CHANGED' => 'fa-user-shield',
-        'LOGIN' => 'fa-right-to-bracket',
-        'LOGOUT' => 'fa-right-from-bracket',
-        default => 'fa-circle-info',
-    };
+    return portal_audit_event_icon($event);
 }
 
 function superadmin_accountability_rules(): array
@@ -236,7 +172,7 @@ function superadmin_accountability_rules(): array
     return [
         'Only superadmin can create or change portal accounts.',
         'Administrators cannot edit their own role, email, or access code in the portal.',
-        'Every sign-in, sign-out, and account change is recorded with who did it and when.',
+        'Every sign-in, sign-out, and portal action is recorded with who did it and when.',
         'Audit records cannot be removed or edited from this console.',
     ];
 }

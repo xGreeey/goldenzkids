@@ -96,6 +96,22 @@ c:\xampp\php\php.exe database\migrate.php
 
 Migration **008** aligns an old messy dump with the app (memo table names, `dgd.AI_Extracted_Text`, etc.).
 
+## Incident guide reference (020)
+
+Guard guide and **Incident types** toolbar data are stored in normalized tables (seeded from the former PHP arrays):
+
+| Table | Purpose |
+|-------|---------|
+| `incident_types` | Catalog: severity, filing basis, SLA, responsible, remarks |
+| `incident_type_detail_steps` | Narrative progression steps per type |
+| `incident_type_workflow_steps` | Four workflow columns per type (guard guide table) |
+| `incident_guide_sections` | Reference sections (`operations` or `violation` group) |
+| `incident_guide_columns` | Column headers per section |
+| `incident_guide_rows` | Table rows |
+| `incident_guide_cells` | Cell values (linked to columns) |
+
+Run `database/migrate.php` to apply `020_incident_guide_reference.sql` and `php/020_seed_incident_guide_reference.php`. Until seeded, the app falls back to embedded PHP data in `includes/admin_incident_guidelines.php`.
+
 ## Rollback
 
 Migrations are forward-only. Restore from a database backup before re-running if needed.

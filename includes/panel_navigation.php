@@ -188,6 +188,9 @@ document.addEventListener('DOMContentLoaded', function () {
         'reportModal',
         'imageViewer',
         'reports-modal-overlay',
+        'reports-guard-guide-overlay',
+        'reports-incident-types-overlay',
+        'reports-image-viewer',
         'reports-sanctions-overlay',
         'daily-modal-overlay',
         'daily-guide-overlay'
@@ -297,6 +300,17 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.style.overflow = '';
         document.body.classList.toggle('page-incident-reports', !!doc.getElementById('reports-module'));
         document.body.classList.toggle('page-daily-detail', !!doc.getElementById('daily-detail-module'));
+
+        var fetchedBody = doc.body;
+        if (fetchedBody && doc.getElementById('daily-detail-module')) {
+            document.body.dataset.openRecord = fetchedBody.getAttribute('data-open-record') || '';
+            document.body.dataset.openMode = fetchedBody.getAttribute('data-open-mode') || 'view';
+            document.body.dataset.statusTab = fetchedBody.getAttribute('data-status-tab') || '';
+        } else {
+            delete document.body.dataset.openRecord;
+            delete document.body.dataset.openMode;
+            delete document.body.dataset.statusTab;
+        }
 
         importMainStageContent(newMain, stage);
         flattenMainStage(stage);

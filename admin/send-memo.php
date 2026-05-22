@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../includes/portal_audit.php';
 
 auth_require_permission('admin.memo.send');
 
@@ -66,6 +67,19 @@ try {
     }
 
     $conn->commit();
+
+    $recipientSummary = $distributionType === 'broadcast'
+        ? 'Broadcast to ' . count($recipientIds) . ' guard(s)'
+        : 'To ' . $recipientIds[0];
+    portal_audit_log(
+        $conn,
+        'MEMO_SENT',
+        $recipientSummary . '; category: ' . $memoType,
+        $distributionType === 'targeted' ? $recipientIds[0] : null,
+        $senderId,
+        auth_user_role()
+    );
+
     redirect_with_alert('Memo sent successfully! (Nasend na ang memo!)', 'announcements.php');
 } catch (Throwable $e) {
     $conn->rollBack();

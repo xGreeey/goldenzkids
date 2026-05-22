@@ -675,6 +675,19 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
     $fresh = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
     $mappedFresh = $fresh !== null ? guard_dad_map_row_for_admin($fresh) : null;
 
+    if ($mappedFresh !== null) {
+        require_once __DIR__ . '/portal_audit.php';
+        portal_audit_log(
+            $conn,
+            'DAD_UPDATED',
+            'Reference: ' . (string) ($mappedFresh['ref'] ?? ('dad-' . $dadId))
+                . ($newStatus !== $oldStatus ? '; status → ' . $newStatus : ''),
+            (string) ($row['head_guard_company_id'] ?? ''),
+            $actorId,
+            auth_user_role()
+        );
+    }
+
     return $mappedFresh !== null ? admin_attendance_normalize($mappedFresh) : null;
 }
 
@@ -768,6 +781,19 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
     $found = admin_incident_touch_updated($found);
     $records[$idx] = admin_attendance_normalize($found);
     admin_attendance_store_save($records);
+
+    if (($newStatus !== $oldStatus || $opsNote !== '') && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO) {
+        require_once __DIR__ . '/portal_audit.php';
+        portal_audit_log(
+            $GLOBALS['conn'],
+            'DAD_UPDATED',
+            'Reference: ' . (string) ($records[$idx]['ref'] ?? $id)
+                . ($newStatus !== $oldStatus ? '; status → ' . $newStatus : ''),
+            (string) ($records[$idx]['submitter_id'] ?? ''),
+            $actorId,
+            auth_user_role()
+        );
+    }
 
     return $records[$idx];
 }

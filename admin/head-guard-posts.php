@@ -21,6 +21,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['assign_post']
         $result = admin_head_guard_posts_assign($conn, $companyId, $postId);
         if ($result['ok']) {
             $name = trim((string) ($result['post_name'] ?? ''));
+            require_once __DIR__ . '/../includes/portal_audit.php';
+            portal_audit_log(
+                $conn,
+                'POST_ASSIGNED',
+                $name !== '' ? 'Assigned to ' . $name : 'Assignment cleared',
+                $companyId,
+                (string) ($_SESSION['company_id'] ?? ''),
+                auth_user_role()
+            );
             flash_set(
                 'success',
                 $name !== ''

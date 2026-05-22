@@ -366,6 +366,16 @@ function guard_dad_create_submission(
 
     $dadId = db_last_insert_id($conn);
 
+    require_once __DIR__ . '/portal_audit.php';
+    portal_audit_log(
+        $conn,
+        'DAD_SUBMITTED',
+        'Reference: ' . $reference,
+        $headGuardCompanyId,
+        $headGuardCompanyId,
+        AUTH_ROLE_GUARD
+    );
+
     return [
         'ok' => true,
         'dad_id' => $dadId,

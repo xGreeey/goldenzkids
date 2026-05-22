@@ -66,6 +66,10 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null, boo
 <?php guard_ui_styles(); ?>
 
 <?php guard_hub_styles(); ?>
+<?php if ($navActive === 'inbox') {
+    require_once __DIR__ . '/guard_inbox.css.php';
+    guard_inbox_styles();
+} ?>
 <?php if ($profileSettingsPage) {
     require_once __DIR__ . '/admin_profile.php';
     admin_profile_page_styles();
@@ -75,7 +79,7 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null, boo
 
 </head>
 
-<body class="light-mode superadmin-portal guard-portal">
+<body class="light-mode superadmin-portal guard-portal<?= $navActive === 'inbox' ? ' guard-page-inbox' : '' ?>">
 
 <?php
 

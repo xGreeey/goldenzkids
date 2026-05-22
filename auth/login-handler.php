@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/portal_audit.php';
+
 $company_id = '';
 $password = '';
 
@@ -61,19 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             }
         } else {
             $role = (int) $user['role'];
-            $roleLabel = auth_role_label_for_recording($role);
-
-            $event = 'LOGIN';
-            $insertOk = db_execute(
-                $conn,
-                'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)',
-                'ssss',
-                [$company_id, $roleLabel, $event, $time_of_event]
-            );
-
-            if (!$insertOk) {
-                error_log('Login audit insert failed for ' . $company_id);
-            }
+            portal_audit_auth_event($conn, 'LOGIN', $company_id, $role);
 
             auth_login_session($user, $permissions);
             auth_record_login($conn, $company_id);

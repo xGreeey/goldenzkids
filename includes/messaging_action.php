@@ -8,6 +8,7 @@ declare(strict_types=1);
 function messaging_action_handle(PDO $conn, string $actorId, int $actorRole): void
 {
     require_once __DIR__ . '/messaging_ajax.php';
+    require_once __DIR__ . '/portal_audit.php';
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
         messaging_ajax_json(['ok' => false, 'error' => 'Method not allowed.'], 405);
@@ -78,6 +79,24 @@ function messaging_action_handle(PDO $conn, string $actorId, int $actorRole): vo
 
         default:
             messaging_ajax_json(['ok' => false, 'error' => 'Unknown action.'], 400);
+    }
+
+    if ($ok) {
+        $auditEvent = match ($action) {
+            'clear_direct' => 'MSG_THREAD_CLEARED',
+            'clear_group' => 'MSG_THREAD_CLEARED',
+            'leave_group' => 'GROUP_LEFT',
+            'delete_group' => 'GROUP_DELETED',
+            default => '',
+        };
+        if ($auditEvent !== '') {
+            $detail = match ($action) {
+                'clear_direct' => 'Direct chat with ' . $peerId,
+                'clear_group', 'leave_group', 'delete_group' => 'Group #' . $groupId,
+                default => '',
+            };
+            portal_audit_log($conn, $auditEvent, $detail, null, $actorId, $actorRole);
+        }
     }
 
     messaging_ajax_json([

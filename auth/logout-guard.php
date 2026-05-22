@@ -2,31 +2,18 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../includes/portal_audit.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
 }
 
-$time_of_event = date('Y-m-d H:i:s');
 $company_id = (string) ($_SESSION['company_id'] ?? '');
-$role = auth_role_label_for_recording(auth_user_role());
-$event = 'LOGOUT';
-
+$role = auth_user_role();
 $logging_out = false;
 if ($company_id !== '') {
-    $logging_out = db_execute(
-        $conn,
-        'INSERT INTO recording (Company_ID, Designation, Event, Time_Of_Event) VALUES (?, ?, ?, ?)',
-        'ssss',
-        [$company_id, $role, $event, $time_of_event]
-    );
-} else {
-    $logging_out = db_execute(
-        $conn,
-        'INSERT INTO recording (Designation, Event, Time_Of_Event) VALUES (?, ?, ?)',
-        'sss',
-        [$role, $event, $time_of_event]
-    );
+    portal_audit_auth_event($conn, 'LOGOUT', $company_id, $role);
+    $logging_out = true;
 }
 
 if ($logging_out || $company_id !== '') {

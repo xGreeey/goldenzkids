@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/admin_incident_violation_workflow.php';
 require_once __DIR__ . '/admin_incident_outside_post_catalog.php';
+require_once __DIR__ . '/admin_incident_guide_store.php';
 
 /**
  * Incident report types — filing basis and monitoring fields (aligned with registry types).
@@ -24,6 +25,32 @@ require_once __DIR__ . '/admin_incident_outside_post_catalog.php';
  * }>
  */
 function admin_incident_types_reference(): array
+{
+    $fromDb = admin_incident_types_reference_from_db();
+    if ($fromDb !== null) {
+        return $fromDb;
+    }
+
+    return admin_incident_types_reference_legacy();
+}
+
+/**
+ * @return list<array{
+ *   incident_type: string,
+ *   category: string,
+ *   category_label: string,
+ *   severity: string,
+ *   filing_basis: string,
+ *   filing_trigger: string,
+ *   initial_status: string,
+ *   response_sla: string,
+ *   responsible: string,
+ *   system_action: string,
+ *   remarks: string,
+ *   steps: list<string>
+ * }>
+ */
+function admin_incident_types_reference_legacy(): array
 {
     $catalog = [
         [
@@ -245,6 +272,8 @@ function admin_incident_types_reference(): array
 }
 
 /**
+ * Workflow rows for the incident-report guard guide (incident type × four steps).
+ *
  * @return list<array{
  *   incident_type: string,
  *   category: string,
@@ -253,7 +282,7 @@ function admin_incident_types_reference(): array
  *   steps: list<string>
  * }>
  */
-function admin_incident_sanctions_reference(): array
+function admin_incident_guard_guide_workflow_rows(): array
 {
     return array_map(
         static fn (array $row): array => [
@@ -265,6 +294,12 @@ function admin_incident_sanctions_reference(): array
         ],
         admin_incident_types_reference()
     );
+}
+
+/** @deprecated Use admin_incident_guard_guide_workflow_rows() */
+function admin_incident_sanctions_reference(): array
+{
+    return admin_incident_guard_guide_workflow_rows();
 }
 
 /**
@@ -339,6 +374,12 @@ function admin_incident_guard_workflow_step_overrides(): array
  */
 function admin_incident_guard_workflow_four_steps(array $row): array
 {
+    $slug = admin_incident_type_slug((string) ($row['incident_type'] ?? ''));
+    $map = admin_incident_workflow_steps_map_from_db();
+    if (is_array($map) && isset($map[$slug]) && count($map[$slug]) === 4) {
+        return $map[$slug];
+    }
+
     $key = strtolower((string) ($row['incident_type'] ?? ''));
     $overrides = admin_incident_guard_workflow_step_overrides();
     if (isset($overrides[$key])) {
@@ -358,7 +399,7 @@ function admin_incident_guard_workflow_four_steps(array $row): array
  */
 function admin_incident_guard_workflow_table_html(): string
 {
-    $rows = admin_incident_sanctions_reference();
+    $rows = admin_incident_guard_guide_workflow_rows();
     $byCategory = [];
     foreach ($rows as $row) {
         $slug = admin_incident_category_normalize((string) ($row['category'] ?? ADMIN_INCIDENT_CATEGORY_PER_POST));
@@ -446,14 +487,7 @@ function admin_incident_guard_operations_guide_html(): string
         'case-progression',
     ];
 
-    $html = '<nav class="reports-guide-nav-strip" aria-label="Guide sections">';
-    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-incidents">Workflow</a>';
-    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-system">Progression</a>';
-    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-registry">Status</a>';
-    $html .= '<a class="reports-guide-nav-strip__link" href="#guide-block-recurrence">Repeat</a>';
-    $html .= '</nav>';
-
-    $html .= '<div class="reports-guide-document">';
+    $html = '<div class="reports-guide-document">';
 
     $html .= admin_incident_guard_guide_sheet_open('guide-block-incidents', 'incidents', 'Workflow');
     $html .= admin_incident_guard_workflow_table_html();
@@ -489,11 +523,29 @@ function admin_incident_guard_guide_sheet_close(): string
 }
 
 /**
- * @return int Number of searchable reference sections in the operations guide (excludes preamble).
+ * @return list<string>
+ */
+function admin_incident_guard_operations_guide_section_ids(): array
+{
+    return [
+        'workflow',
+        'case-progression',
+        'status-basis',
+        'severity-thresholds',
+        'missing-handling',
+        'repeat-case-status',
+        'if-it-happens-again',
+        'offense-escalation',
+        'recurring-escalation',
+    ];
+}
+
+/**
+ * @return int Number of searchable reference sections in the guard guide (excludes workflow rows).
  */
 function admin_incident_guard_operations_guide_section_count(): int
 {
-    return 10;
+    return count(admin_incident_guard_operations_guide_section_ids());
 }
 
 /**
@@ -528,6 +580,25 @@ function admin_incident_guard_guide_preamble_html(): string
 }
 
 function admin_incident_guidelines_sections(): array
+{
+    $fromDb = admin_incident_guide_sections_from_db(['operations']);
+    if ($fromDb !== null) {
+        return $fromDb;
+    }
+
+    return admin_incident_guidelines_sections_legacy();
+}
+
+/**
+ * @return list<array{
+ *   id: string,
+ *   title: string,
+ *   intro: string,
+ *   columns: list<string>,
+ *   rows: list<list<string>>
+ * }>
+ */
+function admin_incident_guidelines_sections_legacy(): array
 {
     $sections = [
         [
@@ -897,6 +968,74 @@ function admin_incident_types_table_html(): string
 }
 
 /**
+ * Full incident-type catalog for the reports toolbar (severity, SLA, filing basis, etc.).
+ */
+function admin_incident_incident_types_catalog_html(): string
+{
+    $html = '<div class="reports-incident-types-catalog">';
+    $html .= '<p class="reports-incident-types-catalog__intro">'
+        . 'Reference list of reportable incident types from the guard guide — severity, initial status, '
+        . 'response expectations, and filing basis. Use this when classifying submissions or reviewing guard filings.'
+        . '</p>';
+    $html .= '<div class="reports-guide-table-wrap" tabindex="0" aria-label="Incident types catalog">';
+    $html .= '<table class="reports-guide-table reports-guide-table--filing reports-incident-types-catalog-table">';
+    $html .= '<thead><tr>';
+    $html .= '<th scope="col">Incident</th>';
+    $html .= '<th scope="col">Post / site</th>';
+    $html .= '<th scope="col">Severity</th>';
+    $html .= '<th scope="col">Initial status</th>';
+    $html .= '<th scope="col">Guard response time</th>';
+    $html .= '<th scope="col">Filing basis</th>';
+    $html .= '<th scope="col">When to file</th>';
+    $html .= '<th scope="col">Responsible</th>';
+    $html .= '<th scope="col">Remarks</th>';
+    $html .= '</tr></thead><tbody id="reports-incident-types-tbody">';
+
+    foreach (admin_incident_types_reference() as $row) {
+        $sev = strtolower((string) $row['severity']);
+        $html .= '<tr class="reports-guide-type-row reports-incident-types-row" data-search="'
+            . e(strtolower(
+                (string) $row['incident_type'] . ' '
+                . (string) $row['category_label'] . ' '
+                . (string) $row['severity'] . ' '
+                . (string) $row['initial_status'] . ' '
+                . (string) $row['response_sla'] . ' '
+                . (string) $row['filing_basis'] . ' '
+                . (string) $row['filing_trigger'] . ' '
+                . (string) $row['responsible'] . ' '
+                . (string) $row['remarks']
+            )) . '"'
+            . ' data-category="' . e((string) $row['category']) . '"'
+            . ' data-severity="' . e($sev) . '">';
+        $html .= '<td><span class="reports-guide-type-name">' . e((string) $row['incident_type']) . '</span></td>';
+        $html .= '<td><span class="reports-badge reports-badge--' . e((string) $row['category']) . '">'
+            . e((string) $row['category_label']) . '</span></td>';
+        $html .= '<td><span class="reports-guide-severity reports-guide-severity--' . e($sev) . '">'
+            . e((string) $row['severity']) . '</span></td>';
+        $html .= '<td>' . e((string) $row['initial_status']) . '</td>';
+        $html .= '<td>' . e((string) $row['response_sla']) . '</td>';
+        $html .= '<td>' . e((string) $row['filing_basis']) . '</td>';
+        $html .= '<td>' . e((string) $row['filing_trigger']) . '</td>';
+        $html .= '<td>' . e((string) $row['responsible']) . '</td>';
+        $html .= '<td class="reports-incident-types-catalog__remarks">' . e((string) $row['remarks']) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table></div>';
+    $html .= '</div>';
+
+    return $html;
+}
+
+/**
+ * @return int Number of incident types in the catalog (for search count label).
+ */
+function admin_incident_types_catalog_count(): int
+{
+    return count(admin_incident_types_reference());
+}
+
+/**
  * Incident-type options for guide row pickers (grouped by report scope).
  *
  * @param list<array{incident_type: string, category: string}> $rows
@@ -949,7 +1088,7 @@ function admin_incident_guide_topics_config(): array
         'steps' => [
             'label' => 'Choose incident type',
             'mode' => 'rows',
-            'groups' => admin_incident_guide_incident_type_option_groups(admin_incident_sanctions_reference()),
+            'groups' => admin_incident_guide_incident_type_option_groups(admin_incident_guard_guide_workflow_rows()),
         ],
         'filing' => [
             'label' => 'Choose incident type',

@@ -20,5 +20,10 @@ if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180 || ($lat === 0.0 && $ln
     exit;
 }
 
-$result = geocode_coordinates($lat, $lng);
+$accuracyM = isset($_GET['accuracy_m']) ? (float) $_GET['accuracy_m'] : (float) ($_POST['accuracy_m'] ?? 0);
+if ($accuracyM <= 0) {
+    $accuracyM = null;
+}
+
+$result = geocode_coordinates($lat, $lng, $accuracyM);
 echo json_encode($result, JSON_UNESCAPED_UNICODE);

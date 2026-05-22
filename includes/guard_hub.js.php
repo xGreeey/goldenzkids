@@ -790,28 +790,39 @@ function guard_hub_scripts(): void
             renderDailyActivityPhotoPreview();
         }
 
+        function dailyActivityPhotoLabel(item, idx) {
+            if (item.file && item.file.name) return item.file.name;
+            return 'Photo ' + (idx + 1);
+        }
+
         function renderDailyActivityPhotoPreview() {
             if (!dailyModalPreview) return;
             dailyModalPreview.innerHTML = '';
-            dailyActivityPhotos.forEach(function (item, idx) {
-                var cell = document.createElement('div');
-                cell.className = 'guard-evidence-grid__item';
-                var img = document.createElement('img');
-                img.src = item.url;
-                img.alt = 'Activity photo ' + (idx + 1);
+            dailyActivityPhotos.slice(0, DAILY_ACTIVITY_MAX_PHOTOS).forEach(function (item, idx) {
+                var row = document.createElement('div');
+                row.className = 'guard-daily-activity-photo-list__row';
+                var thumb = document.createElement('img');
+                thumb.className = 'guard-daily-activity-photo-list__thumb';
+                thumb.src = item.url;
+                thumb.alt = '';
+                var name = document.createElement('span');
+                name.className = 'guard-daily-activity-photo-list__name';
+                name.textContent = dailyActivityPhotoLabel(item, idx);
+                name.title = name.textContent;
                 var rm = document.createElement('button');
                 rm.type = 'button';
-                rm.className = 'guard-evidence-grid__remove';
-                rm.setAttribute('aria-label', 'Remove photo');
+                rm.className = 'guard-daily-activity-photo-list__remove';
+                rm.setAttribute('aria-label', 'Remove ' + name.textContent);
                 rm.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
                 rm.addEventListener('click', function () {
                     URL.revokeObjectURL(item.url);
                     dailyActivityPhotos.splice(idx, 1);
                     renderDailyActivityPhotoPreview();
                 });
-                cell.appendChild(img);
-                cell.appendChild(rm);
-                dailyModalPreview.appendChild(cell);
+                row.appendChild(thumb);
+                row.appendChild(name);
+                row.appendChild(rm);
+                dailyModalPreview.appendChild(row);
             });
         }
 
@@ -990,18 +1001,16 @@ function guard_hub_scripts(): void
             }
 
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function (pos) {
+                acquireGpsFix({ timeoutMs: 20000, targetAccuracyM: 50 })
+                    .then(function (fix) {
                         finishSubmit({
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
-                            accuracy: pos.coords.accuracy,
+                            lat: fix.lat,
+                            lng: fix.lng,
+                            accuracy: fix.accuracy,
                             label: ''
                         });
-                    },
-                    function () { finishSubmit(null); },
-                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-                );
+                    })
+                    .catch(function () { finishSubmit(null); });
             } else {
                 finishSubmit(null);
             }
@@ -1057,6 +1066,92 @@ function guard_hub_scripts(): void
                 });
         }
 
+        function acquireGpsFix(options) {
+            options = options || {};
+            var timeoutMs = options.timeoutMs || 28000;
+            var targetAccuracyM = options.targetAccuracyM || 35;
+            return new Promise(function (resolve, reject) {
+                if (!navigator.geolocation) {
+                    reject(new Error('unsupported'));
+                    return;
+                }
+                var best = null;
+                var watchId = null;
+                var settled = false;
+                var geoOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs };
+
+                function toFix(pos) {
+                    return {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy
+                    };
+                }
+
+                function cleanup() {
+                    if (watchId != null) {
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    }
+                }
+
+                function finish(pos) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    resolve(toFix(pos));
+                }
+
+                function fail(err) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    if (best) {
+                        resolve(toFix(best));
+                        return;
+                    }
+                    reject(err || new Error('gps_failed'));
+                }
+
+                var timer = setTimeout(function () {
+                    if (best) {
+                        finish({ coords: { latitude: best.lat, longitude: best.lng, accuracy: best.accuracy } });
+                    } else {
+                        fail(new Error('timeout'));
+                    }
+                }, timeoutMs);
+
+                watchId = navigator.geolocation.watchPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                        if (fix.accuracy <= targetAccuracyM) {
+                            finish(pos);
+                        }
+                    },
+                    function (err) {
+                        fail(err);
+                    },
+                    geoOpts
+                );
+
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                    },
+                    function () { /* watchPosition handles errors */ },
+                    geoOpts
+                );
+            });
+        }
+
         function updateLocationUi(kind, lat, lng, accuracy, label, statusText) {
             var coordsEl = kind === 'sheet' ? sheetLocCoords : evidenceLocCoords;
             var addressEl = kind === 'sheet' ? sheetLocAddress : evidenceLocAddress;
@@ -1082,18 +1177,31 @@ function guard_hub_scripts(): void
             if (statusEl && statusText) statusEl.textContent = statusText;
         }
 
-        function reverseGeocode(lat, lng) {
-            return fetch('api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), {
+        function reverseGeocode(lat, lng, accuracyM) {
+            var url = 'api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng);
+            if (accuracyM != null && !isNaN(accuracyM)) {
+                url += '&accuracy_m=' + encodeURIComponent(accuracyM);
+            }
+            return fetch(url, {
                 credentials: 'same-origin',
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.ok && data.label) return String(data.label);
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: data.ok && data.label
+                            ? String(data.label)
+                            : ('Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6)),
+                        locality: data.locality ? String(data.locality) : '',
+                        accuracyWarning: data.accuracy_warning ? String(data.accuracy_warning) : ''
+                    };
                 })
                 .catch(function () {
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6),
+                        locality: '',
+                        accuracyWarning: ''
+                    };
                 });
         }
 
@@ -1105,47 +1213,45 @@ function guard_hub_scripts(): void
             }
             var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
             var pending = kind === 'sheet'
-                ? 'Stamping sheet location from this device…'
-                : 'Stamping evidence location at the site…';
+                ? 'Acquiring GPS for sheet location (wait outdoors if possible)…'
+                : 'Acquiring GPS at the site (wait outdoors if possible)…';
             if (statusEl) statusEl.textContent = pending;
 
-            navigator.geolocation.getCurrentPosition(
-                function (pos) {
-                    var lat = pos.coords.latitude;
-                    var lng = pos.coords.longitude;
-                    var acc = pos.coords.accuracy;
-                    var fix = { lat: lat, lng: lng, accuracy: acc, label: '' };
+            acquireGpsFix({ timeoutMs: 28000, targetAccuracyM: 35 })
+                .then(function (fix) {
+                    var lat = fix.lat;
+                    var lng = fix.lng;
+                    var acc = fix.accuracy;
+                    var locFix = { lat: lat, lng: lng, accuracy: acc, label: '' };
                     if (kind === 'sheet') {
-                        sheetLocationFix = fix;
+                        sheetLocationFix = locFix;
                     } else {
-                        evidenceLocationFix = fix;
+                        evidenceLocationFix = locFix;
                     }
                     updateLocationUi(kind, lat, lng, acc, '', 'Resolving address…');
-                    reverseGeocode(lat, lng).then(function (address) {
-                        fix.label = address;
-                        if (kind === 'sheet') sheetLocationFix = fix;
-                        else evidenceLocationFix = fix;
-                        updateLocationUi(
-                            kind,
-                            lat,
-                            lng,
-                            acc,
-                            address,
-                            kind === 'sheet'
-                                ? 'Sheet location stamped — continue when ready.'
-                                : 'Evidence location stamped — add photos or continue.'
-                        );
+                    return reverseGeocode(lat, lng, acc).then(function (geo) {
+                        locFix.label = geo.label;
+                        if (kind === 'sheet') sheetLocationFix = locFix;
+                        else evidenceLocationFix = locFix;
+                        var statusMsg = kind === 'sheet'
+                            ? 'Sheet location stamped — continue when ready.'
+                            : 'Evidence location stamped — add photos or continue.';
+                        if (geo.accuracyWarning) {
+                            statusMsg = geo.accuracyWarning;
+                            window.guardShowToast(geo.accuracyWarning, 'error');
+                        } else if (geo.locality) {
+                            statusMsg += ' City: ' + geo.locality + '.';
+                        }
+                        updateLocationUi(kind, lat, lng, acc, geo.label, statusMsg);
                     });
-                },
-                function (err) {
+                })
+                .catch(function (err) {
                     if (statusEl) {
-                        statusEl.textContent = err.code === 1
+                        statusEl.textContent = err && err.code === 1
                             ? 'Location denied. Enable GPS in browser settings.'
-                            : 'Could not acquire GPS. Move outdoors and retry.';
+                            : 'Could not acquire GPS. Move outdoors, wait a few seconds, and tap stamp again.';
                     }
-                },
-                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-            );
+                });
         }
 
         function syncDadSheetPreview() {
@@ -1515,18 +1621,9 @@ function guard_hub_scripts(): void
                     evidenceInput.value = '';
                 };
                 if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        function (pos) {
-                            var gps = {
-                                lat: pos.coords.latitude,
-                                lng: pos.coords.longitude,
-                                accuracy: pos.coords.accuracy
-                            };
-                            done(gps);
-                        },
-                        function () { done(null); },
-                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                    );
+                    acquireGpsFix({ timeoutMs: 22000, targetAccuracyM: 40 })
+                        .then(function (fix) { done(fix); })
+                        .catch(function () { done(null); });
                 } else {
                     done(null);
                 }

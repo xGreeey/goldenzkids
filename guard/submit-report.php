@@ -239,7 +239,7 @@ guard_layout_head('Submit report');
                                 >
                             </label>
                             <p class="form-hint guard-daily-activity-modal__photo-error" data-guard-daily-activity-photo-error hidden></p>
-                            <div class="guard-evidence-grid guard-daily-activity-modal__previews" data-guard-daily-activity-photo-preview></div>
+                            <div class="guard-daily-activity-photo-list" data-guard-daily-activity-photo-preview></div>
                         </div>
                     </div>
                     <footer class="guard-daily-activity-modal__foot">

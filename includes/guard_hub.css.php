@@ -1621,6 +1621,75 @@ function guard_hub_styles(): void
             margin-top: 6px;
         }
 
+        body.guard-portal .guard-daily-activity-photo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+            max-height: none;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list:empty {
+            display: none;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__thumb {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            object-fit: cover;
+            display: block;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__name {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.8125rem;
+            line-height: 1.3;
+            color: var(--guard-ui-text, #334155);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--guard-ui-secondary, #64748b);
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove:hover {
+            background: rgba(15, 23, 42, 0.06);
+            color: #b91c1c;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__row {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__name {
+            color: var(--guard-ui-secondary, #cbd5e1);
+        }
+
         body.guard-portal .guard-daily-activity-modal__foot {
             display: flex;
             justify-content: flex-end;

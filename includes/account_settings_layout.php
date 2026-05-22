@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin_profile.php';
+require_once __DIR__ . '/admin_shell.php';
 
 /** Shared account settings page shell (admin + superadmin). */
 function account_settings_run_page(string $sidebarFile, string $navKey, string $navValue, string $bodyClass): void
@@ -63,6 +64,7 @@ function account_settings_render_html(
     </style>
 </head>
 <body class="<?= e($bodyClass) ?>">
+<?php admin_theme_body_boot(); ?>
 
 <?php require $sidebarFile; ?>
 

@@ -61,9 +61,6 @@ $reportNavItems = admin_report_nav_items();
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>
                 <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="#" class="sidebar-footer-icon" aria-label="Audit Logs"<?= ui_tooltip('Audit logs', 'bottom') ?>>
-                        <?= admin_sidebar_icon('audit') ?>
-                    </a>
                     <a href="settings.php" class="sidebar-footer-icon<?= ($adminNavActive ?? '') === 'settings' ? ' active' : '' ?>" aria-label="Settings"<?= ($adminNavActive ?? '') === 'settings' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Account settings', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>

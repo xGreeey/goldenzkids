@@ -52,56 +52,73 @@ body:not(.light-mode) .admin-app__topbar-title {
 
 .admin-notifications__trigger {
     position: relative;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
     padding: 0;
-    border: 1px solid var(--app-border);
-    border-radius: var(--radius-md);
-    background: var(--app-card-bg);
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
     color: var(--app-ink-deep);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .admin-notifications__trigger:hover {
-    border-color: var(--accent-blue);
     color: var(--accent-blue);
 }
 
 .admin-notifications__trigger[aria-expanded="true"] {
-    background: var(--accent-blue-soft);
-    border-color: var(--accent-blue);
     color: var(--accent-blue);
 }
 
 body:not(.light-mode) .admin-notifications__trigger {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--app-border-on-dark);
     color: var(--app-ink-on-dark);
 }
 
-.admin-notifications__trigger .fa-bell {
-    font-size: 1.125rem;
+body:not(.light-mode) .admin-notifications__trigger:hover,
+body:not(.light-mode) .admin-notifications__trigger[aria-expanded="true"] {
+    color: #93c5fd;
+}
+
+.admin-notifications__trigger .fa-bell,
+.admin-notifications__trigger .admin-ui-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
 .admin-notifications__badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 1.125rem;
-    height: 1.125rem;
-    padding: 0 5px;
+    top: 3px;
+    right: 3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
     border-radius: 999px;
-    background: var(--danger);
+    background: #dc2626;
     color: #fff;
-    font-size: 0.65rem;
+    font-size: 0.625rem;
     font-weight: 700;
-    line-height: 1.125rem;
+    line-height: 16px;
+    letter-spacing: -0.02em;
     text-align: center;
-    box-shadow: 0 0 0 2px var(--app-card-bg);
+    pointer-events: none;
+    box-shadow: 0 0 0 2px var(--app-canvas-bg, #f8fafc);
+}
+
+body:not(.light-mode) .admin-notifications__badge {
+    background: #ef4444;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-sidebar-dark, #0f172a) 92%, transparent);
 }
 
 .admin-notifications__badge.is-hidden,

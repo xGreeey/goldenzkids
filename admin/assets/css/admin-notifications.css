@@ -216,6 +216,10 @@ body:not(.light-mode) .admin-notifications__item:hover {
     font-size: 0.9rem;
 }
 
+.admin-notifications__item-icon .admin-ui-icon {
+    display: block;
+}
+
 .admin-notifications__item-body {
     min-width: 0;
     display: flex;

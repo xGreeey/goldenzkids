@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/admin_ui_icons.php';
+
 require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/admin_incident_guidelines.php';
 require_once __DIR__ . '/guard_incident.php';
@@ -1046,6 +1048,12 @@ function admin_incident_action_icon(string $kind): string
             . '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
             . '<polyline points="7 10 12 15 17 10"/>'
             . '<line x1="12" y1="15" x2="12" y2="3"/>'
+            . '</svg>',
+        'delete' => '<svg ' . $attrs . '>'
+            . '<polyline points="3 6 5 6 21 6"/>'
+            . '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'
+            . '<path d="M10 11v6M14 11v6"/>'
+            . '<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'
             . '</svg>',
         default => '',
     };

@@ -7,6 +7,7 @@ require_once __DIR__ . '/messaging_unread.php';
 require_once __DIR__ . '/admin_incident_status.php';
 require_once __DIR__ . '/guard_incident.php';
 require_once __DIR__ . '/guard_dad.php';
+require_once __DIR__ . '/admin_ui_icons.php';
 
 /**
  * @return array{id:string,type:string,title:string,body:string,href:string,at:string,at_ts:int,icon:string}
@@ -31,6 +32,7 @@ function admin_notification_item(
         'at' => $at,
         'at_ts' => $ts,
         'icon' => $icon,
+        'icon_markup' => admin_ui_icon_fa_alias($icon, 16),
         'time_label' => admin_notification_time_label($at),
     ];
 }
@@ -323,7 +325,7 @@ function admin_notifications_pending_dad(PDO $conn): array
             'dad_pending',
             'DAD submission · ' . $ref,
             $hg . ' · ' . $post . ' — ' . $summary,
-            app_url('admin/dad.php'),
+            app_url('admin/dad.php?record=' . rawurlencode('dad-' . $dadId) . '&mode=view'),
             $at,
             'calendar-day'
         );

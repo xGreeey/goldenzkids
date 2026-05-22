@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/admin_ui_icons.php';
 require_once __DIR__ . '/../includes/admin_head_guard_posts.php';
 
 auth_require_permission('admin.duty.view');
@@ -77,7 +78,7 @@ $adminNavActive = 'head-guards';
                     <div class="panel-head__head">
                         <div class="panel-head__intro">
                             <h2 id="hg-posts-heading" class="panel-title panel-title--registry">
-                                <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+                                <?= admin_ui_icon('map-location-dot', 18) ?>
                                 Post assignments
                             </h2>
                             <div class="panel-head__subrow">

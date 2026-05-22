@@ -128,12 +128,12 @@ function admin_daily_detail_row_attrs(array $record): string
 }
 
 $kpiIcons = [
-    'all' => 'fa-calendar-days',
-    'pending' => 'fa-hourglass-half',
-    'nte' => 'fa-file-signature',
-    'on_hold' => 'fa-clock',
-    'resolved' => 'fa-circle-check',
-    'dismissed' => 'fa-ban',
+    'all' => 'calendar-days',
+    'pending' => 'hourglass-half',
+    'nte' => 'file-signature',
+    'on_hold' => 'clock',
+    'resolved' => 'circle-check',
+    'dismissed' => 'ban',
 ];
 ?>
 <!DOCTYPE html>
@@ -171,17 +171,17 @@ $kpiIcons = [
             <section class="kpi-grid" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> flags in the registry">
                     <div class="kpi-stat">
-                        <i class="fa-solid <?= e($kpiIcons['all']) ?> kpi-icon" aria-hidden="true"></i>
+                        <?= admin_kpi_icon($kpiIcons['all']) ?>
                         <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
                     </div>
                     <p class="kpi-label">Total flags</p>
                 </article>
                 <?php foreach ($statusDefinitions as $slug => $def):
-                    $icon = $kpiIcons[$slug] ?? 'fa-user-clock';
+                    $icon = $kpiIcons[$slug] ?? 'clock';
                     ?>
                 <article class="kpi-card kpi-card--<?= e($slug) ?>" title="<?= e((string) $def['description']) ?>">
                     <div class="kpi-stat">
-                        <i class="fa-solid <?= e($icon) ?> kpi-icon" aria-hidden="true"></i>
+                        <?= admin_kpi_icon($icon) ?>
                         <span class="kpi-value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></span>
                     </div>
                     <p class="kpi-label"><?= e((string) $def['kpi']) ?></p>
@@ -194,7 +194,7 @@ $kpiIcons = [
                     <div class="reports-toolbar" role="search">
                         <div class="reports-toolbar__fields">
                             <div class="form-field reports-field--search">
-                                <label for="daily-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</label>
+                                <label for="daily-search" class="reports-label-with-icon"><?= admin_ui_icon('magnifying-glass', 14) ?> Search</label>
                                 <input type="search" id="daily-search" placeholder="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> reference, guard, post, time record…" autocomplete="off">
                             </div>
                             <div class="form-field reports-field--category">
@@ -218,19 +218,19 @@ $kpiIcons = [
                         <div class="reports-toolbar-actions" role="toolbar" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> filter actions">
                             <div class="reports-button-set">
                                 <button type="button" class="reports-btn reports-btn--secondary" id="daily-reset">
-                                    <i class="fa-solid fa-rotate-left reports-btn__icon" aria-hidden="true"></i>
+                                    <?= admin_btn_icon('rotate-left') ?>
                                     <span class="reports-btn__text">Reset</span>
                                 </button>
                                 <form method="POST" class="reports-inline-form" id="daily-reset-demo-form">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="reset_demo">
                                     <button type="submit" class="reports-btn reports-btn--secondary" title="Restore demo <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> records">
-                                        <i class="fa-solid fa-database reports-btn__icon" aria-hidden="true"></i>
+                                        <?= admin_btn_icon('database') ?>
                                         <span class="reports-btn__text">Reset demo</span>
                                     </button>
                                 </form>
                                 <button type="button" class="reports-btn reports-btn--secondary" id="daily-guide-open" title="<?= e(ADMIN_ATTENDANCE_MODULE_LABEL) ?> (<?= e(ADMIN_ATTENDANCE_REF_CODE) ?>) — equivalence, NTE, missing values">
-                                    <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
+                                    <?= admin_btn_icon('book-open') ?>
                                     <span class="reports-btn__text"><?= e(ADMIN_ATTENDANCE_REF_CODE) ?> guide</span>
                                 </button>
                             </div>
@@ -362,7 +362,7 @@ $kpiIcons = [
                                                     data-record-id="<?= e((string) $record['id']) ?>"
                                                     title="View record"
                                                     aria-label="View <?= e((string) $record['ref']) ?>">
-                                                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                                                <?= admin_incident_action_icon('view') ?>
                                             </button>
                                             <button type="button"
                                                     class="reports-action-btn reports-action-btn--primary"
@@ -370,7 +370,7 @@ $kpiIcons = [
                                                     data-record-id="<?= e((string) $record['id']) ?>"
                                                     title="Edit record"
                                                     aria-label="Edit <?= e((string) $record['ref']) ?>">
-                                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                                <?= admin_incident_action_icon('edit') ?>
                                             </button>
                                             <button type="button"
                                                     class="reports-action-btn reports-action-btn--danger"
@@ -379,7 +379,7 @@ $kpiIcons = [
                                                     data-record-ref="<?= e((string) $record['ref']) ?>"
                                                     title="Delete record"
                                                     aria-label="Delete <?= e((string) $record['ref']) ?>">
-                                                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                                                <?= admin_incident_action_icon('delete') ?>
                                             </button>
                                         </div>
                                     </td>
@@ -391,7 +391,7 @@ $kpiIcons = [
                     </div>
 
                     <div id="daily-empty" class="reports-empty" role="status" aria-live="polite">
-                        <div class="reports-empty__icon" aria-hidden="true"><i class="fa-solid fa-calendar-xmark"></i></div>
+                        <div class="reports-empty__icon" aria-hidden="true"><?= admin_ui_icon('calendar-xmark', 28) ?></div>
                         <p class="reports-empty__title">No records match your filters</p>
                         <p class="reports-empty__hint">Try another issue type, date range, or status tab — or clear search to see all flags.</p>
                     </div>
@@ -513,7 +513,7 @@ $kpiIcons = [
                     <section class="reports-modal-form__section reports-modal-form__section--wide" aria-labelledby="daily-history-heading">
                         <header class="reports-modal-form__section-header">
                             <h3 id="daily-history-heading" class="reports-modal-form__section-title reports-modal-form__section-title--timeline">
-                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                <?= admin_ui_icon('clock-rotate-left', 16) ?>
                                 Review history
                             </h3>
                         </header>
@@ -533,7 +533,7 @@ $kpiIcons = [
                 <div class="reports-modal-footer__button-set" id="daily-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
                         <button type="button" class="reports-btn reports-btn--primary" id="daily-goto-edit"<?= $openRecord ? '' : ' hidden' ?>>
-                            <i class="fa-solid fa-pen-to-square reports-btn__icon" aria-hidden="true"></i>
+                            <?= admin_btn_icon('pen-to-square') ?>
                             <span class="reports-btn__text">Edit this record</span>
                         </button>
                     </div>
@@ -541,7 +541,7 @@ $kpiIcons = [
                 <div class="reports-modal-footer__button-set" id="daily-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
                         <button type="submit" class="reports-btn reports-btn--primary" form="daily-edit-form" id="daily-save-edit">
-                            <i class="fa-solid fa-floppy-disk reports-btn__icon" aria-hidden="true"></i>
+                            <?= admin_btn_icon('floppy-disk') ?>
                             <span class="reports-btn__text">Save changes</span>
                         </button>
                         <button type="button" class="reports-btn reports-btn--secondary" id="daily-cancel-edit">

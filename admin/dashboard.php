@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/admin_ui_icons.php';
 
 auth_require_permission('admin.dashboard.view');
 
@@ -50,21 +51,21 @@ $adminNavActive = 'dashboard';
         <section class="kpi-grid" aria-label="Key performance indicators">
             <article class="kpi-card kpi-card--personnel">
                 <div class="kpi-stat">
-                    <i class="fa-solid fa-user-shield kpi-icon" aria-hidden="true"></i>
+                    <?= admin_kpi_icon('user-shield') ?>
                     <span class="kpi-value"><?= $total_guards ?></span>
                 </div>
                 <p class="kpi-label">Personnel on roster</p>
             </article>
             <article class="kpi-card kpi-card--reports">
                 <div class="kpi-stat">
-                    <i class="fa-solid fa-file-lines kpi-icon" aria-hidden="true"></i>
+                    <?= admin_kpi_icon('file-lines') ?>
                     <span class="kpi-value"><?= $total_today ?></span>
                 </div>
                 <p class="kpi-label">Daily guard reports</p>
             </article>
             <article class="kpi-card kpi-card--pending">
                 <div class="kpi-stat">
-                    <i class="fa-solid fa-clock kpi-icon" aria-hidden="true"></i>
+                    <?= admin_kpi_icon('clock') ?>
                     <span class="kpi-value"><?= $total_pending ?></span>
                 </div>
                 <p class="kpi-label">Awaiting review</p>
@@ -76,7 +77,7 @@ $adminNavActive = 'dashboard';
                 <section class="panel" aria-labelledby="chart-heading">
                     <div class="panel-head">
                         <h2 id="chart-heading" class="panel-title">
-                            <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
+                            <?= admin_ui_icon('chart-pie', 18) ?>
                             Report activity overview
                         </h2>
                         <span class="panel-badge">This week</span>
@@ -122,7 +123,7 @@ $adminNavActive = 'dashboard';
                 <section class="panel" aria-labelledby="roster-heading">
                     <div class="panel-head">
                         <h2 id="roster-heading" class="panel-title">
-                            <i class="fa-solid fa-users" aria-hidden="true"></i>
+                            <?= admin_ui_icon('users', 18) ?>
                             Security personnel roster
                         </h2>
                         <span class="panel-badge">Latest 10</span>

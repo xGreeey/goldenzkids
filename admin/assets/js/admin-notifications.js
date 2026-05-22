@@ -19,9 +19,8 @@
             escapeHtml(item.id || '') +
             '">' +
             '<span class="admin-notifications__item-icon" aria-hidden="true">' +
-            '<i class="fa-solid fa-' +
-            escapeHtml(item.icon || 'bell') +
-            '"></i></span>' +
+            (item.icon_markup || '') +
+            '</span>' +
             '<span class="admin-notifications__item-body">' +
             '<span class="admin-notifications__item-title">' +
             escapeHtml(item.title || '') +

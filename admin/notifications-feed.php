@@ -24,6 +24,7 @@ try {
             'at' => $item['at'],
             'time_label' => $item['time_label'],
             'icon' => $item['icon'],
+            'icon_markup' => $item['icon_markup'] ?? '',
         ];
     }
 

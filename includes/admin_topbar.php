@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin_notifications.php';
+require_once __DIR__ . '/admin_ui_icons.php';
 
 /**
  * Sticky admin header with notification bell (upper right).
@@ -40,7 +41,7 @@ function admin_topbar_markup(): void
                     aria-label="<?= $notificationCount > 0
                         ? 'Notifications, ' . $notificationCount . ' unread'
                         : 'Notifications, no new items' ?>">
-                <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                <?= admin_ui_icon('bell', 18) ?>
                 <span class="admin-notifications__badge<?= $notificationCount > 0 ? '' : ' is-hidden' ?>"
                       id="adminNotificationsBadge"
                       <?= $notificationCount > 0 ? '' : ' hidden' ?>><?= (int) $notificationCount ?></span>
@@ -67,7 +68,7 @@ function admin_topbar_markup(): void
                                    class="admin-notifications__item"
                                    data-notification-id="<?= e((string) $item['id']) ?>">
                                     <span class="admin-notifications__item-icon" aria-hidden="true">
-                                        <i class="fa-solid fa-<?= e((string) $item['icon']) ?>"></i>
+                                        <?= admin_ui_icon_fa_alias((string) $item['icon'], 16) ?>
                                     </span>
                                     <span class="admin-notifications__item-body">
                                         <span class="admin-notifications__item-title"><?= e((string) $item['title']) ?></span>

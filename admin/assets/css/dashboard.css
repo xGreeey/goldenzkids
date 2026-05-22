@@ -46,9 +46,16 @@
         }
 
         .kpi-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
             font-size: 1.25rem;
             line-height: 1;
+        }
+
+        .kpi-icon .admin-ui-icon {
+            display: block;
         }
 
         .kpi-icon,
@@ -282,7 +289,8 @@
             gap: 10px;
         }
 
-        .panel-title i {
+        .panel-title i,
+        .panel-title .admin-ui-icon {
             flex-shrink: 0;
             color: var(--app-ink);
             font-size: 1.125rem;

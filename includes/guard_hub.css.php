@@ -705,11 +705,6 @@ function guard_hub_styles(): void
             background: rgba(37, 99, 235, 0.06);
         }
 
-        body.guard-portal .guard-location-stamp--sheet {
-            border-color: rgba(5, 150, 105, 0.45);
-            background: rgba(5, 150, 105, 0.06);
-        }
-
         body.guard-portal .guard-location-stamp--evidence {
             border-color: rgba(37, 99, 235, 0.45);
             background: rgba(37, 99, 235, 0.06);
@@ -847,11 +842,10 @@ function guard_hub_styles(): void
             border: 1px solid var(--guard-ui-border, #e2e8f0);
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner:not(.is-live):not(.has-capture) {
+        body.guard-portal .guard-app__scroll .guard-scanner:not(.has-capture) {
             display: none;
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
             position: absolute;
             inset: 0;
@@ -879,147 +873,12 @@ function guard_hub_styles(): void
             }
         }
 
-        /* Smart scan — maximized portrait camera (viewport overlay) */
-        body.guard-portal.guard-scan-fullscreen {
-            overflow: hidden;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-app__scroll {
-            overflow: hidden;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            width: 100dvw;
-            height: 100%;
-            height: 100dvh;
-            max-width: none;
-            max-height: none;
-            min-height: 0;
-            margin: 0;
-            border: none;
-            border-radius: 0;
-            z-index: 10050;
-            aspect-ratio: auto;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__video {
-            object-fit: cover;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__torch {
-            top: max(12px, env(safe-area-inset-top, 0px));
-            right: max(12px, env(safe-area-inset-right, 0px));
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__hint {
-            padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-            font-size: 0.8125rem;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 10051;
-            margin: 0;
-            padding: 14px var(--guard-ui-pad, 16px);
-            padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
-            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 28%, rgba(0, 0, 0, 0.82) 100%);
-            gap: 10px;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-primary,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-ghost,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions label.btn-ghost {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active > .btn-primary[data-wizard-next],
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__pane-title,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__report-type {
-            visibility: hidden;
-            pointer-events: none;
-        }
-
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
-            display: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__video {
             display: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__preview {
             display: block;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__frame {
-            display: none;
-            pointer-events: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.is-capturing .guard-scanner__frame {
-            display: block;
-            position: absolute;
-            inset: 8%;
-            z-index: 1;
-            border: 2px solid rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            box-shadow: none;
-            animation: guardScanPulse 0.8s ease infinite;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 3;
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            min-height: 40px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.55);
-            color: #ffffff;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch[hidden] {
-            display: none !important;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on {
-            background: #fbbf24;
-            color: #0f172a;
-        }
-
-        @media (hover: hover) {
-            body.guard-portal .guard-app__scroll .guard-scanner__torch:hover {
-                background: rgba(15, 23, 42, 0.75);
-            }
-
-            body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on:hover {
-                background: #f59e0b;
-            }
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch:active {
-            transform: scale(0.94);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__torch {
-            display: none !important;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__hint {
@@ -1036,11 +895,42 @@ function guard_hub_styles(): void
             background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner__actions {
+        body.guard-portal .guard-app__scroll .guard-scanner__actions[hidden] {
+            display: none;
+        }
+
+        /* button.btn-primary[hidden] loses to guard_ui/superadmin inline-flex (higher specificity) */
+        body.guard-portal .guard-app__scroll button.btn-primary[data-guard-step1-next][hidden],
+        body.superadmin-portal.guard-portal .guard-app__scroll button.btn-primary[data-guard-step1-next][hidden] {
+            display: none !important;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions:not([hidden]) {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             margin-top: 10px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only:not([hidden]) {
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only .guard-scanner__upload-btn {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin: 0;
+            cursor: pointer;
+            justify-content: center;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only .btn-ghost[data-guard-scan-retake]:not([hidden]) {
+            flex: 0 0 auto;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__actions .btn-primary,

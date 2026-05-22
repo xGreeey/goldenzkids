@@ -24,7 +24,7 @@ $guardNavActive = 'submit';
 guard_layout_head('Submit report');
 ?>
         <div class="guard-section-stack guard-submit-page">
-        <p class="visually-hidden" data-guard-submit-subtitle>Scan your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
+        <p class="visually-hidden" data-guard-submit-subtitle>Upload your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
             <div class="guard-card__head">
@@ -118,36 +118,17 @@ guard_layout_head('Submit report');
                     </div>
                     <div data-guard-scan-flow>
                     <div class="guard-scanner" data-guard-scanner>
-                        <video class="guard-scanner__video" data-guard-scanner-video playsinline muted aria-label="Camera preview"></video>
-                        <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
-                        <button
-                            type="button"
-                            class="guard-scanner__torch"
-                            data-guard-scanner-torch
-                            aria-label="Toggle flashlight"
-                            aria-pressed="false"
-                            hidden
-                        ><?= guard_ui_icon('flashlight', 20) ?></button>
-                        <div class="guard-scanner__frame" aria-hidden="true"></div>
-                        <p class="guard-scanner__hint" data-guard-scanner-hint>Tap Smart scan to open the camera.</p>
+                        <img class="guard-scanner__preview" data-guard-scanner-preview alt="Uploaded report">
+                        <p class="guard-scanner__hint" data-guard-scanner-hint>Select a report type, then upload your filled form.</p>
                     </div>
-                    <div class="guard-scanner__actions">
-                        <button type="button" class="btn-primary" data-guard-scan-capture>
-                            <i class="fa-solid fa-camera" aria-hidden="true"></i> Smart scan
-                        </button>
-                        <button type="button" class="btn-ghost" data-guard-scan-retake>
+                    <div class="guard-scanner__actions guard-scanner__actions--upload-only" data-guard-scanner-actions hidden>
+                        <label class="btn-primary guard-scanner__upload-btn">
+                            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload report
+                            <input type="file" class="visually-hidden" data-guard-report-upload accept="image/*">
+                        </label>
+                        <button type="button" class="btn-ghost" data-guard-scan-retake hidden>
                             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Retake
                         </button>
-                        <label class="btn-ghost" style="cursor:pointer;margin:0;">
-                            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload
-                            <input type="file" class="visually-hidden" data-guard-report-upload accept="image/*" capture="environment">
-                        </label>
-                    </div>
-                    <div class="guard-location-stamp guard-location-stamp--sheet" data-guard-sheet-location hidden>
-                        <h4 class="guard-location-stamp__title"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Sheet location stamp (step 1)</h4>
-                        <p class="form-hint" data-guard-sheet-location-status>Stamped when you capture or upload the attendance sheet.</p>
-                        <p class="guard-location-stamp__coords mono" data-guard-sheet-location-coords hidden></p>
-                        <p class="guard-location-stamp__address" data-guard-sheet-location-address hidden></p>
                     </div>
                     <input type="hidden" name="sheet_latitude" data-guard-sheet-lat-input value="">
                     <input type="hidden" name="sheet_longitude" data-guard-sheet-lng-input value="">
@@ -159,7 +140,7 @@ guard_layout_head('Submit report');
                         <div class="guard-ocr-preview__as-is" data-guard-ocr-as-is hidden></div>
                         <pre class="guard-ocr-preview__text" data-guard-ocr-text></pre>
                     </div>
-                    <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next>
+                    <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next hidden>
                         Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                     </button>
                     </div>

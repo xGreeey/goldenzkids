@@ -666,10 +666,6 @@ function guard_hub_scripts(): void
         var ocrText = qs('[data-guard-ocr-text]', form);
         var dadSheetPreview = qs('[data-guard-dad-sheet-preview]', form);
         var dadSheetImg = qs('[data-guard-dad-sheet-img]', form);
-        var sheetLocPanel = qs('[data-guard-sheet-location]', form);
-        var sheetLocStatus = qs('[data-guard-sheet-location-status]', form);
-        var sheetLocCoords = qs('[data-guard-sheet-location-coords]', form);
-        var sheetLocAddress = qs('[data-guard-sheet-location-address]', form);
         var sheetLatInput = qs('[data-guard-sheet-lat-input]', form);
         var sheetLngInput = qs('[data-guard-sheet-lng-input]', form);
         var sheetAccInput = qs('[data-guard-sheet-acc-input]', form);
@@ -686,6 +682,8 @@ function guard_hub_scripts(): void
         var step2Hint = qs('[data-guard-step2-hint]', form);
         var step1Next = qs('[data-guard-step1-next]', form);
         var scanFlow = qs('[data-guard-scan-flow]', form);
+        var scannerActions = qs('[data-guard-scanner-actions]', form);
+        var scanRetakeBtn = qs('[data-guard-scan-retake]', form);
         var dailyPanel = qs('[data-guard-daily-activity]', form);
         var dailyDetailsInput = qs('[data-guard-daily-details-input]', form);
         var dailySubmitBtn = qs('[data-guard-daily-submit]', form);
@@ -790,22 +788,43 @@ function guard_hub_scripts(): void
                       ? 'Allow location when prompted. GPS is stamped when you open this step and again per photo when possible.'
                       : 'Photos are tagged with device date/time and GPS when available.';
             }
-            if (sheetLocPanel) sheetLocPanel.hidden = !dad;
             if (step1Next) {
                 step1Next.innerHTML = (dad ? 'Continue to site photos' : 'Continue to evidences')
                     + ' <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
             }
             if (submitSubtitle) {
                 submitSubtitle.textContent = dad
-                    ? 'Daily attendance: GPS is stamped when you scan the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
+                    ? 'Daily attendance: GPS is stamped when you upload the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
                     : incident
-                      ? 'Incident report: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
-                      : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
+                      ? 'Incident report: upload the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
+                      : 'Upload your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
             }
             if (!usesOcrPreview() && ocrPreview) {
                 ocrPreview.hidden = true;
             }
             syncDailyActivityUi();
+            syncScannerActionsUi();
+        }
+
+        function syncScannerActionsUi() {
+            var show = selectedReportType() !== '' && !isDailyActivityMode();
+            var hasCapture = scanner && scanner.classList.contains('has-capture');
+            if (scannerActions) {
+                scannerActions.hidden = !show;
+            }
+            if (scanRetakeBtn) {
+                scanRetakeBtn.hidden = !show || !hasCapture;
+            }
+            if (step1Next) {
+                step1Next.hidden = !show;
+            }
+            if (hint && !isDailyActivityMode()) {
+                if (!show) {
+                    hint.textContent = 'Select a report type, then upload your filled form.';
+                } else if (!hasCapture) {
+                    hint.textContent = 'Tap Upload report to add your filled form.';
+                }
+            }
         }
 
         function clearDailyActivityPhotos() {
@@ -1015,7 +1034,6 @@ function guard_hub_scripts(): void
             });
             if (da) {
                 goStep(1);
-                stopCamera();
             }
             if (dailySubmitBtn) dailySubmitBtn.hidden = !shouldShowDailySubmit();
             syncDailyActivityEventSummary();
@@ -1362,9 +1380,9 @@ function guard_hub_scripts(): void
         }
 
         function updateLocationUi(kind, lat, lng, accuracy, label, statusText) {
-            var coordsEl = kind === 'sheet' ? sheetLocCoords : evidenceLocCoords;
-            var addressEl = kind === 'sheet' ? sheetLocAddress : evidenceLocAddress;
-            var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
+            var coordsEl = kind === 'sheet' ? null : evidenceLocCoords;
+            var addressEl = kind === 'sheet' ? null : evidenceLocAddress;
+            var statusEl = kind === 'sheet' ? null : evidenceLocStatus;
             var latIn = kind === 'sheet' ? sheetLatInput : evidenceLatInput;
             var lngIn = kind === 'sheet' ? sheetLngInput : evidenceLngInput;
             var accIn = kind === 'sheet' ? sheetAccInput : evidenceAccInput;
@@ -1420,11 +1438,15 @@ function guard_hub_scripts(): void
 
         function stampLocation(kind) {
             if (!navigator.geolocation) {
-                var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
-                if (statusEl) statusEl.textContent = 'GPS not supported on this device.';
+                var statusEl = kind === 'sheet' ? null : evidenceLocStatus;
+                if (kind === 'sheet') {
+                    window.guardShowToast('GPS not supported on this device.', 'error');
+                } else if (statusEl) {
+                    statusEl.textContent = 'GPS not supported on this device.';
+                }
                 return;
             }
-            var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
+            var statusEl = kind === 'sheet' ? null : evidenceLocStatus;
             var pending = kind === 'sheet'
                 ? 'Acquiring GPS for sheet location (wait outdoors if possible)…'
                 : 'Acquiring GPS at the site (wait outdoors if possible)…';
@@ -1459,10 +1481,13 @@ function guard_hub_scripts(): void
                     });
                 })
                 .catch(function (err) {
-                    if (statusEl) {
-                        statusEl.textContent = err && err.code === 1
-                            ? 'Location denied. Enable GPS in browser settings.'
-                            : 'Could not acquire GPS. Move outdoors, wait a few seconds, and tap stamp again.';
+                    var msg = err && err.code === 1
+                        ? 'Location denied. Enable GPS in browser settings.'
+                        : 'Could not acquire GPS. Move outdoors, wait a few seconds, and try again.';
+                    if (kind === 'sheet') {
+                        window.guardShowToast(msg, 'error');
+                    } else if (statusEl) {
+                        statusEl.textContent = msg;
                     }
                 });
         }
@@ -1479,64 +1504,8 @@ function guard_hub_scripts(): void
         }
 
         var scanner = qs('[data-guard-scanner]', form);
-        var video = qs('[data-guard-scanner-video]', form);
         var preview = qs('[data-guard-scanner-preview]', form);
         var hint = qs('[data-guard-scanner-hint]', form);
-        var torchBtn = qs('[data-guard-scanner-torch]', form);
-        var stream = null;
-        var torchOn = false;
-        var torchSupported = false;
-
-        function getVideoTrack() {
-            if (!stream) {
-                return null;
-            }
-            var tracks = stream.getVideoTracks();
-            return tracks.length ? tracks[0] : null;
-        }
-
-        function syncTorchButton() {
-            if (!torchBtn) {
-                return;
-            }
-            var show = torchSupported && stream && scanner
-                && scanner.classList.contains('is-live')
-                && !scanner.classList.contains('has-capture');
-            torchBtn.hidden = !show;
-            torchBtn.disabled = !show;
-            torchBtn.classList.toggle('is-on', torchOn);
-            torchBtn.setAttribute('aria-pressed', torchOn ? 'true' : 'false');
-            torchBtn.setAttribute('aria-label', torchOn ? 'Turn flashlight off' : 'Turn flashlight on');
-        }
-
-        function detectTorchSupport(track) {
-            if (!track || typeof track.getCapabilities !== 'function') {
-                return false;
-            }
-            var caps = track.getCapabilities();
-            return caps && caps.torch === true;
-        }
-
-        function setTorch(enabled) {
-            var track = getVideoTrack();
-            if (!track || !torchSupported) {
-                return Promise.resolve(false);
-            }
-            var constraints = { advanced: [{ torch: enabled }] };
-            return track.applyConstraints(constraints).then(function () {
-                torchOn = enabled;
-                syncTorchButton();
-                return true;
-            }).catch(function () {
-                return track.applyConstraints({ torch: enabled }).then(function () {
-                    torchOn = enabled;
-                    syncTorchButton();
-                    return true;
-                }).catch(function () {
-                    return false;
-                });
-            });
-        }
 
         function goStep(n) {
             current = n;
@@ -1581,193 +1550,29 @@ function guard_hub_scripts(): void
             });
         }
 
-        function isMobileScanner() {
-            return window.matchMedia('(max-width: 639px)').matches;
-        }
-
-        function getCameraVideoConstraints() {
-            if (isMobileScanner()) {
-                return {
-                    facingMode: 'environment',
-                    width: { ideal: 1080 },
-                    height: { ideal: 1920 },
-                    aspectRatio: { ideal: 9 / 16 }
-                };
-            }
-            return { facingMode: 'environment' };
-        }
-
-        function isScannerFullscreen() {
-            return document.body.classList.contains('guard-scan-fullscreen');
-        }
-
-        function setScannerFullscreen(on) {
-            document.body.classList.toggle('guard-scan-fullscreen', !!on);
-        }
-
-        function layoutScannerFromVideo() {
-            if (!scanner) {
+        function layoutScannerFromPreview() {
+            if (!scanner || !preview) {
                 return;
             }
-            if (scanner.classList.contains('is-live') && isScannerFullscreen()) {
-                scanner.style.aspectRatio = '';
-                return;
-            }
-            if (preview && scanner.classList.contains('has-capture') && preview.naturalWidth && preview.naturalHeight) {
+            if (scanner.classList.contains('has-capture') && preview.naturalWidth && preview.naturalHeight) {
                 scanner.style.aspectRatio = preview.naturalWidth + ' / ' + preview.naturalHeight;
                 return;
-            }
-            if (video && video.videoWidth && video.videoHeight) {
-                scanner.style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
-            }
-        }
-
-        function bindScannerLayoutEvents() {
-            if (!video || video._guardLayoutBound) {
-                return;
-            }
-            video._guardLayoutBound = true;
-            video.addEventListener('loadedmetadata', layoutScannerFromVideo);
-            if (preview) {
-                preview.addEventListener('load', layoutScannerFromVideo);
-            }
-            window.addEventListener('resize', layoutScannerFromVideo);
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', layoutScannerFromVideo);
-            }
-        }
-
-        function stopCamera() {
-            torchOn = false;
-            torchSupported = false;
-            syncTorchButton();
-            if (stream) {
-                stream.getTracks().forEach(function (t) { t.stop(); });
-                stream = null;
             }
             if (scanner) {
                 scanner.style.aspectRatio = '';
             }
-            setScannerFullscreen(false);
         }
 
-        function startCamera() {
-            bindScannerLayoutEvents();
-            if (!navigator.mediaDevices || !video) {
-                return Promise.reject(new Error('no-camera'));
-            }
-            stopCamera();
-            return navigator.mediaDevices.getUserMedia({
-                video: getCameraVideoConstraints(),
-                audio: false
-            })
-                .then(function (s) {
-                    stream = s;
-                    video.srcObject = s;
-                    video.playsInline = true;
-                    var track = getVideoTrack();
-                    torchSupported = detectTorchSupport(track);
-                    torchOn = false;
-                    syncTorchButton();
-                    return video.play();
-                })
-                .then(function () {
-                    layoutScannerFromVideo();
-                })
-                .catch(function () {
-                    torchSupported = false;
-                    syncTorchButton();
-                    if (hint) hint.textContent = 'Camera unavailable — use upload instead.';
-                    throw new Error('camera-failed');
-                });
-        }
-
-        function runCaptureCountdown() {
-            if (!scanner || !video) {
+        function bindScannerLayoutEvents() {
+            if (!preview || preview._guardLayoutBound) {
                 return;
             }
-            if (!video.videoWidth) {
-                window.guardShowToast('Camera not ready. Try again.', 'error');
-                return;
+            preview._guardLayoutBound = true;
+            preview.addEventListener('load', layoutScannerFromPreview);
+            window.addEventListener('resize', layoutScannerFromPreview);
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', layoutScannerFromPreview);
             }
-            scanner.classList.add('is-capturing');
-            var count = 3;
-            if (hint) hint.textContent = 'Align document inside frame…';
-            var tick = setInterval(function () {
-                if (hint) hint.textContent = 'Capturing in ' + count + 's…';
-                count--;
-                if (count < 0) {
-                    clearInterval(tick);
-                    scanner.classList.remove('is-capturing');
-                    var canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
-                    canvas.toBlob(function (blob) {
-                        if (!blob) return;
-                        reportFile = new File([blob], 'scan-' + Date.now() + '.jpg', { type: 'image/jpeg' });
-                        if (preview) {
-                            preview.src = URL.createObjectURL(blob);
-                            preview.onload = layoutScannerFromVideo;
-                            layoutScannerFromVideo();
-                        }
-                        scanner.classList.remove('is-live');
-                        setScannerFullscreen(false);
-                        scanner.classList.add('has-capture');
-                        if (hint) hint.textContent = isDadMode() ? 'Sheet captured. Reading handwriting…' : 'Report captured. Continue to evidences.';
-                        syncTorchButton();
-                        stopCamera();
-                        runOcrPreview();
-                        syncDadSheetPreview();
-                        if (isDadMode()) stampLocation('sheet');
-                    }, 'image/jpeg', 0.88);
-                }
-            }, 700);
-        }
-
-        function openSmartScan() {
-            if (!scanner) {
-                return;
-            }
-            scanner.classList.remove('has-capture');
-            scanner.classList.add('is-live');
-            setScannerFullscreen(true);
-            if (hint) hint.textContent = 'Starting camera…';
-            if (stream && video.videoWidth) {
-                runCaptureCountdown();
-                return;
-            }
-            startCamera()
-                .then(function () {
-                    runCaptureCountdown();
-                })
-                .catch(function () {
-                    scanner.classList.remove('is-live');
-                    setScannerFullscreen(false);
-                    window.guardShowToast('Camera unavailable — use upload instead.', 'error');
-                    if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
-                });
-        }
-
-        if (torchBtn) {
-            torchBtn.addEventListener('click', function () {
-                if (!torchSupported || !stream) {
-                    window.guardShowToast('Flashlight is not available on this device.', 'error');
-                    return;
-                }
-                setTorch(!torchOn).then(function (ok) {
-                    if (!ok) {
-                        window.guardShowToast('Could not toggle flashlight.', 'error');
-                    }
-                });
-            });
-        }
-
-        var captureBtn = qs('[data-guard-scan-capture]', form);
-        if (captureBtn && scanner) {
-            captureBtn.addEventListener('click', function () {
-                openSmartScan();
-            });
         }
 
         var uploadReport = qs('[data-guard-report-upload]', form);
@@ -1778,37 +1583,38 @@ function guard_hub_scripts(): void
                 reportFile = f;
                 if (preview && scanner) {
                     preview.src = URL.createObjectURL(f);
-                    scanner.classList.remove('is-live');
                     scanner.classList.add('has-capture');
-                    preview.onload = layoutScannerFromVideo;
-                    layoutScannerFromVideo();
+                    preview.onload = layoutScannerFromPreview;
+                    layoutScannerFromPreview();
                 }
-                if (hint) hint.textContent = 'File ready: ' + f.name;
-                stopCamera();
+                if (hint) {
+                    hint.textContent = isDadMode()
+                        ? 'Sheet uploaded. Reading handwriting…'
+                        : 'Report uploaded. Continue to evidences.';
+                }
+                syncScannerActionsUi();
                 runOcrPreview();
                 syncDadSheetPreview();
                 if (isDadMode()) stampLocation('sheet');
             });
         }
 
-        var retake = qs('[data-guard-scan-retake]', form);
-        if (retake) {
-            retake.addEventListener('click', function () {
+        if (scanRetakeBtn) {
+            scanRetakeBtn.addEventListener('click', function () {
                 reportFile = null;
                 if (scanner) {
-                    scanner.classList.remove('has-capture', 'is-live', 'is-capturing');
+                    scanner.classList.remove('has-capture', 'is-capturing');
+                    scanner.style.aspectRatio = '';
                 }
-                setScannerFullscreen(false);
                 if (preview) preview.removeAttribute('src');
-                stopCamera();
-                if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
+                if (uploadReport) uploadReport.value = '';
                 ocrDone = false;
                 sheetLocationFix = null;
                 if (ocrPreview) ocrPreview.hidden = true;
                 if (ocrText) ocrText.textContent = '';
                 if (dadSheetPreview) dadSheetPreview.hidden = true;
-                if (sheetLocPanel) sheetLocPanel.hidden = true;
-                updateLocationUi('sheet', null, null, null, '', 'Stamped when you capture or upload the attendance sheet.');
+                updateLocationUi('sheet', null, null, null, '', '');
+                syncScannerActionsUi();
             });
         }
 
@@ -1997,7 +1803,7 @@ function guard_hub_scripts(): void
                         return;
                     }
                     if (!reportFile) {
-                        window.guardShowToast('Add a report scan or upload first.', 'error');
+                        window.guardShowToast('Upload your filled report first.', 'error');
                         return;
                     }
                     if (isDadMode() && ocrBusy) {
@@ -2014,9 +1820,6 @@ function guard_hub_scripts(): void
                     return;
                 }
                 goStep(target);
-                if (target !== 1) {
-                    stopCamera();
-                }
                 if (target === 3) syncReportTypeSummary();
             });
         });
@@ -2109,10 +1912,10 @@ function guard_hub_scripts(): void
                         renderEvidence();
                         form.reset();
                         if (scanner) {
-                            scanner.classList.remove('has-capture', 'is-live', 'is-capturing');
+                            scanner.classList.remove('has-capture', 'is-capturing');
+                            scanner.style.aspectRatio = '';
                         }
-                        setScannerFullscreen(false);
-                        if (hint) hint.textContent = 'Tap Smart scan to open the camera.';
+                        syncScannerActionsUi();
                         goStep(1);
                         setTimeout(function () {
                             window.location.href = data.redirect || 'submit-report.php?view=history';

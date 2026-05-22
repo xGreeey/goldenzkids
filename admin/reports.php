@@ -24,14 +24,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     if ($action === 'update_incident') {
         $id = trim((string) ($_POST['incident_id'] ?? ''));
+        $editHistoryIndex = trim((string) ($_POST['edit_history_index'] ?? ''));
+        $historyRow = $_POST['history_row'] ?? [];
+        if (!is_array($historyRow)) {
+            $historyRow = [];
+        }
+        $newRow = is_array($historyRow['new'] ?? null) ? $historyRow['new'] : null;
+        $newRowError = $newRow !== null ? admin_incident_validate_new_history_row($newRow) : null;
+        if ($newRowError !== null) {
+            $qs = $id !== '' ? '?incident=' . rawurlencode($id) . '&mode=edit' : '';
+            redirect_with_alert($newRowError, 'reports.php' . $qs, 'warning');
+        }
+
         $updated = admin_incident_update($id, [
-            'category' => (string) ($_POST['category'] ?? ''),
+            'progression_only' => true,
             'status' => (string) ($_POST['status'] ?? ''),
-            'incident_type' => (string) ($_POST['incident_type'] ?? ''),
-            'site' => (string) ($_POST['site'] ?? ''),
-            'severity' => (string) ($_POST['severity'] ?? ''),
-            'summary' => (string) ($_POST['summary'] ?? ''),
-            'ops_note' => (string) ($_POST['ops_note'] ?? ''),
+            'edit_history_index' => $editHistoryIndex,
+            'history_row' => $historyRow,
         ], $actorId);
 
         if ($updated === null) {
@@ -39,8 +48,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         $ref = (string) ($updated['ref'] ?? $id);
+        $message = $historyRow !== []
+            ? 'Incident ' . $ref . ': operation flow saved.'
+            : ($editHistoryIndex !== ''
+                ? 'Incident ' . $ref . ': operations response updated.'
+                : 'Incident ' . $ref . ' saved.');
         redirect_with_alert(
-            'Incident ' . $ref . ' saved. Status history updated.',
+            $message,
             'reports.php?incident=' . rawurlencode($id) . '&mode=view'
         );
     }
@@ -87,10 +101,11 @@ foreach ($statusDefinitions as $slug => $def) {
 $statusTabFromQuery = trim((string) ($_GET['status'] ?? ''));
 $validStatusTabs = ['all', ...admin_incident_status_slugs()];
 $initialStatusTab = in_array($statusTabFromQuery, $validStatusTabs, true) ? $statusTabFromQuery : '';
-$sanctionsReference = admin_incident_sanctions_reference();
-$workflowTypeCount = count($sanctionsReference);
+$guardGuideWorkflowRows = admin_incident_guard_guide_workflow_rows();
+$workflowTypeCount = count($guardGuideWorkflowRows);
 $guideReferenceSectionCount = admin_incident_guard_operations_guide_section_count();
 $guideSearchItemCount = $workflowTypeCount + $guideReferenceSectionCount;
+$incidentTypesCatalogCount = admin_incident_types_catalog_count();
 $adminNavActive = 'reports';
 
 /**
@@ -212,9 +227,13 @@ function admin_reports_row_attrs(array $report): string
                                         <i class="fa-solid fa-file-export reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
-                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-guard-guide-open" title="Guard guide — workflow and status reference" aria-haspopup="dialog" aria-controls="reports-guard-guide-modal">
                                         <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Guard guide</span>
+                                    </button>
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-incident-types-open" title="Incident types — severity and filing reference" aria-haspopup="dialog" aria-controls="reports-incident-types-modal">
+                                        <i class="fa-solid fa-list-check reports-btn__icon" aria-hidden="true"></i>
+                                        <span class="reports-btn__text">Incident types</span>
                                     </button>
                                 </div>
                             </div>
@@ -424,7 +443,7 @@ function admin_reports_row_attrs(array $report): string
                     <div id="modal-status-badge-wrap" class="reports-modal__status">
                         <?= $openIncident ? admin_incident_status_badge_html($openIncident) : '<span class="reports-badge">—</span>' ?>
                     </div>
-        </div>
+                </div>
             </div>
             <button type="button" class="reports-modal__close" id="reports-modal-close" aria-label="Close dialog">&times;</button>
         </header>
@@ -433,110 +452,54 @@ function admin_reports_row_attrs(array $report): string
             <div class="reports-modal__body-scroll">
                 <div class="reports-modal-form">
                     <div class="reports-modal-form__blocks">
-                    <div id="modal-panel-view" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide<?= $drawerMode === 'view' ? ' is-active' : '' ?>"<?= $drawerMode === 'view' ? '' : ' hidden' ?>>
-                        <div class="reports-detail-groups reports-detail-groups--modal" id="modal-view-details">
+                    <div id="modal-panel-view" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active">
+                        <div id="modal-view-details" class="reports-modal-view-details">
                             <?php if ($openIncident): ?>
                             <?= admin_incident_modal_details_html($openIncident) ?>
                             <?php endif; ?>
                         </div>
                     </div>
 
-                    <div id="modal-panel-edit" class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide<?= $drawerMode === 'edit' ? ' is-active' : '' ?>"<?= $drawerMode === 'edit' ? '' : ' hidden' ?>>
-                        <header class="reports-modal-form__section-header">
-                            <h3 id="modal-edit-heading" class="reports-modal-form__section-title">Edit report</h3>
-                        </header>
-                        <form method="POST" class="reports-edit-form" id="reports-edit-form"<?= $openIncident === null ? ' hidden' : '' ?>>
-                <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="update_incident">
-                            <input type="hidden" name="incident_id" id="edit-incident-id" value="<?= $openIncident ? e((string) $openIncident['id']) : '' ?>">
-
-                            <div class="reports-form-fields">
-                                <div class="reports-form-group" role="group" aria-label="Status and classification">
-                                    <div class="reports-form-row">
-                                        <div class="reports-form-field">
-                                            <label for="edit-status">Status</label>
-                                            <select id="edit-status" name="status" required aria-describedby="edit-status-hint">
-                                                <?php foreach ($statusDefinitions as $val => $def): ?>
-                                                <option value="<?= e($val) ?>" title="<?= e($def['description']) ?>"><?= e($def['label']) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <p id="edit-status-hint" class="reports-field-hint"><?= e(admin_incident_status_edit_hint()) ?></p>
-                                        </div>
-                                        <div class="reports-form-field">
-                                            <label for="edit-category">Report scope</label>
-                                            <select id="edit-category" name="category" required>
-                                                <?php foreach (admin_incident_category_options() as $slug => $label): ?>
-                                                <option value="<?= e($slug) ?>" title="<?= e(admin_incident_category_description($slug)) ?>"><?= e($label) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="reports-form-row">
-                                        <div class="reports-form-field">
-                                            <label for="edit-severity">Severity</label>
-                                            <select id="edit-severity" name="severity" required>
-                                                <?php foreach (admin_incident_severity_levels() as $level): ?>
-                                                <option value="<?= e($level) ?>"><?= e($level) ?></option>
-                                                <?php endforeach; ?>
-                    </select>
-                                        </div>
-                                        <div class="reports-form-field">
-                                            <label for="edit-site">Post</label>
-                                            <input type="text" id="edit-site" name="site" required maxlength="200" value="">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="reports-form-group" role="group" aria-label="Incident description">
-                                    <div class="reports-form-field">
-                                        <label for="edit-incident-type">Incident title</label>
-                                        <input type="text" id="edit-incident-type" name="incident_type" required maxlength="200" value="">
-                                    </div>
-                                    <div class="reports-form-field">
-                                        <label for="edit-summary">Report context / summary</label>
-                                        <textarea id="edit-summary" name="summary" rows="4" required maxlength="2000"></textarea>
-                                    </div>
-                                </div>
-                                <div class="reports-form-group" role="group" aria-label="Operations note">
-                                    <div class="reports-form-field">
-                                        <label for="edit-ops-note">Operations note <span class="reports-optional">(appended to history)</span></label>
-                                        <textarea id="edit-ops-note" name="ops_note" rows="3" maxlength="1000" placeholder="Reason for status change, follow-up, or archive note…"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                        <p class="reports-modal-placeholder" id="modal-edit-placeholder"<?= $openIncident !== null ? ' hidden' : '' ?>>Select a report from the table to edit.</p>
-                    </div>
                     </div>
 
                     <hr class="reports-modal-form__separator" aria-hidden="true">
 
-                    <section class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history" aria-labelledby="modal-history-heading">
+                    <form method="POST" class="reports-edit-form reports-progression-edit__form" id="reports-edit-form"<?= $openIncident === null ? ' hidden' : '' ?> aria-labelledby="modal-history-heading">
+                <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="update_incident">
+                        <input type="hidden" name="progression_only" value="1">
+                        <input type="hidden" name="incident_id" id="edit-incident-id" value="<?= $openIncident ? e((string) $openIncident['id']) : '' ?>">
+                        <input type="hidden" name="edit_history_index" id="edit-history-index" value="">
+
+                    <section id="modal-history-section" class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history<?= $drawerMode === 'edit' ? ' is-editing-progression' : '' ?>" aria-labelledby="modal-history-heading">
                         <header class="reports-modal-form__section-header reports-modal__history-intro">
                             <h3 id="modal-history-heading" class="reports-modal-form__section-title">
                                 <?= e(admin_incident_timeline_section_title()) ?>
                             </h3>
-                            <?php if (admin_incident_timeline_section_description() !== ''): ?>
-                            <p class="reports-modal-form__section-desc reports-modal__history-lead"><?= e(admin_incident_timeline_section_description()) ?></p>
-                            <?php endif; ?>
+                            <p class="reports-modal-form__section-desc reports-modal__history-lead" id="modal-history-view-desc"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>><?= e(admin_incident_timeline_section_description()) ?></p>
+                            <p class="reports-modal-form__section-desc reports-modal__history-lead" id="modal-history-edit-hint"<?= $drawerMode === 'edit' ? '' : ' hidden' ?>><?= e(admin_incident_progression_edit_intro()) ?></p>
                         </header>
                         <div id="modal-stepper" class="reports-timeline-host" role="region" aria-label="<?= e(admin_incident_timeline_section_title()) ?>">
                             <?php if ($openIncident): ?>
                                 <?= admin_incident_history_stepper_html(
                                     is_array($openIncident['history'] ?? null) ? $openIncident['history'] : [],
-                                    $openIncident
+                                    $openIncident,
+                                    $drawerMode === 'edit'
                                 ) ?>
                             <?php endif; ?>
                         </div>
                     </section>
+                    </form>
+                    <p class="reports-modal-placeholder" id="modal-edit-placeholder"<?= $openIncident !== null ? ' hidden' : '' ?>>Select a report from the table to update progression.</p>
                 </div>
             </div>
 
             <footer class="reports-modal__footer">
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
-                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?>>
+                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?> aria-controls="modal-history-section">
                             <i class="fa-solid fa-pen-to-square reports-btn__icon" aria-hidden="true"></i>
-                            <span class="reports-btn__text">Edit this report</span>
+                            <span class="reports-btn__text">Update progression</span>
                         </button>
                     </div>
                 </div>
@@ -544,10 +507,10 @@ function admin_reports_row_attrs(array $report): string
                     <div class="reports-button-set">
                         <button type="submit" class="reports-btn reports-btn--primary" form="reports-edit-form" id="modal-save-edit">
                             <i class="fa-solid fa-floppy-disk reports-btn__icon" aria-hidden="true"></i>
-                            <span class="reports-btn__text">Save changes</span>
+                            <span class="reports-btn__text" id="modal-save-edit-label">Save progression</span>
                         </button>
                         <button type="button" class="reports-btn reports-btn--secondary" id="modal-cancel-edit">
-                            <span class="reports-btn__text">Cancel</span>
+                            <span class="reports-btn__text" id="modal-cancel-edit-label">Cancel</span>
                         </button>
                     </div>
                 </div>
@@ -556,40 +519,96 @@ function admin_reports_row_attrs(array $report): string
     </div>
 </div>
 
-<div id="reports-sanctions-overlay" class="reports-modal-overlay reports-sanctions-overlay"
+<div id="reports-image-viewer" class="reports-image-viewer" role="dialog" aria-modal="true"
+     aria-label="Attachment preview" hidden>
+    <button type="button" class="reports-image-viewer__close" id="reports-image-viewer-close"
+            aria-label="Close preview">&times;</button>
+    <img id="reports-image-viewer-img" class="reports-image-viewer__img" alt="" decoding="async">
+</div>
+
+<select id="reports-status-options-template" hidden aria-hidden="true" tabindex="-1">
+    <?php foreach ($statusDefinitions as $val => $def): ?>
+    <option value="<?= e($val) ?>"><?= e($def['label']) ?></option>
+    <?php endforeach; ?>
+</select>
+
+<div id="reports-guard-guide-overlay" class="reports-modal-overlay reports-guard-guide-overlay"
      role="presentation" aria-hidden="true">
-    <div class="reports-modal reports-sanctions-modal reports-guide--simple" id="reports-sanctions-modal" role="dialog"
-         aria-modal="true" aria-labelledby="sanctions-modal-title">
+    <div class="reports-modal reports-guard-guide-modal reports-guide--simple" id="reports-guard-guide-modal" role="dialog"
+         aria-modal="true" aria-labelledby="reports-guard-guide-title">
         <header class="reports-modal__header">
             <div class="reports-modal__identity">
                 <span class="reports-modal__eyebrow">Incident report</span>
                 <div class="reports-modal__title-row">
-                    <h2 id="sanctions-modal-title" class="reports-modal__ref">Guard guide</h2>
+                    <h2 id="reports-guard-guide-title" class="reports-modal__ref">Guard guide</h2>
                 </div>
             </div>
-            <button type="button" class="reports-modal__close" id="reports-sanctions-close" aria-label="Close guard guide">&times;</button>
+            <button type="button" class="reports-modal__close" id="reports-guard-guide-close" aria-label="Close guard guide">&times;</button>
         </header>
 
         <div class="reports-modal__content">
-            <div class="reports-sanctions-modal__toolbar">
-                <div class="reports-guide-filters" id="reports-guide-filters" data-guide-filters-mode="search">
-                    <label for="guide-filter-search" class="reports-guide-filters__search-label">Search</label>
-                    <input type="search" id="guide-filter-search" class="reports-guide-filters__search-input"
+            <div class="reports-guard-guide-modal__toolbar">
+                <div class="reports-guide-filters" id="reports-guard-guide-filters" data-guide-filters-mode="search">
+                    <label for="reports-guard-guide-search" class="reports-guide-filters__search-label">Search</label>
+                    <input type="search" id="reports-guard-guide-search" class="reports-guide-filters__search-input"
                            placeholder="Search workflow or rules…" autocomplete="off"
-                           aria-describedby="guide-filter-count">
-                    <button type="button" class="reports-btn reports-btn--secondary reports-btn--sm" id="guide-filter-reset">Reset</button>
-                    <p id="guide-filter-count" class="reports-guide-filters__count" aria-live="polite">
-                        <span id="guide-filter-count-visible"><?= (int) $guideSearchItemCount ?></span>
-                        <span id="guide-filter-count-suffix"> topics</span>
+                           aria-describedby="reports-guard-guide-count">
+                    <button type="button" class="reports-btn reports-btn--secondary reports-btn--sm" id="reports-guard-guide-reset">Reset</button>
+                    <p id="reports-guard-guide-count" class="reports-guide-filters__count" aria-live="polite">
+                        <span id="reports-guard-guide-count-visible"><?= (int) $guideSearchItemCount ?></span>
+                        <span id="reports-guard-guide-count-suffix"> topics</span>
                     </p>
                 </div>
             </div>
 
             <div class="reports-modal__body-scroll">
-                <div class="reports-modal-form reports-sanctions-modal__form">
-                    <div class="reports-sanctions__body reports-sanctions__body--guide">
+                <div class="reports-modal-form reports-guard-guide-modal__form">
+                    <div class="reports-guard-guide__body">
                         <?= admin_incident_guard_operations_guide_html() ?>
-                        <p id="guide-search-empty" class="reports-guide-empty" role="status" hidden>
+                        <p id="reports-guard-guide-search-empty" class="reports-guide-empty" role="status" hidden>
+                            No matches. Try another search or reset.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="reports-incident-types-overlay" class="reports-modal-overlay reports-incident-types-overlay"
+     role="presentation" aria-hidden="true">
+    <div class="reports-modal reports-incident-types-modal reports-guide--simple" id="reports-incident-types-modal" role="dialog"
+         aria-modal="true" aria-labelledby="reports-incident-types-title">
+        <header class="reports-modal__header">
+            <div class="reports-modal__identity">
+                <span class="reports-modal__eyebrow">Incident report</span>
+                <div class="reports-modal__title-row">
+                    <h2 id="reports-incident-types-title" class="reports-modal__ref">Incident types</h2>
+                </div>
+            </div>
+            <button type="button" class="reports-modal__close" id="reports-incident-types-close" aria-label="Close incident types">&times;</button>
+        </header>
+
+        <div class="reports-modal__content">
+            <div class="reports-incident-types-modal__toolbar">
+                <div class="reports-guide-filters" id="reports-incident-types-filters" data-guide-filters-mode="search">
+                    <label for="reports-incident-types-search" class="reports-guide-filters__search-label">Search</label>
+                    <input type="search" id="reports-incident-types-search" class="reports-guide-filters__search-input"
+                           placeholder="Search incident type, severity, or filing basis…" autocomplete="off"
+                           aria-describedby="reports-incident-types-count">
+                    <button type="button" class="reports-btn reports-btn--secondary reports-btn--sm" id="reports-incident-types-reset">Reset</button>
+                    <p id="reports-incident-types-count" class="reports-guide-filters__count" aria-live="polite">
+                        <span id="reports-incident-types-count-visible"><?= (int) $incidentTypesCatalogCount ?></span>
+                        <span id="reports-incident-types-count-suffix"> types</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="reports-modal__body-scroll">
+                <div class="reports-modal-form reports-incident-types-modal__form">
+                    <div class="reports-incident-types-modal__body">
+                        <?= admin_incident_incident_types_catalog_html() ?>
+                        <p id="reports-incident-types-search-empty" class="reports-guide-empty" role="status" hidden>
                             No matches. Try another search or reset.
                         </p>
                     </div>

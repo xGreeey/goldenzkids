@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.text();
     }
 
-    var panelBodyOverlayIds = ['reportModal', 'imageViewer', 'reports-modal-overlay', 'reports-sanctions-overlay'];
+    var panelBodyOverlayIds = ['reportModal', 'imageViewer', 'reports-modal-overlay', 'reports-guard-guide-overlay', 'reports-incident-types-overlay', 'reports-image-viewer'];
 
     function syncPanelBodyOverlays(doc) {
         panelBodyOverlayIds.forEach(function (id) {

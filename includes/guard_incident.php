@@ -186,11 +186,25 @@ function guard_incident_create_submission(
         $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
     }
 
+    require_once __DIR__ . '/admin_incident_pipeline.php';
+
     $fields = guard_incident_fields_from_ocr($structured, $siteName);
+    $guardSubject = trim((string) ($structured['name'] ?? ''));
+    $classification = admin_incident_classify_from_content(
+        $fields['incident_description'],
+        $fields['action_taken'],
+        $guardSubject
+    );
+    $fields['incident_type'] = $classification['incident_type'];
+    $fields['category'] = $classification['category'];
+    $fields['severity'] = $classification['severity'];
+    $fields['summary'] = admin_incident_build_list_summary($classification, $guardSubject);
+
     $category = trim((string) ($payload['category'] ?? $fields['category']));
     if (!in_array($category, [GUARD_INCIDENT_CATEGORY_PER_POST, GUARD_INCIDENT_CATEGORY_OUTSIDE_POST], true)) {
-        $category = GUARD_INCIDENT_CATEGORY_PER_POST;
+        $category = admin_incident_category_normalize($category);
     }
+    $fields['category'] = $category;
 
     $lat = isset($payload['submit_latitude']) && $payload['submit_latitude'] !== '' ? (float) $payload['submit_latitude'] : null;
     $lng = isset($payload['submit_longitude']) && $payload['submit_longitude'] !== '' ? (float) $payload['submit_longitude'] : null;
@@ -200,13 +214,15 @@ function guard_incident_create_submission(
     $headName = guard_incident_head_guard_display_name($conn, $headGuardCompanyId);
     $reference = guard_incident_next_reference($conn);
     $submittedAt = date('Y-m-d H:i:s');
-    $history = [
-        [
-            'at' => date('j M Y, H:i'),
-            'event' => 'Submitted by head guard',
-            'note' => $label !== '' ? 'Location: ' . $label : 'Submitted via guard portal',
-        ],
-    ];
+    $at = date('j M Y, H:i');
+    $history = admin_incident_initial_operation_flow(
+        $fields,
+        $classification,
+        $headName,
+        $guardSubject,
+        $label,
+        $at
+    );
 
     $ok = db_execute(
         $conn,
@@ -279,6 +295,11 @@ function guard_incident_map_row_for_admin(array $row): ?array
     $submittedAt = (string) ($row['submitted_at'] ?? '');
     $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
 
+    $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
+    $media = $conn instanceof PDO
+        ? guard_incident_resolve_submission_media($conn, $row)
+        : ['scan_url' => '', 'attachments' => [], 'has_attachments' => false];
+
     return [
         'id' => 'inc-' . $incId,
         'inc_id' => $incId,
@@ -291,13 +312,297 @@ function guard_incident_map_row_for_admin(array $row): ?array
         'head_guard_name' => (string) ($row['head_guard_name'] ?? ''),
         'status' => (string) ($row['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING),
         'summary' => (string) ($row['summary'] ?? ''),
+        'incident_description' => (string) ($row['incident_description'] ?? ''),
+        'action_taken' => (string) ($row['action_taken'] ?? ''),
+        'person_involved' => admin_incident_person_from_report([
+            'person_involved' => '',
+            'history' => $history,
+        ]),
         'submitted_at' => substr($submittedAt, 0, 10),
         'submitted_display' => $submittedAt !== '' ? date('j M Y, H:i', strtotime($submittedAt) ?: time()) : '',
         'updated_at' => substr($updatedAt, 0, 10),
         'updated_display' => $updatedAt !== '' ? date('j M Y, H:i', strtotime($updatedAt) ?: time()) : '',
         'history' => $history,
+        'scan_url' => $media['scan_url'],
+        'attachments' => $media['attachments'],
+        'has_attachments' => $media['has_attachments'],
         '_source' => 'database',
     ];
+}
+
+function guard_incident_scan_url(int $incId): string
+{
+    return app_url('admin/api/incident-scan.php') . '?inc=' . $incId;
+}
+
+function guard_incident_evidence_url(int $incId, int $evidenceId): string
+{
+    return app_url('admin/api/incident-evidence.php') . '?inc=' . $incId . '&ev=' . $evidenceId;
+}
+
+/**
+ * @param array<string, mixed> $row guard_incident_submissions row
+ */
+function guard_incident_resolve_scan_absolute_path(PDO $conn, array $row): ?string
+{
+    require_once __DIR__ . '/guard_dad.php';
+
+    global $master_key, $cipher_algo;
+
+    $ivB64 = (string) ($row['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        return null;
+    }
+
+    $pathCipher = trim((string) ($row['scan_path_cipher'] ?? ''));
+    if ($pathCipher !== '') {
+        $rel = openssl_decrypt($pathCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+        if ($rel !== '') {
+            $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+            if (guard_dad_is_safe_guard_upload_path($abs)) {
+                return realpath($abs) ?: null;
+            }
+        }
+    }
+
+    $dgdId = (int) ($row['dgd_report_number'] ?? 0);
+    if ($dgdId <= 0) {
+        return null;
+    }
+
+    $dgd = db_fetch_one($conn, 'SELECT Template_Path, iv FROM dgd WHERE Report_Number = ? LIMIT 1', 'i', [$dgdId]);
+    if ($dgd === null) {
+        return null;
+    }
+
+    $dgdIv = base64_decode((string) ($dgd['iv'] ?? ''), true) ?: '';
+    if ($dgdIv === '') {
+        return null;
+    }
+
+    $rel = openssl_decrypt((string) ($dgd['Template_Path'] ?? ''), (string) $cipher_algo, (string) $master_key, 0, $dgdIv) ?: '';
+    if ($rel === '') {
+        return null;
+    }
+
+    $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+    if (!guard_dad_is_safe_guard_upload_path($abs)) {
+        return null;
+    }
+
+    return realpath($abs) ?: null;
+}
+
+/**
+ * @return list<array{type: string, label: string, url: string, id?: int}>
+ */
+function guard_incident_fetch_evidence_attachments(PDO $conn, array $row): array
+{
+    if (!db_table_exists($conn, 'guard_report_evidence')) {
+        return [];
+    }
+
+    $incId = (int) ($row['inc_id'] ?? 0);
+    $dgdReportNumber = (int) ($row['dgd_report_number'] ?? 0);
+    if ($incId <= 0 || $dgdReportNumber <= 0) {
+        return [];
+    }
+
+    $stmt = db_query(
+        $conn,
+        'SELECT id FROM guard_report_evidence WHERE report_number = ? ORDER BY id ASC',
+        'i',
+        [$dgdReportNumber]
+    );
+    if ($stmt === false) {
+        return [];
+    }
+
+    $out = [];
+    $n = 0;
+    while ($evRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!is_array($evRow)) {
+            continue;
+        }
+        $evId = (int) ($evRow['id'] ?? 0);
+        if ($evId <= 0) {
+            continue;
+        }
+        ++$n;
+        $out[] = [
+            'type' => 'evidence',
+            'label' => $n === 1 ? 'Evidence photo' : 'Evidence photo ' . $n,
+            'url' => guard_incident_evidence_url($incId, $evId),
+            'id' => $evId,
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * @param array<string, mixed> $row
+ * @return array{scan_url: string, attachments: list<array{type: string, label: string, url: string, id?: int}>, has_attachments: bool}
+ */
+function guard_incident_resolve_submission_media(PDO $conn, array $row): array
+{
+    $incId = (int) ($row['inc_id'] ?? 0);
+    $scanUrl = '';
+    $attachments = [];
+
+    if ($incId > 0 && guard_incident_resolve_scan_absolute_path($conn, $row) !== null) {
+        $scanUrl = guard_incident_scan_url($incId);
+        $attachments[] = [
+            'type' => 'scan',
+            'label' => 'Incident form',
+            'url' => $scanUrl,
+        ];
+    }
+
+    foreach (guard_incident_fetch_evidence_attachments($conn, $row) as $evidence) {
+        $attachments[] = $evidence;
+    }
+
+    return [
+        'scan_url' => $scanUrl,
+        'attachments' => $attachments,
+        'has_attachments' => $attachments !== [],
+    ];
+}
+
+function guard_incident_stream_scan(PDO $conn, int $incId): void
+{
+    require_once __DIR__ . '/guard_dad.php';
+
+    if ($incId <= 0) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Invalid request.';
+        exit;
+    }
+
+    $row = db_fetch_one($conn, 'SELECT * FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1', 'i', [$incId]);
+    if ($row === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Scan not found.';
+        exit;
+    }
+
+    $absolutePath = guard_incident_resolve_scan_absolute_path($conn, $row);
+    if ($absolutePath === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Scan not found.';
+        exit;
+    }
+
+    $mime = guard_dad_mime_for_path($absolutePath);
+    $fileSize = filesize($absolutePath);
+    if ($fileSize === false) {
+        http_response_code(500);
+        exit;
+    }
+
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . (string) $fileSize);
+    header('Cache-Control: private, max-age=300');
+    header('X-Content-Type-Options: nosniff');
+    readfile($absolutePath);
+    exit;
+}
+
+function guard_incident_stream_evidence(PDO $conn, int $incId, int $evidenceId): void
+{
+    require_once __DIR__ . '/guard_dad.php';
+
+    global $master_key, $cipher_algo;
+
+    if ($incId <= 0 || $evidenceId <= 0) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Invalid request.';
+        exit;
+    }
+
+    $incRow = db_fetch_one($conn, 'SELECT * FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1', 'i', [$incId]);
+    if ($incRow === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Incident not found.';
+        exit;
+    }
+
+    $dgdReportNumber = (int) ($incRow['dgd_report_number'] ?? 0);
+    if ($dgdReportNumber <= 0) {
+        http_response_code(404);
+        exit;
+    }
+
+    $evRow = db_fetch_one(
+        $conn,
+        'SELECT id, file_name FROM guard_report_evidence WHERE id = ? AND report_number = ? LIMIT 1',
+        'ii',
+        [$evidenceId, $dgdReportNumber]
+    );
+    if ($evRow === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Evidence not found.';
+        exit;
+    }
+
+    $ivB64 = (string) ($incRow['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        http_response_code(500);
+        exit;
+    }
+
+    $pathCipher = trim((string) ($evRow['file_name'] ?? ''));
+    $rel = openssl_decrypt($pathCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+    if ($rel === '') {
+        http_response_code(404);
+        exit;
+    }
+
+    $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+    if (!guard_dad_is_safe_guard_upload_path($abs) || !is_file($abs)) {
+        http_response_code(404);
+        exit;
+    }
+
+    $encrypted = file_get_contents($abs);
+    if ($encrypted === false || $encrypted === '') {
+        http_response_code(404);
+        exit;
+    }
+
+    $bytes = openssl_decrypt($encrypted, (string) $cipher_algo, (string) $master_key, 0, $iv);
+    if ($bytes === false || $bytes === '') {
+        http_response_code(500);
+        exit;
+    }
+
+    $mime = 'image/jpeg';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $detected = finfo_buffer($finfo, $bytes);
+            finfo_close($finfo);
+            if (is_string($detected) && str_starts_with($detected, 'image/')) {
+                $mime = $detected;
+            }
+        }
+    }
+
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . (string) strlen($bytes));
+    header('Cache-Control: private, max-age=300');
+    header('X-Content-Type-Options: nosniff');
+    echo $bytes;
+    exit;
 }
 
 /** @return list<array<string, mixed>> */
@@ -360,32 +665,141 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
     }
 
     $oldStatus = (string) $mapped['status'];
-    $category = trim((string) ($input['category'] ?? $mapped['category']));
-    if (!in_array($category, [GUARD_INCIDENT_CATEGORY_PER_POST, GUARD_INCIDENT_CATEGORY_OUTSIDE_POST], true)) {
-        $category = (string) $mapped['category'];
+    $progressionOnly = !empty($input['progression_only']);
+
+    $category = (string) $mapped['category'];
+    $incidentType = (string) $mapped['incident_type'];
+    $site = (string) $mapped['site'];
+    $summary = (string) $mapped['summary'];
+    $severity = (string) ($mapped['severity'] ?? 'Medium');
+
+    if (!$progressionOnly) {
+        $category = trim((string) ($input['category'] ?? $category));
+        if (!in_array($category, [GUARD_INCIDENT_CATEGORY_PER_POST, GUARD_INCIDENT_CATEGORY_OUTSIDE_POST], true)) {
+            $category = (string) $mapped['category'];
+        }
+        $incidentType = trim((string) ($input['incident_type'] ?? $incidentType));
+        $site = trim((string) ($input['site'] ?? $site));
+        $summary = trim((string) ($input['summary'] ?? $summary));
+        $severity = trim((string) ($input['severity'] ?? $severity));
+        if (!in_array($severity, ['High', 'Medium', 'Low'], true)) {
+            $severity = (string) ($mapped['severity'] ?? 'Medium');
+        }
     }
+
     $status = (string) ($input['status'] ?? $oldStatus);
     if (!admin_incident_status_is_valid($status)) {
         $status = $oldStatus;
     }
 
-    $incidentType = trim((string) ($input['incident_type'] ?? $mapped['incident_type']));
-    $site = trim((string) ($input['site'] ?? $mapped['site']));
-    $summary = trim((string) ($input['summary'] ?? $mapped['summary']));
-    $severity = trim((string) ($input['severity'] ?? $mapped['severity']));
-    if (!in_array($severity, ['High', 'Medium', 'Low'], true)) {
-        $severity = 'Medium';
+    $editHistoryIndex = trim((string) ($input['edit_history_index'] ?? ''));
+    $historyRows = is_array($input['history_row'] ?? null) ? $input['history_row'] : [];
+
+    if ($progressionOnly) {
+        require_once __DIR__ . '/admin_incident_pipeline.php';
+
+        $newRowInput = is_array($historyRows['new'] ?? null) ? $historyRows['new'] : null;
+        unset($historyRows['new']);
+
+        if ($historyRows !== []) {
+            $mapped = admin_incident_apply_history_rows_edit($mapped, $historyRows, $actorId);
+        }
+        if ($newRowInput !== null) {
+            $mapped = admin_incident_apply_history_new_row($mapped, $newRowInput, $actorId);
+        }
+
+        $status = (string) ($input['status'] ?? $mapped['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+        if (!admin_incident_status_is_valid($status)) {
+            $status = (string) ($mapped['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+        }
+        $statusBefore = (string) $mapped['status'];
+        if ($status !== $statusBefore) {
+            $mapped['status'] = $status;
+            $mapped = admin_incident_append_history(
+                $mapped,
+                'Registry: ' . admin_incident_status_label($status),
+                'Registry status updated.',
+                $actorId,
+                ['source' => 'admin', 'kind' => 'status']
+            );
+        }
+
+        $mapped = admin_incident_touch_updated($mapped);
+        $mapped['status'] = admin_incident_reconcile_status($mapped);
+        $status = (string) $mapped['status'];
+        $historyJson = json_encode($mapped['history'] ?? [], JSON_THROW_ON_ERROR);
+
+        $ok = db_execute(
+            $conn,
+            'UPDATE guard_incident_submissions SET status = ?, history_json = ?, updated_at = NOW() WHERE inc_id = ? LIMIT 1',
+            'ssi',
+            [$status, $historyJson, $incId]
+        );
+        if (!$ok) {
+            return null;
+        }
+
+        $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
+
+        return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
+    }
+
+    if ($editHistoryIndex !== '' && $progressionOnly) {
+        $updated = admin_incident_update_history_entry($mapped, [
+            'status' => $status,
+            'ops_note' => trim((string) ($input['ops_note'] ?? '')),
+            'edit_history_index' => $editHistoryIndex,
+        ], $actorId);
+        if ($updated === null) {
+            return null;
+        }
+        $historyJson = json_encode($updated['history'] ?? [], JSON_THROW_ON_ERROR);
+        $ok = db_execute(
+            $conn,
+            'UPDATE guard_incident_submissions SET status = ?, history_json = ?, updated_at = NOW() WHERE inc_id = ? LIMIT 1',
+            'ssi',
+            [(string) $updated['status'], $historyJson, $incId]
+        );
+        if (!$ok) {
+            return null;
+        }
+
+        $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
+
+        return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
     }
 
     $opsNote = trim((string) ($input['ops_note'] ?? ''));
+    require_once __DIR__ . '/admin_incident_pipeline.php';
+    $mapped = admin_incident_apply_progression_save($mapped, $input, $actorId);
+    $status = (string) $mapped['status'];
+    $statusChanged = $status !== $oldStatus;
+
+    if (!$statusChanged && $opsNote === '') {
+        $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
+
+        return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
+    }
+
     $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : [];
+    $note = $opsNote;
+    if ($note === '' && $statusChanged) {
+        $note = 'Registry status updated.';
+    }
+    if ($note === '') {
+        $note = 'Progression updated.';
+    }
     $history[] = [
         'at' => date('j M Y, H:i'),
-        'event' => $status !== $oldStatus ? 'Status: ' . admin_incident_status_label($status) : 'Updated by operations',
-        'note' => $opsNote !== '' ? $opsNote : 'Incident details revised by ' . $actorId . '.',
+        'source' => 'admin',
+        'kind' => $statusChanged ? 'status' : 'note',
+        'event' => $statusChanged ? 'Registry: ' . admin_incident_status_label($status) : 'Operations response',
+        'note' => $note,
         'actor' => $actorId,
     ];
     $mapped['history'] = $history;
+    $mapped['status'] = admin_incident_reconcile_status($mapped);
+    $status = (string) $mapped['status'];
 
     $historyJson = json_encode($mapped['history'] ?? [], JSON_THROW_ON_ERROR);
 
@@ -403,5 +817,7 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
         return null;
     }
 
-    return guard_incident_find_by_id($conn, 'inc-' . $incId);
+    $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
+
+    return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
 }

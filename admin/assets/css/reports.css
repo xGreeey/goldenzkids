@@ -5787,8 +5787,35 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
     max-width: 36rem;
 }
 
-.reports-war-panel .reports-field--assignment select {
+/* Post / head guard — native select must be restyled for light/dark (system UI ignores theme tokens). */
+.reports-war-panel .reports-toolbar select {
     width: 100%;
+    padding-right: 2.25rem;
+    color: var(--app-input-text, var(--report-text));
+    background-color: var(--app-input-bg, #fff);
+    border-color: var(--app-input-border, var(--app-border));
+    color-scheme: light;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--reports-select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    transition:
+        background-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease),
+        box-shadow 0.15s ease;
+}
+
+.reports-war-panel .reports-toolbar select:invalid {
+    color: var(--report-text-muted);
+}
+
+.reports-war-panel .reports-toolbar select option {
+    font-weight: 500;
+    background-color: var(--app-input-bg, #fff);
+    color: var(--app-input-text, var(--report-text));
 }
 
 .reports-war-panel .reports-toolbar-actions {
@@ -6013,12 +6040,14 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 body.page-activity-registry {
     --report-text: #1a222c;
     --report-text-muted: #4a5f73;
+    --reports-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     overflow-x: clip;
 }
 
 body.page-activity-registry:not(.light-mode) {
     --report-text: var(--app-ink-on-dark);
     --report-text-muted: var(--app-ink-muted-on-dark);
+    --reports-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 body.page-activity-registry .app-shell {
@@ -6146,11 +6175,25 @@ body.page-activity-registry:not(.light-mode) .reports-toolbar label {
     color: var(--report-text-muted);
 }
 
-body.page-activity-registry:not(.light-mode) .reports-toolbar input,
-body.page-activity-registry:not(.light-mode) .reports-toolbar select {
+body.page-activity-registry:not(.light-mode) .reports-toolbar input {
     background: var(--app-input-bg);
     color: var(--app-input-text);
     border-color: var(--app-input-border);
+}
+
+body.page-activity-registry:not(.light-mode) .reports-toolbar select {
+    background-color: var(--app-input-bg);
+    color: var(--app-input-text);
+    border-color: var(--app-input-border);
+}
+
+body.page-activity-registry:not(.light-mode) .reports-war-panel .reports-toolbar select {
+    color-scheme: dark;
+}
+
+body.page-activity-registry:not(.light-mode) .reports-war-panel .reports-toolbar select option {
+    background-color: var(--app-card-bg);
+    color: var(--app-input-text);
 }
 
 body.page-activity-registry:not(.light-mode) .reports-toolbar input::placeholder {

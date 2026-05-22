@@ -352,10 +352,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (
             !doc.getElementById('daily-activity-module')
             && !doc.getElementById('weekly-activity-module')
-            && window.__activityRegistryAbort
         ) {
-            window.__activityRegistryAbort.abort();
-            window.__activityRegistryAbort = null;
+            if (window.__activityRegistryAbort) {
+                window.__activityRegistryAbort.abort();
+                window.__activityRegistryAbort = null;
+            }
+            ['daily-activity-module', 'weekly-activity-module'].forEach(function (moduleId) {
+                var moduleEl = document.getElementById(moduleId);
+                if (moduleEl) {
+                    delete moduleEl.dataset.activityBound;
+                }
+            });
         }
         if (!doc.getElementById('reports-tbody')) {
             var reportsRoot = document.getElementById('reports-module');
@@ -618,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     main.addEventListener('click', function (event) {
         var link = event.target.closest('a[href]');
-        if (!link || link.closest('.sidebar-nav')) {
+        if (!link || link.closest('.sidebar-nav') || link.hasAttribute('data-action')) {
             return;
         }
         onPanelLinkClick(event, link);

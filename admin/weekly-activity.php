@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/admin_weekly_activity_reports.php';
+require_once APP_ROOT . '/includes/admin_activity_registry_ui.php';
 
 auth_require_permission('admin.reports.view');
 
@@ -73,7 +74,7 @@ $adminNavActive = 'weekly-activity';
 <?php readfile(__DIR__ . '/assets/css/reports.css'); ?>
     </style>
 </head>
-<body class="light-mode page-weekly-activity page-weekly-activity-reports page-activity-registry"
+<body class="light-mode page-weekly-activity page-weekly-activity-reports page-activity-registry<?= $openRecord !== null ? ' activity-registry-modal-open' : '' ?>"
       data-admin-nav="weekly-activity"
       data-open-weekly="<?= e($openId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
@@ -212,11 +213,12 @@ $adminNavActive = 'weekly-activity';
                                         <td class="reports-col-status"><?= admin_weekly_activity_status_badge_html($report) ?></td>
                                         <td class="reports-col-actions">
                                             <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $report['ref']) ?>">
-                                                <a href="weekly-activity.php?weekly=<?= rawurlencode((string) $report['id']) ?>&amp;mode=view"
-                                                   class="reports-action-btn"
-                                                   data-action="view"
-                                                   data-activity-id="<?= e((string) $report['id']) ?>"
-                                                   title="View summary"><?= admin_weekly_activity_action_icon('view') ?></a>
+                                                <button type="button"
+                                                        class="reports-action-btn"
+                                                        data-action="view"
+                                                        data-activity-id="<?= e((string) $report['id']) ?>"
+                                                        title="View summary"
+                                                        aria-label="View summary <?= e((string) $report['ref']) ?>"><?= admin_weekly_activity_action_icon('view') ?></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -244,8 +246,15 @@ $adminNavActive = 'weekly-activity';
                     </p>
                 </footer>
             </section>
+            <script type="application/json" id="activity-data-json"><?=
+                json_encode($records, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+            ?></script>
+            <script type="application/json" id="activity-status-labels"><?=
+                json_encode(admin_weekly_activity_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+            ?></script>
         </div>
     </main>
+</div>
 
 <div id="activity-modal-overlay" class="reports-modal-overlay<?= $openRecord !== null ? ' is-open' : '' ?>"
      role="presentation" aria-hidden="<?= $openRecord !== null ? 'false' : 'true' ?>">
@@ -265,69 +274,56 @@ $adminNavActive = 'weekly-activity';
             <button type="button" class="reports-modal__close" id="activity-modal-close" aria-label="Close dialog">&times;</button>
         </header>
         <div class="reports-modal__content">
-            <div class="reports-modal__body-scroll">
-                <div id="activity-modal-view" class="reports-modal-panel is-active">
-                    <div id="activity-modal-details">
-                        <?php if ($openRecord): ?>
-                            <?= admin_weekly_activity_modal_details_html($openRecord) ?>
-                        <?php endif; ?>
+            <main class="reports-modal__body-scroll" id="activity-modal-main" aria-label="Weekly summary report details">
+                <div class="reports-modal-form">
+                    <div id="activity-modal-view"
+                         class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
+                        <div id="activity-modal-details" class="reports-modal-view-details">
+                            <?php if ($openRecord): ?>
+                                <?= admin_weekly_activity_modal_details_html($openRecord) ?>
+                            <?php endif; ?>
+                        </div>
+                        <hr class="reports-modal-form__separator" aria-hidden="true">
+                        <?php $activityHistoryCopy = admin_activity_registry_history_section_copy(true); ?>
+                        <section class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history"
+                                 aria-labelledby="activity-modal-history-heading">
+                            <header class="reports-modal-form__section-header">
+                                <h3 id="activity-modal-history-heading" class="reports-modal-form__section-title"><?= e($activityHistoryCopy['title']) ?></h3>
+                                <p class="reports-modal-form__section-desc"><?= e($activityHistoryCopy['description']) ?></p>
+                            </header>
+                            <div id="activity-modal-history"
+                                 class="reports-activity-timeline-host"
+                                 role="region"
+                                 aria-label="<?= e($activityHistoryCopy['title']) ?>">
+                                <?= admin_activity_registry_history_timeline_html($openRecord !== null ? ($openRecord['history'] ?? []) : []) ?>
+                            </div>
+                        </section>
                     </div>
-                    <section class="reports-modal-form__section reports-modal__history" aria-label="Weekly history">
-                        <h3 class="reports-modal-form__section-title">History</h3>
-                        <ol id="activity-modal-history" class="reports-timeline">
-                            <?php if ($openRecord):
-                                foreach (is_array($openRecord['history'] ?? null) ? $openRecord['history'] : [] as $entry): ?>
-                            <li class="reports-timeline__item">
-                                <span class="reports-timeline__time"><?= e((string) ($entry['at'] ?? '')) ?></span>
-                                <strong><?= e((string) ($entry['event'] ?? '')) ?></strong>
-                                <?php if (trim((string) ($entry['note'] ?? '')) !== ''): ?>
-                                <p><?= e((string) $entry['note']) ?></p>
-                                <?php endif; ?>
-                            </li>
-                            <?php endforeach;
-                            endif; ?>
-                        </ol>
-                    </section>
                 </div>
-                <form method="POST" id="activity-edit-form" class="reports-edit-form"<?= $drawerMode === 'edit' && $openRecord ? '' : ' hidden' ?>>
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="update_weekly">
-                    <input type="hidden" name="weekly_id" id="activity-edit-id" value="<?= $openRecord ? e((string) $openRecord['id']) : '' ?>">
-                    <div class="form-field">
-                        <label for="activity-edit-status">Review status</label>
-                        <select name="status" id="activity-edit-status">
-                            <?php foreach (admin_weekly_activity_status_options() as $val => $label): ?>
-                            <option value="<?= e($val) ?>"<?= $openRecord && (string) $openRecord['status'] === $val ? ' selected' : '' ?>><?= e($label) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </form>
-            </div>
+            </main>
             <footer class="reports-modal__footer">
-                <div class="reports-button-set" id="activity-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
-                    <button type="button" class="reports-btn reports-btn--primary" id="activity-goto-edit"<?= $openRecord ? '' : ' hidden' ?>>
-                        <?= admin_btn_icon('pen-to-square') ?>
-                        <span class="reports-btn__text">Update status</span>
-                    </button>
+                <div class="reports-modal-footer__button-set" id="activity-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
+                    <div class="reports-button-set">
+                        <button type="button" class="reports-btn reports-btn--primary" id="activity-goto-edit"<?= $openRecord ? '' : ' hidden' ?>>
+                            <?= admin_btn_icon('pen-to-square') ?>
+                            <span class="reports-btn__text">Update status</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="reports-button-set" id="activity-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
-                    <button type="submit" class="reports-btn reports-btn--primary" form="activity-edit-form">
-                        <?= admin_btn_icon('floppy-disk') ?>
-                        <span class="reports-btn__text">Save</span>
-                    </button>
-                    <button type="button" class="reports-btn reports-btn--secondary" id="activity-cancel-edit">Cancel</button>
+                <div class="reports-modal-footer__button-set reports-modal-footer__button-set--edit" id="activity-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
+                    <?= admin_activity_registry_status_edit_form_html(
+                        'update_weekly',
+                        'weekly_id',
+                        $openRecord ? (string) $openRecord['id'] : null,
+                        admin_weekly_activity_status_options(),
+                        $openRecord ? (string) $openRecord['status'] : null,
+                        $drawerMode === 'edit' && $openRecord !== null
+                    ) ?>
                 </div>
             </footer>
         </div>
     </div>
 </div>
-
-<script type="application/json" id="activity-data-json"><?=
-    json_encode($records, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-<script type="application/json" id="activity-status-labels"><?=
-    json_encode(admin_weekly_activity_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
 
 <?php admin_shell_scripts(); ?>
 

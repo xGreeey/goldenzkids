@@ -1718,7 +1718,8 @@ body:not(.light-mode) .reports-empty {
     text-transform: uppercase;
 }
 
-.reports-modal__history .reports-timeline-host {
+.reports-modal__history .reports-timeline-host,
+.reports-modal__history .reports-activity-timeline-host {
     width: 100%;
     min-width: 0;
 }
@@ -1764,6 +1765,30 @@ body:not(.light-mode) .reports-empty {
 
 .reports-detail-sheet__grid--incident {
     grid-template-columns: minmax(10rem, 1.1fr) minmax(4.5rem, 0.65fr);
+}
+
+.reports-detail-sheet__grid--activity-meta {
+    grid-template-columns: minmax(12rem, 1.25fr) minmax(10rem, 1fr);
+}
+
+.reports-daily-submission__intro {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted, #5c6470);
+}
+
+.reports-daily-submission__intro strong {
+    font-weight: 600;
+    color: inherit;
+}
+
+.reports-detail-sheet__grid--activity-narrative {
+    grid-template-columns: 1fr;
+}
+
+.reports-detail-sheet__field--description .reports-detail-sheet__value {
+    white-space: pre-wrap;
 }
 
 .reports-incident-as-is__heading {
@@ -2042,6 +2067,10 @@ body:not(.light-mode) .reports-empty {
 /* Operation flow — simple table */
 .reports-modal__history .reports-timeline-host {
     padding: 0;
+}
+
+.reports-modal__history .reports-activity-timeline-host {
+    padding: 14px 16px 16px;
 }
 
 .reports-op-flow__table {
@@ -5671,4 +5700,292 @@ body.page-activity-registry .reports-table-body-wrap {
 
 body.page-activity-registry .reports-panel__footer {
     flex-shrink: 0;
+}
+
+/* Activity / weekly view modal must sit above fixed sidebar (z-index 1100). */
+body.activity-registry-modal-open {
+    overflow: hidden;
+}
+
+body.activity-registry-modal-open .app-sidebar {
+    pointer-events: none;
+}
+
+#activity-modal-overlay.reports-modal-overlay {
+    z-index: 2500;
+}
+
+/* Activity registry modals — header / scrollable main / pinned footer (matches incident report dialog). */
+#activity-modal.reports-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#activity-modal .reports-modal__content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#activity-modal .reports-modal__body-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#activity-modal .reports-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 24px 28px 28px;
+    min-width: 0;
+}
+
+#activity-modal .reports-modal-form__separator {
+    margin: 20px 0;
+}
+
+#activity-modal .reports-modal-view-details {
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
+#activity-modal .reports-edit-form.reports-modal-form__section {
+    margin-top: 0;
+}
+
+#activity-modal .reports-modal-footer__button-set--edit {
+    width: 100%;
+    max-width: none;
+}
+
+#activity-modal .reports-activity-status-edit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px 20px;
+    width: 100%;
+    margin: 0;
+}
+
+#activity-modal .reports-activity-status-edit[hidden] {
+    display: none !important;
+}
+
+#activity-modal .reports-activity-status-edit__main {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px 20px;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+}
+
+#activity-modal .reports-activity-status-edit__main.reports-form-field {
+    gap: 16px 20px;
+}
+
+#activity-modal .reports-activity-status-edit__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#activity-modal .reports-activity-status-edit__label {
+    margin: 0;
+    font-family: var(--font-body-family);
+    font-size: var(--font-body-size-sm);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--report-text);
+    line-height: 1.3;
+}
+
+#activity-modal .reports-activity-status-edit__hint {
+    margin: 0;
+    font-size: var(--font-body-size-xs);
+    line-height: 1.45;
+    color: var(--report-text-muted);
+}
+
+#activity-modal .reports-activity-status-edit__hint strong {
+    font-weight: 600;
+    color: var(--report-text);
+}
+
+#activity-modal .reports-activity-status-edit__select {
+    display: block;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: min(14rem, 100%);
+    min-width: 11rem;
+    min-height: 2.375rem;
+    margin: 0;
+    padding: 9px 2rem 9px 12px;
+    font-family: inherit;
+    font-size: var(--font-body-size-sm);
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--report-text);
+    background: var(--app-input-bg, #fff);
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-sm);
+    appearance: auto;
+    -webkit-appearance: menulist;
+    cursor: pointer;
+}
+
+#activity-modal .reports-activity-status-edit__select:focus {
+    outline: none;
+    border-color: var(--app-accent-text, #b45309);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+#activity-modal .reports-activity-status-edit__actions {
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
+
+@media (max-width: 640px) {
+    #activity-modal .reports-activity-status-edit {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #activity-modal .reports-activity-status-edit__main {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #activity-modal .reports-activity-status-edit__select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #activity-modal .reports-activity-status-edit__actions {
+        align-self: stretch;
+        justify-content: flex-end;
+    }
+}
+
+.reports-activity-timeline-host {
+    min-width: 0;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--app-card-bg) 96%, var(--app-border-subtle, #f4f5f7));
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__empty {
+    margin: 0;
+    font-size: var(--font-body-size-sm);
+    line-height: 1.5;
+    color: var(--report-text-muted);
+    font-style: italic;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__item {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 12px 16px;
+    align-items: start;
+    margin: 0;
+    padding: 0 0 1.125rem;
+    border: none;
+    min-width: 0;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__item:last-child {
+    padding-bottom: 0;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__rail {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__item:not(:last-child) .reports-activity-timeline__rail::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    bottom: -1.125rem;
+    left: 50%;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--app-border);
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__dot {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--app-card-bg);
+    border: 2px solid var(--app-border);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-card-bg) 88%, transparent);
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__item.is-current .reports-activity-timeline__dot {
+    border-color: var(--color-primary, #9a7b1a);
+    background: color-mix(in srgb, var(--color-primary) 24%, var(--app-card-bg));
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__meta {
+    margin: 0;
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__when {
+    display: block;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--report-text-muted);
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__title {
+    display: block;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--report-text);
+}
+
+.reports-activity-timeline-host .reports-activity-timeline__note {
+    display: block;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--report-text-muted);
 }

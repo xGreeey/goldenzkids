@@ -1219,6 +1219,13 @@ document.addEventListener('DOMContentLoaded', function () {
         app_notify_footer();
     }
     if (function_exists('app_url')) {
+        $reportPrintBrand = [
+            'logoUrl' => function_exists('app_logo_url') ? app_logo_url() : app_url('assets/images/goldenz_logo.png'),
+            'companyName' => 'Golden Z-5 Security & Investigation, Inc.',
+        ];
+        echo '<script>window.__reportPrintBrand='
+            . json_encode($reportPrintBrand, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            . ';</script>';
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
         $html2pdfJs = dirname(__DIR__) . '/admin/assets/js/vendor/html2pdf.bundle.min.js';
         if (is_readable($html2pdfJs)) {

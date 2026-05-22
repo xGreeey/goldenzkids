@@ -13,13 +13,10 @@ $reportTypes = guard_portal_report_types();
 $reports = guard_portal_user_reports($conn, $companyId);
 $showHistory = (($_GET['view'] ?? '') === 'history');
 $guardNavActive = 'submit';
-guard_layout_head('Submit Report');
+guard_layout_head('Submit report');
 ?>
-        <div class="guard-section-stack">
-        <header class="page-header">
-            <h1 class="page-title">Submit report</h1>
-            <p class="page-subtitle" data-guard-submit-subtitle>Scan your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
-        </header>
+        <div class="guard-section-stack guard-submit-page">
+        <p class="visually-hidden" data-guard-submit-subtitle>Scan your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
             <div class="guard-card__head">

@@ -161,6 +161,9 @@ function send_security_headers(): void
     $connectSrc = $guardPortal
         ? "'self' https://kit.fontawesome.com https://nominatim.openstreetmap.org https://maps.googleapis.com"
         : "'self' https://kit.fontawesome.com";
+    $frameSrc = $guardPortal
+        ? "'self' https://www.facebook.com https://web.facebook.com"
+        : "'self'";
 
     $csp = implode('; ', [
         "default-src 'self'",
@@ -169,6 +172,7 @@ function send_security_headers(): void
         "font-src 'self' https://fonts.gstatic.com https://ka-f.fontawesome.com data:",
         "img-src 'self' data: https: blob:",
         "connect-src {$connectSrc}",
+        "frame-src {$frameSrc}",
         "frame-ancestors 'self'",
         "base-uri 'self'",
         "form-action 'self'",

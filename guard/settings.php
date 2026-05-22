@@ -33,11 +33,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['update_profil
 $guardNavActive = 'settings';
 guard_layout_head('Account settings', 'settings', true);
 ?>
-        <header class="page-header">
-            <h1 class="page-title">Account settings</h1>
-            <p class="page-subtitle">Update your name, portal username, email, and password.</p>
-        </header>
-
         <section class="card-panel profile-settings-panel">
             <h2 class="panel-title">Your profile</h2>
             <?php admin_render_profile_form($form, $error, $success); ?>

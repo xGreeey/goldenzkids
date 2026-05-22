@@ -771,6 +771,7 @@ function admin_incident_history_head_guard_notes_html(array $entry, array $repor
     if ($html === '<div class="reports-op-flow__submission-readonly">') {
         $html .= '<p class="reports-op-flow__submission-line">—</p>';
     }
+    $html .= '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Report text</strong> section above.</p>';
 
     return $html . '</div>';
 }
@@ -1011,6 +1012,8 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
         if ($newRowInput !== null) {
             $found = admin_incident_apply_history_new_row($found, $newRowInput, $actorId);
         }
+
+        $found = admin_incident_apply_report_body_edit($found, $input, $actorId);
 
         $status = (string) ($input['status'] ?? $found['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
         if (!admin_incident_status_is_valid($status)) {
@@ -1307,7 +1310,7 @@ function admin_incident_modal_as_is_html(string $incidentDescription, string $ac
     $actionTaken = trim($actionTaken);
     $emptyClass = $incidentDescription === '' && $actionTaken === '' ? ' is-empty' : '';
 
-    return '<section class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">'
+    return '<section id="modal-as-is-view" class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">'
         . '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>'
         . '<div class="reports-incident-as-is' . $emptyClass . '">'
         . '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">'
@@ -1502,7 +1505,78 @@ function admin_incident_timeline_section_description(): string
 
 function admin_incident_progression_edit_intro(): string
 {
-    return 'Edit directly in the table — like a sheet. Head guard and system rows are fixed; add a new operations row or update existing operations notes, then save.';
+    return 'Correct the incident description and action taken if the scanned text is wrong, then update the operation flow below and save.';
+}
+
+/**
+ * Editable incident description + action taken (operations correction of OCR / handwriting).
+ *
+ * @param array<string, mixed> $report
+ */
+/**
+ * @param array<string, mixed> $report
+ * @param array<string, mixed> $input
+ * @return array<string, mixed>
+ */
+function admin_incident_apply_report_body_edit(array $report, array $input, string $actorId): array
+{
+    if (!array_key_exists('incident_description', $input) && !array_key_exists('action_taken', $input)) {
+        return $report;
+    }
+
+    $incidentDescription = trim((string) ($input['incident_description'] ?? ''));
+    $actionTaken = trim((string) ($input['action_taken'] ?? ''));
+    $oldDesc = trim((string) ($report['incident_description'] ?? ''));
+    $oldAction = trim((string) ($report['action_taken'] ?? ''));
+
+    if ($incidentDescription === $oldDesc && $actionTaken === $oldAction) {
+        return $report;
+    }
+
+    $report['incident_description'] = $incidentDescription;
+    $report['action_taken'] = $actionTaken;
+    if ($incidentDescription !== '') {
+        $report['summary'] = $incidentDescription;
+    }
+
+    $history = is_array($report['history'] ?? null) ? $report['history'] : [];
+    if ($history !== [] && is_array($history[0])) {
+        $history[0]['description'] = $incidentDescription;
+        $history[0]['incident_description'] = $incidentDescription;
+        $history[0]['immediate_action'] = $actionTaken;
+        $history[0]['action_taken'] = $actionTaken;
+        $history[0]['edited_at'] = admin_incident_history_now();
+        $history[0]['edited_by'] = $actorId;
+        $report['history'] = $history;
+    }
+
+    return $report;
+}
+
+function admin_incident_modal_report_body_edit_html(array $report): string
+{
+    $incidentDescription = trim((string) ($report['incident_description'] ?? ''));
+    $actionTaken = trim((string) ($report['action_taken'] ?? ''));
+
+    return '<section class="reports-report-body-edit" aria-labelledby="modal-report-body-edit-heading">'
+        . '<header class="reports-modal-form__section-header">'
+        . '<h3 id="modal-report-body-edit-heading" class="reports-modal-form__section-title">Report text</h3>'
+        . '<p class="reports-modal-form__section-desc">Fix wording from the uploaded form. Changes are saved with the report and shown in the operation flow.</p>'
+        . '</header>'
+        . '<div class="reports-incident-as-is reports-incident-as-is--editable">'
+        . '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">'
+        . '<label class="reports-incident-as-is__label" for="edit-incident-description">Incident description</label>'
+        . '<textarea id="edit-incident-description" name="incident_description" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="Describe what happened…">'
+        . htmlspecialchars($incidentDescription, ENT_QUOTES, 'UTF-8')
+        . '</textarea>'
+        . '</div>'
+        . '<div class="reports-incident-as-is__col reports-incident-as-is__col--action">'
+        . '<label class="reports-incident-as-is__label" for="edit-action-taken">Action taken</label>'
+        . '<textarea id="edit-action-taken" name="action_taken" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="Immediate action by the head guard…">'
+        . htmlspecialchars($actionTaken, ENT_QUOTES, 'UTF-8')
+        . '</textarea>'
+        . '</div>'
+        . '</div></section>';
 }
 
 /** @return array<string, string> */

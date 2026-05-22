@@ -1041,27 +1041,31 @@ function theme_render_css(): void
         body.auth-shell.auth-sign-in .login-card-support {
             margin-top: 20px;
             padding-top: 16px;
-            border-top: 1px solid var(--color-border-subtle);
+            border-top: 1px solid rgba(var(--color-primary-rgb), 0.12);
             text-align: center;
         }
-        body.auth-shell.auth-sign-in .login-support-title {
+        /* White login card in light + dark — support copy uses navy ink, not page muted tokens */
+        body.auth-shell.auth-sign-in .login-card .login-support-title {
             margin: 0 0 6px;
             font-size: 0.8125rem;
             font-weight: 600;
             letter-spacing: var(--font-label-letter);
-            color: var(--trivium-ink);
-        }
-        body.auth-shell.auth-sign-in.dark-mode .login-support-title {
             color: var(--color-primary);
         }
-        body.auth-shell.auth-sign-in .login-support-text {
-            margin: 0;
+        body.auth-shell.auth-sign-in .login-card .login-support-text {
+            margin: 0 auto;
             font-size: 0.8125rem;
             line-height: 1.5;
-            color: var(--color-text-muted);
+            color: rgba(var(--color-primary-rgb), 0.72);
             max-width: 32ch;
-            margin-left: auto;
-            margin-right: auto;
+        }
+        body.auth-shell.auth-sign-in.dark-mode .login-card .login-support-title,
+        body.auth-shell.auth-sign-in.dark-mode .login-card .login-support-text {
+            color: rgba(var(--color-primary-rgb), 0.72);
+        }
+        body.auth-shell.auth-sign-in.dark-mode .login-card .login-support-title {
+            color: var(--color-primary);
+            font-weight: 600;
         }
         body.auth-shell.auth-sign-in .label-row {
             align-items: center;

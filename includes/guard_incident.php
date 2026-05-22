@@ -809,20 +809,44 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
             );
         }
 
+        require_once __DIR__ . '/admin_incident_reports.php';
+        $mapped = admin_incident_apply_report_body_edit($mapped, $input, $actorId);
+
         $mapped = admin_incident_touch_updated($mapped);
         $mapped['status'] = admin_incident_reconcile_status($mapped);
         $status = (string) $mapped['status'];
+        $incidentDescription = trim((string) ($mapped['incident_description'] ?? ''));
+        $actionTaken = trim((string) ($mapped['action_taken'] ?? ''));
+        $summary = trim((string) ($mapped['summary'] ?? ''));
         $historyJson = json_encode($mapped['history'] ?? [], JSON_THROW_ON_ERROR);
 
         $ok = db_execute(
             $conn,
-            'UPDATE guard_incident_submissions SET status = ?, history_json = ?, updated_at = NOW() WHERE inc_id = ? LIMIT 1',
-            'ssi',
-            [$status, $historyJson, $incId]
+            'UPDATE guard_incident_submissions SET status = ?, incident_description = ?, action_taken = ?, summary = ?, history_json = ?, updated_at = NOW() WHERE inc_id = ? LIMIT 1',
+            'sssssi',
+            [
+                $status,
+                $incidentDescription !== '' ? $incidentDescription : null,
+                $actionTaken !== '' ? $actionTaken : null,
+                $summary !== '' ? $summary : null,
+                $historyJson,
+                $incId,
+            ]
         );
         if (!$ok) {
             return null;
         }
+
+        $ref = (string) ($row['reference_code'] ?? ('inc-' . $incId));
+        require_once __DIR__ . '/portal_audit.php';
+        portal_audit_log(
+            $conn,
+            'INCIDENT_UPDATED',
+            'Reference: ' . $ref . '; report text or progression saved',
+            (string) ($row['head_guard_company_id'] ?? ''),
+            $actorId,
+            auth_user_role()
+        );
 
         $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
 

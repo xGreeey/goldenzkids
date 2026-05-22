@@ -4,6 +4,7 @@ declare(strict_types=1);
 if (!function_exists('message_groups_table_exists')) {
     require_once __DIR__ . '/group_messaging.php';
 }
+require_once __DIR__ . '/messaging_labels.php';
 require_once __DIR__ . '/messaging_unread.php';
 require_once __DIR__ . '/messaging_board_ui.php';
 
@@ -61,7 +62,9 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
         }
     }
     if ($messagingPeerLabel === '') {
-        $messagingPeerLabel = $messagingActivePeer;
+        $messagingPeerLabel = isset($conn) && $conn instanceof PDO
+            ? messaging_resolve_user_label($conn, $messagingActivePeer)
+            : $messagingActivePeer;
     }
 }
 
@@ -73,6 +76,7 @@ $boardSubtitle = match (auth_normalize_role(auth_user_role())) {
 
 $messagingSidebarTitle = $messagingSidebarTitle ?? 'Conversations';
 $messagingSidebarSubtitle = $messagingSidebarSubtitle ?? 'Staff messaging board for direct and group conversations.';
+$messagingHideSidebarHead = $messagingHideSidebarHead ?? false;
 
 $canRenderCreateForm = $messagingCanCreateGroups && $messagingHeadGuardOptions !== [];
 $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
@@ -106,6 +110,14 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
     <?php else: ?>
     <div class="messaging-board__layout">
         <aside class="messaging-board__contacts" role="navigation" aria-label="Conversations">
+            <?php if ($messagingHideSidebarHead): ?>
+                <h2 id="messaging-board-heading" class="visually-hidden messaging-board__sidebar-title">
+                    <?= e($messagingSidebarTitle) ?>
+                    <?php if ($messagingUnreadTotal > 0): ?>
+                        <span class="messaging-board__sidebar-badge" aria-label="<?= (int) $messagingUnreadTotal ?> unread"><?= (int) $messagingUnreadTotal ?></span>
+                    <?php endif; ?>
+                </h2>
+            <?php else: ?>
             <div class="messaging-board__sidebar-head">
                 <h2 id="messaging-board-heading" class="messaging-board__sidebar-title">
                     <?= e($messagingSidebarTitle) ?>
@@ -121,6 +133,7 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                     </button>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
             <div class="messaging-board__unread-banner<?= $messagingUnreadTotal > 0 ? '' : ' is-hidden' ?>"
                  id="messagingUnreadBanner"
                  role="status"

@@ -15,6 +15,43 @@
         handlers: null,
     };
 
+    function openReportsImageViewer(src, alt) {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer || !img || !src) {
+            return;
+        }
+        img.src = src;
+        img.alt = alt || 'Attachment preview';
+        viewer.hidden = false;
+        viewer.classList.add('is-open');
+        viewer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeReportsImageViewer() {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer) {
+            return;
+        }
+        viewer.classList.remove('is-open');
+        viewer.hidden = true;
+        viewer.setAttribute('aria-hidden', 'true');
+        if (img) {
+            img.removeAttribute('src');
+            img.alt = '';
+        }
+        const modalOpen = document.getElementById('reports-modal-overlay')?.classList.contains('is-open');
+        const guideOpen = document.getElementById('reports-guard-guide-overlay')?.classList.contains('is-open');
+        const typesOpen = document
+            .getElementById('reports-incident-types-overlay')
+            ?.classList.contains('is-open');
+        if (!modalOpen && !guideOpen && !typesOpen) {
+            document.body.style.overflow = '';
+        }
+    }
+
     function bindReportsModalUi() {
         const h = reportsLive.handlers;
         if (!h) {
@@ -676,7 +713,7 @@
         const emptyClass = !desc && !action ? ' is-empty' : '';
 
         return (
-            '<section class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">' +
+            '<section id="modal-as-is-view" class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">' +
             '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>' +
             '<div class="reports-incident-as-is' +
             emptyClass +
@@ -694,83 +731,6 @@
         );
     }
 
-    function incidentAttachmentsField(p) {
-        const attachments = Array.isArray(p.attachments) ? p.attachments : [];
-        let inner = '<span class="reports-incident-attachments__empty">No images attached</span>';
-
-        if (attachments.length > 0) {
-            let items = '';
-            for (const attachment of attachments) {
-                if (!attachment || typeof attachment !== 'object') {
-                    continue;
-                }
-                const url = String(attachment.url || '').trim();
-                if (!url) {
-                    continue;
-                }
-                const label = String(attachment.label || 'Attachment').trim();
-                items +=
-                    '<a href="' +
-                    escapeHtml(url) +
-                    '" role="listitem" class="reports-incident-attachments__link" data-reports-attachment-preview target="_blank" rel="noopener noreferrer">' +
-                    '<img class="reports-incident-attachments__thumb" src="' +
-                    escapeHtml(url) +
-                    '" alt="' +
-                    escapeHtml(label) +
-                    '" loading="lazy" decoding="async">' +
-                    '<span class="reports-incident-attachments__caption">' +
-                    escapeHtml(label) +
-                    '</span></a>';
-            }
-            if (items) {
-                inner =
-                    '<div class="reports-incident-attachments__grid" role="list">' + items + '</div>';
-            }
-        }
-
-        return (
-            '<div class="reports-detail-sheet__field reports-detail-sheet__field--attachments">' +
-            '<span class="reports-detail-sheet__label">Attachments</span>' +
-            '<div class="reports-detail-sheet__value reports-incident-attachments">' +
-            inner +
-            '</div></div>'
-        );
-    }
-
-    function openReportsImageViewer(src, alt) {
-        const viewer = document.getElementById('reports-image-viewer');
-        const img = document.getElementById('reports-image-viewer-img');
-        if (!viewer || !img || !src) {
-            return;
-        }
-        img.src = src;
-        img.alt = alt || 'Attachment preview';
-        viewer.hidden = false;
-        viewer.classList.add('is-open');
-        viewer.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeReportsImageViewer() {
-        const viewer = document.getElementById('reports-image-viewer');
-        const img = document.getElementById('reports-image-viewer-img');
-        if (!viewer) {
-            return;
-        }
-        viewer.classList.remove('is-open');
-        viewer.hidden = true;
-        viewer.setAttribute('aria-hidden', 'true');
-        if (img) {
-            img.removeAttribute('src');
-            img.alt = '';
-        }
-        const modalOpen = document.getElementById('reports-modal-overlay')?.classList.contains('is-open');
-        const guideOpen = document.getElementById('reports-guard-guide-overlay')?.classList.contains('is-open');
-        if (!modalOpen && !guideOpen) {
-            document.body.style.overflow = '';
-        }
-    }
-
     function buildModalDetailsHtml(p) {
         let headGuard = String(p.head_guard_name || p.submitter_name || '').trim();
         const headGuardId = String(p.head_guard_id || p.submitter_id || '').trim();
@@ -780,10 +740,7 @@
             headGuard = headGuardId;
         }
 
-        let person = String(p.person_involved || p.guard_involved || '').trim();
-        if (!person && typeof personFromReport === 'function') {
-            person = personFromReport(p);
-        }
+        const person = String(p.person_involved || p.guard_involved || '').trim();
         const formName = String(p.form_name || '').trim();
         const formDate = String(p.form_date || '').trim();
         let html =
@@ -810,7 +767,6 @@
             '<section class="reports-detail-sheet__section" aria-label="Classification">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
             sheetField('Incident', p.incident_type, 'incident') +
-            incidentAttachmentsField(p) +
             sheetField('Severity', p.severity, 'severity') +
             '</div></section></div>';
 
@@ -976,6 +932,8 @@
         if (!guardName && !content.description && !content.immediate_action) {
             html += '<p class="reports-op-flow__submission-line">—</p>';
         }
+        html +=
+            '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Report text</strong> section above.</p>';
         return html + '</div>';
     }
 
@@ -1489,6 +1447,14 @@
         if (newAction) {
             newAction.value = '';
         }
+        const descInput = document.getElementById('edit-incident-description');
+        if (descInput) {
+            descInput.value = String(p.incident_description || '').trim();
+        }
+        const actionInput = document.getElementById('edit-action-taken');
+        if (actionInput) {
+            actionInput.value = String(p.action_taken || '').trim();
+        }
     }
 
     function setModalMode(mode) {
@@ -1517,6 +1483,14 @@
         if (historyHint) {
             historyHint.hidden = isView;
         }
+        const asIsView = document.getElementById('modal-as-is-view');
+        if (asIsView) {
+            asIsView.hidden = !isView;
+        }
+        const bodyEditWrap = document.getElementById('modal-report-body-edit-wrap');
+        if (bodyEditWrap) {
+            bodyEditWrap.hidden = isView;
+        }
 
         const id = reportsLive.currentIncidentId;
         const payload = id ? reportsLive.reportsById[id] : null;
@@ -1530,7 +1504,9 @@
     }
 
     function scrollModalToEditPanel() {
-        const target = document.getElementById('modal-history-section');
+        const target =
+            document.getElementById('modal-report-body-edit-wrap') ||
+            document.getElementById('modal-history-section');
         const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
         if (target && scroller) {
             const top = target.offsetTop - 12;
@@ -1541,6 +1517,11 @@
     }
 
     function focusFirstEditField() {
+        const desc = document.getElementById('edit-incident-description');
+        if (desc) {
+            desc.focus();
+            return;
+        }
         document
             .querySelector(
                 '#modal-stepper .reports-op-flow__row--new .reports-op-flow__cell-input, #modal-stepper .reports-op-flow__row--new textarea'

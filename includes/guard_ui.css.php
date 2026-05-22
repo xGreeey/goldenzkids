@@ -63,8 +63,7 @@ function guard_ui_styles(): void
             flex-shrink: 0;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: var(--guard-ui-gap);
+            gap: 10px;
             padding: max(12px, env(safe-area-inset-top, 0px)) var(--guard-ui-pad) 12px;
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(12px);
@@ -72,15 +71,18 @@ function guard_ui_styles(): void
             border-bottom: 1px solid var(--guard-ui-border);
         }
 
-        body.guard-portal .guard-app__brand {
+        body.guard-portal .guard-app__topbar-title {
             margin: 0;
             flex: 1;
             min-width: 0;
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             font-weight: 700;
             letter-spacing: -0.025em;
             line-height: 1.25;
             color: var(--guard-ui-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         body.guard-portal .guard-app__menu-btn {
@@ -426,7 +428,49 @@ function guard_ui_styles(): void
             flex-direction: column;
             gap: var(--guard-ui-gap);
             min-width: 0;
+            min-height: 100%;
             flex: 1 1 auto;
+            box-sizing: border-box;
+        }
+
+        body.guard-portal .guard-dashboard__footer {
+            margin-top: auto;
+            padding-top: 20px;
+            text-align: center;
+            border-top: 1px solid var(--guard-ui-border);
+        }
+
+        body.guard-portal .guard-dashboard__footer-brand {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            max-width: 100%;
+            margin: 0 auto 6px;
+        }
+
+        body.guard-portal .guard-dashboard__footer-logo {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+
+        body.guard-portal .guard-dashboard__footer-name {
+            margin: 0;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1.35;
+            color: var(--guard-ui-primary);
+            text-align: left;
+        }
+
+        body.guard-portal .guard-dashboard__footer-address {
+            margin: 0;
+            font-size: 0.6875rem;
+            line-height: 1.45;
+            color: var(--guard-ui-subtle);
         }
 
         body.guard-portal .guard-ui-block {
@@ -756,8 +800,7 @@ function guard_ui_styles(): void
             max-width: none;
         }
 
-        /* Account settings — center panel + header on mobile */
-        body.guard-portal .guard-app__scroll:has(.profile-settings-panel) .page-header,
+        /* Account settings — center panel on mobile */
         body.guard-portal .guard-app__scroll:has(.profile-settings-panel) .profile-settings-panel {
             width: 100%;
             max-width: 520px;
@@ -938,7 +981,7 @@ function guard_ui_styles(): void
             border-bottom-color: var(--guard-ui-border);
         }
 
-        body.guard-portal:not(.light-mode) .guard-app__brand,
+        body.guard-portal:not(.light-mode) .guard-app__topbar-title,
         body.guard-portal:not(.light-mode) .guard-app__menu-btn {
             color: var(--guard-ui-primary);
         }
@@ -1299,10 +1342,14 @@ function guard_ui_styles(): void
             font-size: 0.75rem;
         }
 
-        /* Guard corner — compact hub panels */
+        /* Guard corner / submit — no in-page title (topbar shows page name) */
         body.guard-portal .guard-app__scroll .guard-corner-page,
-        body.guard-portal .guard-app__scroll .guard-corner-page {
+        body.guard-portal .guard-app__scroll .guard-submit-page {
             gap: var(--guard-ui-gap);
+        }
+
+        body.guard-portal .guard-app__scroll:has(.profile-settings-panel) {
+            padding-top: var(--guard-ui-pad);
         }
 
         body.guard-portal .guard-app__scroll .guard-corner-page .guard-card__head {
@@ -1313,10 +1360,6 @@ function guard_ui_styles(): void
 
         body.guard-portal .guard-app__scroll .guard-corner-page .guard-hub-panels {
             gap: var(--guard-ui-gap);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-corner-page .guard-chat__input::placeholder {
-            color: var(--guard-ui-faint);
         }
 
         body.guard-portal .guard-app__scroll .guard-corner-page select {

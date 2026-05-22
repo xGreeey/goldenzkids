@@ -1816,6 +1816,23 @@ body:not(.light-mode) .reports-empty {
     color: var(--text-primary, #1a1d21);
 }
 
+.reports-report-body-edit {
+    margin-bottom: 1.25rem;
+}
+
+.reports-incident-as-is--editable .reports-report-body-edit__input {
+    width: 100%;
+    min-height: 7rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.reports-op-flow__submission-hint {
+    margin: 8px 0 0;
+    font-size: 0.8125rem;
+}
+
 .reports-incident-scan {
     margin-bottom: 1.25rem;
     padding-bottom: 1.25rem;
@@ -2228,8 +2245,7 @@ body:not(.light-mode) .reports-empty {
         grid-template-columns: 1fr 1fr;
     }
 
-    .reports-detail-sheet__field--description,
-    .reports-detail-sheet__field--attachments {
+    .reports-detail-sheet__field--description {
         grid-column: 1 / -1;
     }
 }
@@ -5246,6 +5262,25 @@ body.page-daily-detail .reports-toolbar select {
 
 .reports-dad-ocr-status.is-busy {
     color: var(--app-accent-text, #ca8a04);
+}
+
+.reports-dad-ocr-export {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+}
+
+.reports-dad-ocr-export__hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--report-text-muted, #64748b);
+}
+
+.reports-dad-ocr-export__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 /* DAD modal — attendance sheet + OCR (legacy blocks) */

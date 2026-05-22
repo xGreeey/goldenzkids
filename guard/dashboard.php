@@ -78,6 +78,21 @@ guard_layout_head('Dashboard');
                     </a>
                 </nav>
             </section>
+
+            <footer class="guard-dashboard__footer" aria-label="Company information">
+                <div class="guard-dashboard__footer-brand">
+                    <img
+                        src="<?= e(app_logo_url()) ?>"
+                        alt=""
+                        class="guard-dashboard__footer-logo"
+                        width="40"
+                        height="40"
+                        decoding="async"
+                    >
+                    <p class="guard-dashboard__footer-name"><?= e(app_agency_name()) ?></p>
+                </div>
+                <p class="guard-dashboard__footer-address">363 Dr. Jose Fernandez St., Mandaluyong, Philippines</p>
+            </footer>
         </div>
 <?php
 guard_layout_end();

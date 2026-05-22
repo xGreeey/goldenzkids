@@ -41,6 +41,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'status' => (string) ($_POST['status'] ?? ''),
             'edit_history_index' => $editHistoryIndex,
             'history_row' => $historyRow,
+            'incident_description' => (string) ($_POST['incident_description'] ?? ''),
+            'action_taken' => (string) ($_POST['action_taken'] ?? ''),
         ], $actorId);
 
         if ($updated === null) {
@@ -48,11 +50,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         $ref = (string) ($updated['ref'] ?? $id);
+        $bodyEdited = trim((string) ($_POST['incident_description'] ?? '')) !== ''
+            || trim((string) ($_POST['action_taken'] ?? '')) !== '';
         $message = $historyRow !== []
             ? 'Incident ' . $ref . ': operation flow saved.'
             : ($editHistoryIndex !== ''
                 ? 'Incident ' . $ref . ': operations response updated.'
-                : 'Incident ' . $ref . ' saved.');
+                : ($bodyEdited
+                    ? 'Incident ' . $ref . ': report text updated.'
+                    : 'Incident ' . $ref . ' saved.'));
         redirect_with_alert(
             $message,
             'reports.php?incident=' . rawurlencode($id) . '&mode=view'
@@ -227,7 +233,7 @@ function admin_reports_row_attrs(array $report): string
                                         <?= admin_btn_icon('file-export') ?>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
-                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-guard-guide-open" title="Guard guide — workflow and status reference" aria-haspopup="dialog" aria-controls="reports-guard-guide-modal">
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
                                         <?= admin_btn_icon('book-open') ?>
                                         <span class="reports-btn__text">Guard guide</span>
                                     </button>
@@ -471,6 +477,12 @@ function admin_reports_row_attrs(array $report): string
                         <input type="hidden" name="incident_id" id="edit-incident-id" value="<?= $openIncident ? e((string) $openIncident['id']) : '' ?>">
                         <input type="hidden" name="edit_history_index" id="edit-history-index" value="">
 
+                    <div id="modal-report-body-edit-wrap" class="reports-modal-form__section reports-modal-form__section--wide"<?= $drawerMode === 'edit' ? '' : ' hidden' ?>>
+                        <?php if ($openIncident): ?>
+                            <?= admin_incident_modal_report_body_edit_html($openIncident) ?>
+                        <?php endif; ?>
+                    </div>
+
                     <section id="modal-history-section" class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history<?= $drawerMode === 'edit' ? ' is-editing-progression' : '' ?>" aria-labelledby="modal-history-heading">
                         <header class="reports-modal-form__section-header reports-modal__history-intro">
                             <h3 id="modal-history-heading" class="reports-modal-form__section-title">
@@ -497,9 +509,9 @@ function admin_reports_row_attrs(array $report): string
             <footer class="reports-modal__footer">
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
-                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?> aria-controls="modal-history-section">
+                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?>>
                             <?= admin_btn_icon('pen-to-square') ?>
-                            <span class="reports-btn__text">Update progression</span>
+                            <span class="reports-btn__text">Edit this report</span>
                         </button>
                     </div>
                 </div>
@@ -507,7 +519,7 @@ function admin_reports_row_attrs(array $report): string
                     <div class="reports-button-set">
                         <button type="submit" class="reports-btn reports-btn--primary" form="reports-edit-form" id="modal-save-edit">
                             <?= admin_btn_icon('floppy-disk') ?>
-                            <span class="reports-btn__text" id="modal-save-edit-label">Save progression</span>
+                            <span class="reports-btn__text">Save changes</span>
                         </button>
                         <button type="button" class="reports-btn reports-btn--secondary" id="modal-cancel-edit">
                             <span class="reports-btn__text" id="modal-cancel-edit-label">Cancel</span>

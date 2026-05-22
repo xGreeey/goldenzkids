@@ -162,6 +162,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function syncGuardTopbarTitle(doc) {
+        if (!document.body.classList.contains('guard-portal')) {
+            return;
+        }
+        var el = document.getElementById('guardAppTopbarTitle');
+        if (!el) {
+            return;
+        }
+        var title = '';
+        if (doc) {
+            var meta = doc.querySelector('meta[name="guard-page-title"]');
+            if (meta) {
+                title = (meta.getAttribute('content') || '').trim();
+            }
+            if (!title && doc.title) {
+                var parts = doc.title.split('|');
+                title = parts.length > 1 ? parts[parts.length - 1].trim() : doc.title.trim();
+            }
+        }
+        if (title) {
+            el.textContent = title;
+        }
+    }
+
     function lockMainHeight() {
         main.style.minHeight = main.offsetHeight + 'px';
     }
@@ -340,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (doc.title) {
             document.title = doc.title;
         }
+        syncGuardTopbarTitle(doc);
         if (!options.skipPush) {
             history.pushState({ panelNav: true, url: absUrl }, '', absUrl);
         }

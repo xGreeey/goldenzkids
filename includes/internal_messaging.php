@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/messaging_labels.php';
+
 function internal_messages_table_exists(PDO $conn): bool
 {
     static $cached = null;
@@ -57,10 +59,9 @@ function internal_messaging_list_contacts(PDO $conn, int $viewerRole): array
     $viewerId = (string) ($_SESSION['company_id'] ?? '');
     $placeholders = implode(', ', array_fill(0, count($peerRoles), '?'));
 
+    $labelSql = messaging_sql_display_label($conn, 'u', 'g');
     $sql = "SELECT u.Company_ID AS company_id,
-                   COALESCE(NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
-                            NULLIF(TRIM(u.Email), ''),
-                            u.Company_ID) AS label
+                   {$labelSql} AS label
             FROM users u
             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
             WHERE u.is_active = 1 AND u.{$roleCol} IN ({$placeholders})

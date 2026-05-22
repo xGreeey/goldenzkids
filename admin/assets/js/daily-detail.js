@@ -437,25 +437,29 @@
             return html;
         }
 
+        function dadIsNameTimeLabel(label) {
+            const base = String(label || '')
+                .replace(/\s+\(\d+\)$/, '')
+                .trim()
+                .toUpperCase();
+            return base === 'NAME' || base === 'TIME IN' || base === 'TIME OUT';
+        }
+
         function dadDisplayFields(structured, displayFieldsOverride) {
             if (Array.isArray(displayFieldsOverride) && displayFieldsOverride.length) {
-                return displayFieldsOverride.filter((f) => f && String(f.value || '').trim() !== '');
+                return displayFieldsOverride.filter(
+                    (f) => f && dadIsNameTimeLabel(f.label) && String(f.value || '').trim() !== ''
+                );
             }
             if (!structured || typeof structured !== 'object') {
                 return [];
             }
             if (Array.isArray(structured.display_fields) && structured.display_fields.length) {
-                return structured.display_fields.filter((f) => f && String(f.value || '').trim() !== '');
+                return structured.display_fields.filter(
+                    (f) => f && dadIsNameTimeLabel(f.label) && String(f.value || '').trim() !== ''
+                );
             }
             const out = [];
-            const post = String(structured.post || '').trim();
-            if (post) {
-                out.push({ label: 'POST', value: post });
-            }
-            const dates = Array.isArray(structured.dates) ? structured.dates : [];
-            if (dates.length) {
-                out.push({ label: 'DATE', value: dates.join(' · ') });
-            }
             const rows = Array.isArray(structured.attendance_rows) ? structured.attendance_rows : [];
             rows.forEach((row, i) => {
                 if (!row || typeof row !== 'object') {
@@ -478,7 +482,44 @@
             return out;
         }
 
-        function ocrStructuredHtml(structured, formatted, raw, displayFieldsOverride) {
+        function dadHasOcrExport(record) {
+            if (!record) {
+                return false;
+            }
+            const fields = dadDisplayFields(record.ocr_structured, record.ocr_display_fields);
+            return fields.length > 0;
+        }
+
+        function dadOcrExportUrl(record) {
+            const base = root.dataset.ocrExportUrl || '';
+            const dadId = record.dad_id != null ? Number(record.dad_id) : 0;
+            if (!base || !dadId) {
+                return '';
+            }
+            const sep = base.includes('?') ? '&' : '?';
+            return base + sep + 'dad_id=' + encodeURIComponent(String(dadId));
+        }
+
+        function dadOcrExportActionsHtml(record) {
+            if (!dadHasOcrExport(record)) {
+                return '';
+            }
+            const csvUrl = dadOcrExportUrl(record);
+            let html = '<div class="reports-dad-ocr-export" data-dad-ocr-export>';
+            html +=
+                '<p class="reports-dad-ocr-export__hint">Download a password-protected ZIP with the CSV extract inside. A one-time password is emailed to your admin account — use it to open the ZIP, then open the CSV in Excel.</p>';
+            html += '<div class="reports-dad-ocr-export__actions">';
+            if (csvUrl) {
+                html +=
+                    '<a class="reports-btn reports-btn--secondary reports-dad-ocr-export-csv" href="' +
+                    escapeHtml(csvUrl) +
+                    '">Download protected CSV</a>';
+            }
+            html += '</div></div>';
+            return html;
+        }
+
+        function ocrStructuredHtml(structured, formatted, raw, displayFieldsOverride, record) {
             const fields = dadDisplayFields(structured, displayFieldsOverride);
             if (fields.length) {
                 let html = '<div class="reports-dad-ocr-form" aria-label="Extracted attendance sheet fields">';
@@ -489,13 +530,20 @@
                     html += '</div>';
                 });
                 html += '</div>';
+                if (record && dadHasOcrExport(record)) {
+                    html += dadOcrExportActionsHtml(record);
+                }
                 return html;
             }
-            const body = (formatted || raw || '').trim();
+            const body = (formatted || '').trim();
             if (body) {
-                return '<pre class="reports-dad-media__ocr">' + escapeHtml(body) + '</pre>';
+                let html = '<pre class="reports-dad-media__ocr">' + escapeHtml(body) + '</pre>';
+                if (record && dadHasOcrExport(record)) {
+                    html += dadOcrExportActionsHtml(record);
+                }
+                return html;
             }
-            return '<p class="reports-dad-media__hint">Document AI did not return readable text for this scan.</p>';
+            return '<p class="reports-dad-media__hint">Could not read NAME, TIME IN, or TIME OUT from this sheet. Try a clearer photo of the attendance row.</p>';
         }
 
         function mediaBlockHtml(p) {
@@ -504,11 +552,10 @@
             if (!scanUrl && !dadId) {
                 return '';
             }
-            const formatted = (p.ocr_formatted || '').trim();
-            const raw = (p.ocr_raw || '').trim();
             const structured = p.ocr_structured && typeof p.ocr_structured === 'object' ? p.ocr_structured : {};
-            const hasOcr = formatted !== '' || raw !== '';
-            const ocrBody = ocrStructuredHtml(structured, formatted, raw, p.ocr_display_fields);
+            const formatted = (p.ocr_formatted || '').trim();
+            const hasOcr = dadDisplayFields(structured, p.ocr_display_fields).length > 0;
+            const ocrBody = ocrStructuredHtml(structured, formatted, raw, p.ocr_display_fields, p);
 
             let html =
                 '<div class="reports-dad-step1" data-dad-step1' +
@@ -539,7 +586,7 @@
             } else {
                 html += '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
                 html +=
-                    '<p class="reports-dad-media__hint">Handwriting is read with Google Document AI. Open this tab to extract text from the sheet.</p>';
+                    '<p class="reports-dad-media__hint">Document AI reads only NAME, TIME IN, and TIME OUT from the sheet. Open this tab to extract those fields.</p>';
                 if (dadId > 0 && scanUrl) {
                     html +=
                         '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
@@ -615,7 +662,7 @@
                     record.ocr_raw = data.raw || '';
                     record.ocr_structured = data.structured || {};
                     record.ocr_display_fields = data.display_fields || [];
-                    record.has_ocr = true;
+                    record.has_ocr = dadDisplayFields(record.ocr_structured, record.ocr_display_fields).length > 0;
                     if (record.id) {
                         recordsById[record.id] = record;
                     }
@@ -624,7 +671,8 @@
                             record.ocr_structured,
                             record.ocr_formatted,
                             record.ocr_raw,
-                            record.ocr_display_fields
+                            record.ocr_display_fields,
+                            record
                         );
                     }
                     if (statusEl) {
@@ -657,7 +705,7 @@
                     if (
                         key === 'ocr' &&
                         record &&
-                        !(record.ocr_formatted || record.ocr_raw || '').trim() &&
+                        dadDisplayFields(record.ocr_structured, record.ocr_display_fields).length === 0 &&
                         record.scan_url
                     ) {
                         runDadOcr(record, step1);
@@ -686,7 +734,6 @@
                 ['Guard', (p.guard_name || '—') + (p.guard_id ? ' (' + p.guard_id + ')' : '')],
                 ['Post', p.post || '—'],
                 ['Shift', p.shift_display || p.shift_date || '—'],
-                ['Issue', p.issue_label || '—'],
                 ['Time record', p.time_record || '—'],
                 ['Equivalence', p.recorded_label || '—'],
                 ['Status', p.status_label || '—'],
@@ -865,7 +912,7 @@
                 cells[3].textContent = p.shift_date || '';
                 cells[3].title = p.shift_display || '';
                 cells[4].innerHTML =
-                    '<span class="reports-issue-label">' + escapeHtml(p.issue_label || '') + '</span>';
+                    '<span class="reports-issue-label">' + escapeHtml(p.issue_label || '—') + '</span>';
                 cells[5].innerHTML =
                     '<span class="reports-time-record">' + escapeHtml(p.time_record || '') + '</span>';
                 cells[6].innerHTML = recordedBadgeHtml(p);

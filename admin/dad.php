@@ -168,7 +168,8 @@ $kpiIcons = [
              class="reports-module"
              data-csrf="<?= e_attr(csrf_token()) ?>"
              data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>"
-             data-ocr-url="<?= e_attr(app_url('admin/api/dad-ocr.php')) ?>">
+             data-ocr-url="<?= e_attr(app_url('admin/api/dad-ocr.php')) ?>"
+             data-ocr-export-url="<?= e_attr(app_url('admin/api/dad-ocr-export.php')) ?>">
             <section class="kpi-grid" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> flags in the registry">
                     <div class="kpi-stat">
@@ -347,7 +348,7 @@ $kpiIcons = [
                                     <td class="reports-col-post"><?= e((string) $record['post']) ?></td>
                                     <td class="reports-col-shift reports-col-date mono" title="<?= e((string) $record['shift_display']) ?>"><?= e((string) $record['shift_date']) ?></td>
                                     <td class="reports-col-issue">
-                                        <span class="reports-issue-label"><?= e((string) $record['issue_label']) ?></span>
+                                        <span class="reports-issue-label"><?= e((string) (($record['issue_label'] ?? '') !== '' ? $record['issue_label'] : '—')) ?></span>
                                     </td>
                                     <td class="reports-col-time">
                                         <span class="reports-time-record"><?= e((string) $record['time_record']) ?></span>

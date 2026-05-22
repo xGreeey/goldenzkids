@@ -135,19 +135,8 @@ function guard_hub_styles(): void
             border-bottom-color: var(--guard-card-border);
         }
 
-        body.guard-portal .guard-corner-page .guard-social-card i {
-            color: #1877f2;
-            font-size: 1.25rem;
-        }
-
-        body.guard-portal .guard-corner-page .guard-social-card span {
+        body.guard-portal .guard-corner-page .guard-live-feed__title {
             color: var(--guard-ui-primary, #0f172a);
-            font-weight: 600;
-            font-size: 0.8125rem;
-        }
-
-        body.guard-portal .guard-corner-page .guard-social-card small.form-hint {
-            color: var(--guard-ui-subtle, #64748b);
         }
 
         body.guard-portal .guard-corner-page .empty-state i {
@@ -961,197 +950,507 @@ function guard_hub_styles(): void
             color: var(--guard-ui-secondary, #475569);
         }
 
-        body.guard-portal .guard-app__scroll .guard-chat {
-            display: flex;
-            flex-direction: column;
-            min-height: 240px;
-            max-height: min(380px, 50vh);
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            border-radius: 10px;
-            overflow: hidden;
-            background: var(--sa-input-bg, #f8fafc);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-chat__messages {
-            flex: 1;
+        /* Feeds tab — page scroll (guard-app__scroll), not the feeds list wrapper */
+        body.guard-portal .guard-app__scroll:has([data-guard-hub-panel="social"].is-active) {
+            overflow-x: hidden;
             overflow-y: auto;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
             -webkit-overflow-scrolling: touch;
         }
 
-        body.guard-portal .guard-app__scroll .guard-chat__bubble {
-            max-width: 88%;
-            padding: 8px 10px;
-            border-radius: 10px;
-            font-size: 0.8125rem;
-            line-height: 1.4;
+        /* Inactive hub panels must stay hidden (social panel had display:flex without .is-active) */
+        body.guard-portal .guard-corner-page .guard-hub-panel:not(.is-active):not(.is-leaving) {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
         }
 
-        body.guard-portal .guard-app__scroll .guard-chat__bubble--mine {
-            align-self: flex-end;
-            background: #334155;
-            color: #ffffff;
-            border-bottom-right-radius: 4px;
+        body.guard-portal .guard-card--live-feeds {
+            display: block;
+            overflow: visible;
+            margin-bottom: 0;
+            padding: 8px 10px 10px;
+            border: none;
+            box-shadow: none;
+            background: transparent;
         }
 
-        body.guard-portal .guard-app__scroll .guard-chat__bubble--theirs {
-            align-self: flex-start;
-            background: var(--guard-ui-surface, #ffffff);
-            color: var(--guard-ui-primary, #0f172a);
+        body.guard-portal .guard-card--live-feeds > .guard-live-feeds__refresh {
+            flex-shrink: 0;
+        }
+
+        @media (hover: hover) {
+            body.guard-portal .guard-card--live-feeds:hover {
+                box-shadow: none;
+                transform: none;
+            }
+        }
+
+        body.guard-portal .guard-live-feeds {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            overflow: visible;
+        }
+
+        @media (min-width: 720px) {
+            body.guard-portal .guard-live-feeds {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        body.guard-portal .guard-live-feeds__refresh {
+            flex-shrink: 0;
+            margin: 4px 0 0;
+            padding: 0;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--guard-ui-subtle, #64748b);
+            text-align: center;
+        }
+
+        body.guard-portal .guard-live-feed {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
             border: 1px solid var(--guard-ui-border, #e2e8f0);
-            border-bottom-left-radius: 4px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--guard-ui-surface, #ffffff);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
         }
 
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-chat__bubble--theirs {
-            background: #0f172a;
-            color: #f1f5f9;
+        body.guard-portal:not(.light-mode) .guard-live-feed {
+            background: var(--guard-ui-surface, #1e293b);
             border-color: var(--guard-ui-border, #334155);
         }
 
-        body.guard-portal .guard-app__scroll .guard-chat__time {
-            display: block;
-            margin-top: 4px;
-            font-size: 0.625rem;
-            opacity: 0.8;
-            color: inherit;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-chat__compose {
-            display: flex;
-            gap: 6px;
-            padding: 8px;
-            border-top: 1px solid var(--guard-ui-border, #e2e8f0);
-            background: var(--guard-ui-surface, #ffffff);
-        }
-
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-chat__compose {
-            background: var(--guard-ui-surface, #1e293b);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-chat__input {
-            flex: 1;
-            min-height: 36px;
-            max-height: 80px;
-            padding: 8px 10px;
-            font-family: inherit;
-            font-size: 0.8125rem;
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            border-radius: 8px;
-            resize: none;
-            background: var(--sa-input-bg, #f8fafc);
-            color: var(--guard-ui-primary, #0f172a);
-            -webkit-appearance: none;
-            appearance: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-chat__send {
+        body.guard-portal .guard-live-feed__head {
             flex-shrink: 0;
-            width: 40px;
-            height: 36px;
-            padding: 0;
-            border: none;
-            border-radius: 8px;
-            background: #334155;
-            color: #ffffff;
-            cursor: pointer;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-chat__send:hover {
-            background: #475569;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-social-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 8px;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-social-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            padding: 12px 10px;
-            text-decoration: none;
-            color: var(--guard-ui-primary, #0f172a);
-            border-radius: 10px;
-            background: var(--sa-input-bg, #f8fafc);
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            box-shadow: none;
-            transition: border-color 0.15s ease, transform 0.12s ease;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-social-card:hover {
-            transform: translateY(-1px);
-            border-color: #cbd5e1;
-            background: var(--guard-ui-cream, #f2efe4);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-social-card i {
-            font-size: 1.375rem;
-            color: #1877f2;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-accordion {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-accordion__item {
-            border-radius: 8px;
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            overflow: hidden;
-            background: var(--sa-input-bg, #f8fafc);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-accordion__trigger {
-            width: 100%;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__head {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        body.guard-portal .guard-live-feed__title {
+            margin: 0;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-live-feed__open {
+            flex-shrink: 0;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #1877f2;
+            text-decoration: none;
+        }
+
+        body.guard-portal .guard-live-feed__scroll {
+            position: relative;
+            flex-shrink: 0;
+            height: 400px;
+            min-height: 400px;
+            max-height: 400px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-live-feed__scroll {
+                height: 360px;
+                min-height: 360px;
+                max-height: 360px;
+            }
+        }
+
+        body.guard-portal .guard-live-feed__viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            clip-path: inset(0 0 0 0);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__scroll {
+            background: #0f172a;
+        }
+
+        body.guard-portal .guard-live-feed__status {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 0;
+            padding: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--guard-ui-subtle, #64748b);
+            background: rgba(248, 250, 252, 0.92);
+            text-align: center;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__status {
+            background: rgba(15, 23, 42, 0.92);
+            color: var(--guard-ui-subtle, #94a3b8);
+        }
+
+        body.guard-portal .guard-live-feed__status.is-hidden {
+            display: none;
+        }
+
+        body.guard-portal .guard-live-feed__pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: guard-live-feed-pulse 1.6s ease-out infinite;
+        }
+
+        @keyframes guard-live-feed-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        body.guard-portal .guard-live-feed__fallback {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--guard-ui-primary, #0f172a);
+            background: var(--guard-ui-surface, #ffffff);
+        }
+
+        body.guard-portal .guard-live-feed__fallback[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-live-feed__fallback a {
+            font-weight: 600;
+            color: #1877f2;
+        }
+
+        body.guard-portal .guard-live-feed__frame {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 100%;
+            border: 0;
+            margin-top: calc(-1 * var(--guard-live-feed-crop, 88px));
+        }
+
+        body.guard-portal .guard-live-feed__frame.is-hidden {
+            visibility: hidden;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin-top: 0 !important;
+        }
+
+        body.guard-portal .guard-policy-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        body.guard-portal .guard-policy-list__item {
+            margin: 0;
+        }
+
+        body.guard-portal .guard-policy-list__trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
             padding: 10px 12px;
             font-family: inherit;
             font-size: 0.8125rem;
             font-weight: 600;
             text-align: left;
             color: var(--guard-ui-primary, #0f172a);
-            background: transparent;
-            border: none;
+            background: var(--sa-input-bg, #f8fafc);
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            border-radius: 8px;
             cursor: pointer;
             -webkit-appearance: none;
             appearance: none;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__trigger i {
+        body.guard-portal:not(.light-mode) .guard-policy-list__trigger {
+            background: rgba(15, 23, 42, 0.45);
+            border-color: var(--guard-ui-border, #334155);
+        }
+
+        @media (hover: hover) {
+            body.guard-portal .guard-policy-list__trigger:hover {
+                border-color: #cbd5e1;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            }
+        }
+
+        body.guard-portal .guard-policy-list__icon {
+            flex-shrink: 0;
+            font-size: 0.75rem;
             color: var(--guard-ui-subtle, #64748b);
-            font-size: 0.75rem;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__body {
-            display: none;
-            padding: 0 12px 10px;
-            font-size: 0.75rem;
-            line-height: 1.5;
+        body.guard-portal .guard-policy-list__source {
+            display: none !important;
+        }
+
+        /* Policy modal — lives on body; backdrop + dialog fixed to viewport */
+        body.guard-portal .guard-policy-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10150;
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        body.guard-portal .guard-policy-modal[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-policy-modal.is-open {
+            pointer-events: auto;
+            visibility: visible;
+        }
+
+        body.guard-portal.guard-policy-modal-open {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-policy-modal-open .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-policy-modal__backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(10px) saturate(120%);
+            -webkit-backdrop-filter: blur(10px) saturate(120%);
+            opacity: 0;
+            transition: opacity 0.24s ease;
+        }
+
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            body.guard-portal .guard-policy-modal__backdrop {
+                background: rgba(15, 23, 42, 0.82);
+            }
+        }
+
+        body.guard-portal .guard-policy-modal.is-open .guard-policy-modal__backdrop {
+            opacity: 1;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__backdrop {
+            background: rgba(2, 6, 23, 0.72);
+        }
+
+        body.guard-portal .guard-policy-modal__dialog {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            width: min(520px, calc(100vw - 32px));
+            height: min(72dvh, 560px);
+            max-height: min(72dvh, 560px);
+            margin: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--guard-ui-surface, #ffffff);
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+            opacity: 0;
+            transform: translate(-50%, calc(-50% + 14px)) scale(0.97);
+            transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        body.guard-portal .guard-policy-modal.is-open .guard-policy-modal__dialog {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-policy-modal__dialog {
+                width: calc(100vw - 24px);
+                height: min(78dvh, 600px);
+                max-height: min(78dvh, 600px);
+            }
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__dialog {
+            background: var(--guard-ui-surface, #1e293b);
+            border-color: var(--guard-ui-border, #334155);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__head {
+            background: var(--guard-ui-surface, #1e293b);
+        }
+
+        body.guard-portal .guard-policy-modal__head {
+            position: relative;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 10px 44px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--guard-ui-surface, #ffffff);
+        }
+
+        body.guard-portal .guard-policy-modal__title {
+            margin: 0;
+            width: 100%;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            line-height: 1.3;
+            text-align: center;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-policy-modal__close {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            margin: 0;
+            padding: 0;
+            border: 1px solid var(--guard-ui-border, #cbd5e1);
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            transform: translateY(-50%);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        body.guard-portal .guard-policy-modal__close-glyph {
+            display: block;
+            font-family: inherit;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        body.guard-portal .guard-policy-modal__close:hover {
+            background: #e2e8f0;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        body.guard-portal .guard-policy-modal__close:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__close {
+            background: #334155;
+            border-color: #475569;
+            color: #f8fafc;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__close:hover {
+            background: #475569;
+            border-color: #64748b;
+            color: #ffffff;
+        }
+
+        body.guard-portal .guard-policy-modal__scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 14px 16px 18px;
+            border-radius: 0 0 12px 12px;
+            font-size: 0.8125rem;
+            line-height: 1.55;
             color: var(--guard-ui-secondary, #475569);
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__item.is-open .guard-accordion__body {
-            display: block;
+        body.guard-portal .guard-policy-modal__scroll p {
+            margin: 0 0 0.65em;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__item.is-open .guard-accordion__chev {
-            transform: rotate(180deg);
+        body.guard-portal .guard-policy-modal__scroll p:last-child {
+            margin-bottom: 0;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__chev {
-            transition: transform 0.2s ease;
+        body.guard-portal .guard-policy-modal__list {
+            margin: 0;
+            padding-left: 1.35rem;
+            list-style-type: decimal;
+            list-style-position: outside;
+        }
+
+        body.guard-portal .guard-policy-modal__list li {
+            margin: 0 0 0.85em;
+            padding-left: 0.35rem;
+        }
+
+        body.guard-portal .guard-policy-modal__list li:last-child {
+            margin-bottom: 0;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__scroll,
+        body.guard-portal:not(.light-mode) .guard-policy-modal__list li {
+            color: var(--guard-ui-secondary, #cbd5e1);
         }
 
         body.guard-portal .guard-app__scroll code {

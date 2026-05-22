@@ -138,7 +138,9 @@ function guard_hub_scripts(): void
             var leaveTimer = null;
 
             panels.forEach(function (p) {
-                if (p.classList.contains('is-active')) {
+                var on = p.classList.contains('is-active');
+                p.setAttribute('aria-hidden', on ? 'false' : 'true');
+                if (on) {
                     activeId = p.getAttribute('data-guard-hub-panel');
                 }
             });
@@ -154,6 +156,10 @@ function guard_hub_scripts(): void
                 var prev = panels.filter(function (p) {
                     return p.getAttribute('data-guard-hub-panel') === activeId;
                 })[0];
+                var cornerPage = bar.closest('.guard-corner-page');
+                if (cornerPage && activeId === 'social' && id !== 'social') {
+                    stopGuardLiveFeeds(cornerPage);
+                }
 
                 function showNext() {
                     buttons.forEach(function (b) {
@@ -164,12 +170,26 @@ function guard_hub_scripts(): void
                     panels.forEach(function (p) {
                         var on = p.getAttribute('data-guard-hub-panel') === id;
                         p.classList.toggle('is-active', on);
+                        p.setAttribute('aria-hidden', on ? 'false' : 'true');
                         if (!on) {
                             p.classList.remove('is-leaving');
                         }
                     });
                     activeId = id;
                     updateHubTabUrl(bar, id);
+                    if (cornerPage) {
+                        if (id === 'social') {
+                            initGuardLiveFeeds(cornerPage);
+                        } else {
+                            stopGuardLiveFeeds(cornerPage);
+                        }
+                        if (id !== 'policies') {
+                            var policyModal = guardPolicyModalElement();
+                            if (policyModal && typeof policyModal._guardPolicyCloseFn === 'function') {
+                                policyModal._guardPolicyCloseFn();
+                            }
+                        }
+                    }
                 }
 
                 if (prev) {
@@ -195,20 +215,391 @@ function guard_hub_scripts(): void
         });
     }
 
-    /* Accordion */
-    function initAccordion(root) {
-        qsa('.guard-accordion__trigger', root).forEach(function (btn) {
-            if (btn._guardAccordionBound) {
+    var guardLiveFeedRefreshMs = 180000;
+    var guardLiveFeedViewportHeight = 400;
+    var guardLiveFeedCropTop = 88;
+    var guardLiveFeedLoadTimeoutMs = 18000;
+
+    function guardLiveFeedWidth(scrollEl) {
+        var w = scrollEl && scrollEl.clientWidth ? scrollEl.clientWidth : 320;
+        return Math.max(280, Math.min(560, Math.floor(w) || 320));
+    }
+
+    function guardLiveFeedVisibleHeight(feed) {
+        if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 639px)').matches) {
+            return 360;
+        }
+        var scroll = qs('[data-guard-live-feed-scroll]', feed);
+        var attr = scroll ? scroll.getAttribute('data-guard-live-feed-viewport-h') : '';
+        var parsed = attr ? parseInt(attr, 10) : 0;
+        if (!isNaN(parsed) && parsed >= 280) {
+            return parsed;
+        }
+        return guardLiveFeedViewportHeight;
+    }
+
+    function guardLiveFeedIframeHeight(feed) {
+        return guardLiveFeedVisibleHeight(feed) + guardLiveFeedCropTop;
+    }
+
+    function buildGuardLiveFeedSrc(pageUrl, width, height, bustCache) {
+        var params = new URLSearchParams({
+            href: pageUrl,
+            tabs: 'timeline',
+            width: String(width),
+            height: String(height),
+            small_header: 'true',
+            hide_cover: 'true',
+            show_facepile: 'false',
+            adapt_container_width: 'true'
+        });
+        var src = 'https://www.facebook.com/plugins/page.php?' + params.toString();
+        if (bustCache) {
+            src += '&_=' + String(Date.now());
+        }
+        return src;
+    }
+
+    function formatLiveFeedUpdated() {
+        try {
+            return 'Auto-refresh · ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        } catch (e) {
+            return 'Auto-refresh · just now';
+        }
+    }
+
+    function setLiveFeedsRefresh(root) {
+        var el = qs('[data-guard-live-feeds-refresh]', root);
+        if (el) {
+            el.textContent = formatLiveFeedUpdated();
+        }
+    }
+
+    function applyGuardLiveFeedCrop(feed, frame, width) {
+        var scroll = qs('[data-guard-live-feed-scroll]', feed);
+        var viewport = qs('[data-guard-live-feed-viewport]', feed);
+        if (!scroll || !frame) {
+            return;
+        }
+        var visibleH = guardLiveFeedVisibleHeight(feed);
+        var iframeH = guardLiveFeedIframeHeight(feed);
+        scroll.style.height = visibleH + 'px';
+        scroll.style.minHeight = visibleH + 'px';
+        scroll.style.maxHeight = visibleH + 'px';
+        if (viewport) {
+            viewport.style.height = visibleH + 'px';
+        }
+        feed.style.setProperty('--guard-live-feed-crop', guardLiveFeedCropTop + 'px');
+        frame.style.width = width + 'px';
+        frame.style.maxWidth = '100%';
+        frame.style.marginTop = '-' + guardLiveFeedCropTop + 'px';
+        frame.style.height = iframeH + 'px';
+        frame.setAttribute('width', String(width));
+        frame.setAttribute('height', String(iframeH));
+    }
+
+    function showLiveFeedLoading(feed, on) {
+        var loading = qs('[data-guard-live-feed-loading]', feed);
+        if (loading) {
+            loading.classList.toggle('is-hidden', !on);
+        }
+    }
+
+    function showLiveFeedFallback(feed, on) {
+        var fallback = qs('[data-guard-live-feed-fallback]', feed);
+        var frame = qs('[data-guard-live-feed-frame]', feed);
+        if (fallback) {
+            if (on) {
+                fallback.removeAttribute('hidden');
+            } else {
+                fallback.setAttribute('hidden', '');
+            }
+        }
+        if (frame) {
+            frame.classList.toggle('is-hidden', !!on);
+        }
+    }
+
+    function mountGuardLiveFeed(feed, bustCache, root) {
+        var pageUrl = feed.getAttribute('data-page-url');
+        var scroll = qs('[data-guard-live-feed-scroll]', feed);
+        var frame = qs('[data-guard-live-feed-frame]', feed);
+        if (!pageUrl || !scroll || !frame) {
+            return;
+        }
+        showLiveFeedFallback(feed, false);
+        showLiveFeedLoading(feed, true);
+        if (feed._guardLiveLoadTimer) {
+            clearTimeout(feed._guardLiveLoadTimer);
+        }
+        var width = guardLiveFeedWidth(scroll);
+        var iframeH = guardLiveFeedIframeHeight(feed);
+        applyGuardLiveFeedCrop(feed, frame, width);
+        frame.classList.remove('is-hidden');
+        frame.onload = function () {
+            if (feed._guardLiveLoadTimer) {
+                clearTimeout(feed._guardLiveLoadTimer);
+                feed._guardLiveLoadTimer = null;
+            }
+            showLiveFeedLoading(feed, false);
+            showLiveFeedFallback(feed, false);
+            applyGuardLiveFeedCrop(feed, frame, guardLiveFeedWidth(scroll));
+            if (root) {
+                setLiveFeedsRefresh(root);
+            }
+        };
+        frame.onerror = function () {
+            showLiveFeedLoading(feed, false);
+            showLiveFeedFallback(feed, true);
+        };
+        feed._guardLiveLoadTimer = setTimeout(function () {
+            feed._guardLiveLoadTimer = null;
+            if (frame.getAttribute('src') && !frame.classList.contains('is-hidden')) {
+                showLiveFeedLoading(feed, false);
+                showLiveFeedFallback(feed, true);
+            }
+        }, guardLiveFeedLoadTimeoutMs);
+        frame.setAttribute('src', buildGuardLiveFeedSrc(pageUrl, width, iframeH, !!bustCache));
+    }
+
+    function layoutGuardLiveFeeds(wrap, bustCache) {
+        var root = wrap.closest('.guard-card--live-feeds') || wrap.closest('.guard-corner-page') || document;
+        qsa('[data-guard-live-feed]', wrap).forEach(function (feed) {
+            mountGuardLiveFeed(feed, !!bustCache, root);
+        });
+        setLiveFeedsRefresh(root);
+    }
+
+    function bindGuardLiveFeedResize(wrap) {
+        if (!wrap || wrap._guardLiveResizeBound) {
+            return;
+        }
+        wrap._guardLiveResizeBound = true;
+        var timer;
+        function relayout() {
+            if (timer) {
+                clearTimeout(timer);
+            }
+            timer = setTimeout(function () {
+                timer = null;
+                layoutGuardLiveFeeds(wrap, false);
+            }, 150);
+        }
+        if (typeof ResizeObserver !== 'undefined') {
+            var ro = new ResizeObserver(relayout);
+            ro.observe(wrap);
+            wrap._guardLiveResizeObserver = ro;
+        }
+        window.addEventListener('resize', relayout);
+    }
+
+    function refreshGuardLiveFeeds(wrap) {
+        layoutGuardLiveFeeds(wrap, true);
+    }
+
+    function unloadGuardLiveFeeds(root) {
+        var wrap = qs('[data-guard-live-feeds]', root);
+        if (!wrap) {
+            return;
+        }
+        if (wrap._guardLiveResizeObserver) {
+            wrap._guardLiveResizeObserver.disconnect();
+            wrap._guardLiveResizeObserver = null;
+            wrap._guardLiveResizeBound = false;
+        }
+        qsa('[data-guard-live-feed]', wrap).forEach(function (feed) {
+            if (feed._guardLiveLoadTimer) {
+                clearTimeout(feed._guardLiveLoadTimer);
+                feed._guardLiveLoadTimer = null;
+            }
+            var frame = qs('[data-guard-live-feed-frame]', feed);
+            if (frame) {
+                frame.removeAttribute('src');
+                frame.onload = null;
+                frame.onerror = null;
+            }
+        });
+    }
+
+    function stopGuardLiveFeeds(root) {
+        var wrap = qs('[data-guard-live-feeds]', root);
+        if (!wrap) {
+            return;
+        }
+        if (wrap._guardLiveTimer) {
+            clearInterval(wrap._guardLiveTimer);
+            wrap._guardLiveTimer = null;
+        }
+        unloadGuardLiveFeeds(root);
+    }
+
+    function startGuardLiveFeeds(wrap) {
+        stopGuardLiveFeeds(wrap);
+        wrap._guardLiveTimer = setInterval(function () {
+            refreshGuardLiveFeeds(wrap);
+        }, guardLiveFeedRefreshMs);
+    }
+
+    function initGuardLiveFeeds(root) {
+        var wrap = qs('[data-guard-live-feeds]', root);
+        if (!wrap) {
+            return;
+        }
+        bindGuardLiveFeedResize(wrap);
+        layoutGuardLiveFeeds(wrap, false);
+        setTimeout(function () {
+            layoutGuardLiveFeeds(wrap, false);
+        }, 350);
+        startGuardLiveFeeds(wrap);
+    }
+
+    /* Policies — modal popup (blur backdrop, scrollable body) */
+    function guardPolicyModalElement() {
+        return qs('[data-policy-modal]', document.body) || qs('[data-policy-modal]');
+    }
+
+    function guardPolicyEscapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function guardPolicyBodyHtml(text) {
+        text = String(text || '').trim();
+        if (!text) {
+            return '';
+        }
+        if (!/\d+\.\s/.test(text)) {
+            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
+        }
+        var parts = text.split(/(?=\d+\.\s)/);
+        var items = [];
+        parts.forEach(function (part) {
+            part = part.trim();
+            if (!part) {
                 return;
             }
-            btn._guardAccordionBound = true;
-            btn.addEventListener('click', function () {
-                var item = btn.closest('.guard-accordion__item');
-                if (!item) return;
-                var open = item.classList.contains('is-open');
-                qsa('.guard-accordion__item', root).forEach(function (i) { i.classList.remove('is-open'); });
-                if (!open) item.classList.add('is-open');
+            part = part.replace(/^\d+\.\s*/, '');
+            part = part.trim();
+            if (part) {
+                items.push(part);
+            }
+        });
+        if (!items.length) {
+            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
+        }
+        return '<ol class="guard-policy-modal__list">' + items.map(function (item) {
+            return '<li>' + guardPolicyEscapeHtml(item) + '</li>';
+        }).join('') + '</ol>';
+    }
+
+    function guardPolicyContentFromSource(src) {
+        if (!src) {
+            return '';
+        }
+        if (src.querySelector('.guard-policy-modal__list')) {
+            return src.innerHTML;
+        }
+        return guardPolicyBodyHtml(src.textContent || src.innerText || '');
+    }
+
+    function initPolicyModals(root) {
+        root = root || document;
+        var modal = guardPolicyModalElement();
+        if (!modal) {
+            return;
+        }
+
+        var titleEl = qs('[data-policy-modal-title]', modal);
+        var scrollEl = qs('[data-policy-modal-scroll]', modal);
+        var dialog = qs('.guard-policy-modal__dialog', modal);
+        var lastTrigger = null;
+
+        function openModal(btn) {
+            var sourceId = btn.getAttribute('data-policy-source');
+            var src = sourceId ? document.getElementById(sourceId) : null;
+            if (!src || !titleEl || !scrollEl) {
+                return;
+            }
+            lastTrigger = btn;
+            titleEl.textContent = btn.getAttribute('data-policy-title') || '';
+            scrollEl.innerHTML = guardPolicyContentFromSource(src);
+            scrollEl.scrollTop = 0;
+            modal.classList.add('is-open');
+            modal.removeAttribute('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('guard-policy-modal-open');
+            requestAnimationFrame(function () {
+                var closeBtn = qs('.guard-policy-modal__close', modal);
+                if (closeBtn) {
+                    closeBtn.focus();
+                }
             });
+        }
+
+        function closeModal() {
+            if (!modal.classList.contains('is-open')) {
+                return;
+            }
+            modal.classList.remove('is-open');
+            modal.setAttribute('hidden', '');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('guard-policy-modal-open');
+            if (scrollEl) {
+                scrollEl.innerHTML = '';
+            }
+            if (lastTrigger) {
+                lastTrigger.focus();
+                lastTrigger = null;
+            }
+        }
+
+        if (!modal._guardPolicyModalBound) {
+            modal._guardPolicyModalBound = true;
+
+            qsa('[data-policy-modal-close]', modal).forEach(function (el) {
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    closeModal();
+                });
+            });
+
+            if (!document._guardPolicyModalEscapeBound) {
+                document._guardPolicyModalEscapeBound = true;
+                document.addEventListener('keydown', function (e) {
+                    var active = guardPolicyModalElement();
+                    if (!active || !active.classList.contains('is-open')) {
+                        return;
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        if (typeof active._guardPolicyCloseFn === 'function') {
+                            active._guardPolicyCloseFn();
+                        }
+                    }
+                });
+            }
+
+            if (dialog) {
+                dialog.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+            }
+        }
+
+        modal._guardPolicyCloseFn = closeModal;
+
+        qsa('[data-policy-trigger]', root).forEach(function (btn) {
+            if (btn._guardPolicyTriggerBound) {
+                btn.removeEventListener('click', btn._guardPolicyTriggerHandler);
+            }
+            btn._guardPolicyTriggerHandler = function () {
+                openModal(btn);
+            };
+            btn._guardPolicyTriggerBound = true;
+            btn.addEventListener('click', btn._guardPolicyTriggerHandler);
         });
     }
 
@@ -1066,36 +1457,6 @@ function guard_hub_scripts(): void
         });
     }
 
-    function initGuardPeerSelect(root) {
-        qsa('[data-guard-peer-select]', root).forEach(function (sel) {
-            if (sel._guardPeerBound) {
-                return;
-            }
-            sel._guardPeerBound = true;
-            sel.addEventListener('change', function () {
-                var peer = sel.value;
-                if (!peer) {
-                    return;
-                }
-                try {
-                    var url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'chat');
-                    url.searchParams.set('peer', peer);
-                    url.hash = 'guard-chat';
-                    var href = url.href;
-                    persistGuardLocation(href);
-                    if (typeof window.loadGuardPanel === 'function') {
-                        window.loadGuardPanel(href);
-                    } else {
-                        window.location.href = href;
-                    }
-                } catch (e) {
-                    window.location.href = 'corner.php?tab=chat&peer=' + encodeURIComponent(peer) + '#guard-chat';
-                }
-            });
-        });
-    }
-
     function initCornerJump(root) {
         var page = qs('.guard-corner-page', root);
         if (!page) {
@@ -1149,6 +1510,9 @@ function guard_hub_scripts(): void
         }
         if (!tab) {
             return;
+        }
+        if (tab === 'chat') {
+            tab = 'announce';
         }
         var bar = qs('[data-guard-hub-tabs]', page);
         var tabBtn = bar ? qs('[data-guard-hub-tab="' + tab + '"]', bar) : null;
@@ -1276,10 +1640,13 @@ function guard_hub_scripts(): void
         var stage = document.querySelector('[data-guard-panel-root]') || document.querySelector('.guard-app__scroll');
         root = root || stage || document;
         initHubTabs(root);
-        initGuardPeerSelect(root);
+        var cornerPage = qs('.guard-corner-page', root);
+        if (cornerPage && qs('[data-guard-hub-panel="social"].is-active', cornerPage)) {
+            initGuardLiveFeeds(cornerPage);
+        }
         initCornerJump(root);
         initCornerClickables(root);
-        initAccordion(root);
+        initPolicyModals(root);
         syncCornerTabFromUrl(root);
         syncInboxTabFromUrl(root);
         syncSubmitReportViewFromUrl(root);
@@ -1287,11 +1654,6 @@ function guard_hub_scripts(): void
         var wizard = qs('[data-guard-report-wizard]', root);
         if (wizard) {
             initReportWizard(wizard);
-        }
-
-        var chatScroll = qs('.guard-chat__messages', root);
-        if (chatScroll) {
-            chatScroll.scrollTop = chatScroll.scrollHeight;
         }
 
         if (typeof window.initMessagingBoard === 'function' && document.getElementById('messaging-board')) {

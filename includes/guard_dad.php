@@ -110,7 +110,7 @@ function guard_dad_location_block_html(string $title, ?float $lat, ?float $lng, 
  */
 function guard_dad_fields_from_ocr(array $structured, string $postName): array
 {
-    $issue = 'roster_review';
+    $issue = 'roster_mismatch';
     $timeRecord = '';
     $recorded = 'missing';
     $guardName = '';
@@ -165,7 +165,7 @@ function guard_dad_fields_from_ocr(array $structured, string $postName): array
 
     return [
         'issue' => $issue,
-        'time_record' => $timeRecord !== '' ? $timeRecord : 'See uploaded attendance sheet',
+        'time_record' => $timeRecord !== '' ? $timeRecord : 'See uploaded attendance sheet or extracted text',
         'recorded' => $recorded,
         'guard_name' => $guardName,
         'guard_id' => $guardId,
@@ -443,7 +443,7 @@ function guard_dad_map_row_for_admin(array $row): ?array
         'post' => (string) ($row['post_name'] ?? ''),
         'shift_date' => (string) ($row['shift_date'] ?? ''),
         'shift_display' => (string) ($row['shift_display'] ?? ''),
-        'issue' => (string) ($row['issue'] ?? 'roster_review'),
+        'issue' => (string) ($row['issue'] ?? 'roster_mismatch'),
         'time_record' => (string) ($row['time_record'] ?? ''),
         'recorded' => (string) ($row['recorded'] ?? 'missing'),
         'status' => (string) ($row['status'] ?? GUARD_DAD_STATUS_PENDING),
@@ -791,9 +791,257 @@ function guard_dad_run_document_ai(PDO $conn, int $dadId): array
 }
 
 /**
+ * Whether a DAD record has OCR text that can be exported.
+ *
+ * @param array<string, mixed> $record
+ */
+function guard_dad_has_ocr_export(array $record): bool
+{
+    $structured = is_array($record['ocr_structured'] ?? null) ? $record['ocr_structured'] : [];
+
+    return document_ai_dad_display_fields($structured) !== [];
+}
+
+/**
+ * Build label/value rows for CSV export from extracted OCR.
+ *
+ * @param array<string, mixed> $record
+ * @return list<array{0: string, 1: string}>
+ */
+function guard_dad_ocr_csv_rows(array $record): array
+{
+    $rows = [
+        ['DAD reference', (string) ($record['ref'] ?? '')],
+        ['Post', (string) ($record['post'] ?? '')],
+        ['Shift', (string) ($record['shift_display'] ?? $record['shift_date'] ?? '')],
+        ['Guard', trim((string) ($record['guard_name'] ?? '') . (
+            trim((string) ($record['guard_id'] ?? '')) !== ''
+                ? ' (' . trim((string) ($record['guard_id'] ?? '')) . ')'
+                : ''
+        ))],
+        ['Head guard', (string) ($record['head_guard_name'] ?? '')],
+        ['Time record', (string) ($record['time_record'] ?? '')],
+        ['Submitted', (string) ($record['submitted_display'] ?? '')],
+    ];
+
+    $structured = is_array($record['ocr_structured'] ?? null) ? $record['ocr_structured'] : [];
+    $display = document_ai_dad_display_fields($structured);
+    if ($display !== []) {
+        $rows[] = ['', ''];
+        $rows[] = ['Extracted fields (NAME, TIME IN, TIME OUT)', ''];
+        foreach ($display as $field) {
+            $label = trim((string) ($field['label'] ?? ''));
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($label === '' && $value === '') {
+                continue;
+            }
+            $rows[] = [$label, $value];
+        }
+    }
+
+    return $rows;
+}
+
+/**
+ * @param list<array{0: string, 1: string}> $rows
+ */
+function guard_dad_ocr_csv_string(array $rows): string
+{
+    $buf = fopen('php://temp', 'r+');
+    if ($buf === false) {
+        return '';
+    }
+
+    fputcsv($buf, ['Field', 'Value']);
+    foreach ($rows as $row) {
+        fputcsv($buf, $row);
+    }
+    rewind($buf);
+    $csv = stream_get_contents($buf);
+    fclose($buf);
+
+    return is_string($csv) ? $csv : '';
+}
+
+/**
+ * @param array<string, mixed> $record
+ */
+function guard_dad_ocr_export_url(array $record): string
+{
+    $dadId = (int) ($record['dad_id'] ?? 0);
+    if ($dadId <= 0 && preg_match('/^dad-(\d+)$/', (string) ($record['id'] ?? ''), $m)) {
+        $dadId = (int) $m[1];
+    }
+    if ($dadId <= 0) {
+        return '';
+    }
+
+    return app_url('admin/api/dad-ocr-export.php?' . http_build_query(['dad_id' => (string) $dadId]));
+}
+
+/**
+ * Build a password-protected ZIP archive containing the CSV payload.
+ */
+function guard_dad_build_password_protected_csv_zip(string $csvPayload, string $innerFileName, string $password): ?string
+{
+    if (!class_exists(ZipArchive::class)) {
+        return null;
+    }
+
+    $tmpZip = tempnam(sys_get_temp_dir(), 'dadzip');
+    if ($tmpZip === false) {
+        return null;
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($tmpZip, ZipArchive::OVERWRITE) !== true) {
+        @unlink($tmpZip);
+
+        return null;
+    }
+
+    if (!$zip->addFromString($innerFileName, $csvPayload)) {
+        $zip->close();
+        @unlink($tmpZip);
+
+        return null;
+    }
+
+    $zip->setPassword($password);
+    $encryption = defined('ZipArchive::EM_AES_256') ? ZipArchive::EM_AES_256 : ZipArchive::EM_AES_128;
+    if (!$zip->setEncryptionName($innerFileName, $encryption)) {
+        $zip->close();
+        @unlink($tmpZip);
+
+        return null;
+    }
+
+    if ($zip->close() !== true) {
+        @unlink($tmpZip);
+
+        return null;
+    }
+
+    $bytes = file_get_contents($tmpZip);
+    @unlink($tmpZip);
+
+    return is_string($bytes) && $bytes !== '' ? $bytes : null;
+}
+
+function guard_dad_send_ocr_export_password_email(string $recipientEmail, string $ref, string $password, string $adminId): bool
+{
+    require_once __DIR__ . '/app_mail.php';
+
+    $safeRef = htmlspecialchars($ref, ENT_QUOTES, 'UTF-8');
+    $safePassword = htmlspecialchars($password, ENT_QUOTES, 'UTF-8');
+    $safeAdmin = htmlspecialchars($adminId, ENT_QUOTES, 'UTF-8');
+
+    $html = '<p>Hello,</p>'
+        . '<p>You requested a protected CSV extract for <strong>' . $safeRef . '</strong> on the '
+        . htmlspecialchars(app_agency_name(), ENT_QUOTES, 'UTF-8') . ' admin portal.</p>'
+        . '<p><strong>ZIP password:</strong> <span style="font-size:18px;letter-spacing:1px;font-family:monospace;">'
+        . $safePassword . '</span></p>'
+        . '<p>Open the downloaded <code>.zip</code> file with this password, then open the CSV inside in Microsoft Excel. '
+        . 'Do not share this password or forward this email.</p>'
+        . '<p>Account: <span class="mono">' . $safeAdmin . '</span></p>';
+
+    $text = "DAD extract password for {$ref}\n\nZIP password: {$password}\n\n"
+        . "Open the downloaded .zip with this password, then open the CSV in Excel.\n"
+        . "Do not share this password.\n\nAccount: {$adminId}";
+
+    return app_send_html_email(
+        [$recipientEmail],
+        'DAD extract password — ' . $ref,
+        $html,
+        $text
+    );
+}
+
+/**
+ * Email a random password to the requesting admin and stream a password-protected ZIP (CSV inside).
+ *
+ * @param array<string, mixed> $record
+ * @return array{ok: bool, error?: string}
+ */
+function guard_dad_send_ocr_protected_csv_export(PDO $conn, array $record, string $actorCompanyId): array
+{
+    require_once __DIR__ . '/app_mail.php';
+
+    if (!app_smtp_configured()) {
+        return ['ok' => false, 'error' => 'Email is not configured on this server (EMAIL / APP_PASSWORD).'];
+    }
+
+    $adminEmail = auth_current_user_email($conn);
+    if ($adminEmail === null) {
+        return [
+            'ok' => false,
+            'error' => 'Your admin account has no email on file. Add an email in Users, then try again.',
+        ];
+    }
+
+    $ref = (string) ($record['ref'] ?? 'dad-extract');
+    $safeStem = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $ref) ?: 'dad-extract';
+    $rows = guard_dad_ocr_csv_rows($record);
+    $csvBody = guard_dad_ocr_csv_string($rows);
+    $notice = '# VIEW ONLY — Golden Z Kids DAD extract. Reference copy; do not edit. Generated '
+        . date('Y-m-d H:i') . ' UTC.';
+    $csvPayload = "\xEF\xBB\xBF" . $notice . "\r\n" . $csvBody;
+
+    $password = app_generate_random_password(12);
+    $innerName = $safeStem . '-extract.csv';
+    $zipBytes = guard_dad_build_password_protected_csv_zip($csvPayload, $innerName, $password);
+    if ($zipBytes === null) {
+        return ['ok' => false, 'error' => 'Could not build a password-protected archive on this server.'];
+    }
+
+    if (!guard_dad_send_ocr_export_password_email($adminEmail, $ref, $password, $actorCompanyId)) {
+        return [
+            'ok' => false,
+            'error' => 'Could not send the password email to ' . $adminEmail . '. Check SMTP settings and try again.',
+        ];
+    }
+
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $safeStem . '-extract-protected.zip"');
+    header('Content-Length: ' . (string) strlen($zipBytes));
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+
+    echo $zipBytes;
+    exit;
+}
+
+/**
+ * @param array<string, mixed> $record
+ */
+function guard_dad_ocr_export_actions_html(array $record): string
+{
+    if (!guard_dad_has_ocr_export($record)) {
+        return '';
+    }
+
+    $dadId = (int) ($record['dad_id'] ?? 0);
+    $csvUrl = guard_dad_ocr_export_url($record);
+
+    $html = '<div class="reports-dad-ocr-export" data-dad-ocr-export>';
+    $html .= '<p class="reports-dad-ocr-export__hint">Download a password-protected ZIP containing the CSV extract. '
+        . 'A one-time password is emailed to your admin account address — use it to open the ZIP, then open the CSV in Excel.</p>';
+    $html .= '<div class="reports-dad-ocr-export__actions">';
+    if ($csvUrl !== '') {
+        $html .= '<a class="reports-btn reports-btn--secondary reports-dad-ocr-export-csv" href="' . e($csvUrl) . '"'
+            . ' data-dad-id="' . $dadId . '">'
+            . admin_ui_icon('file-csv', 14) . ' Download protected CSV</a>';
+    }
+    $html .= '</div></div>';
+
+    return $html;
+}
+
+/**
  * @param array<string, mixed> $structured
  */
-function guard_dad_ocr_structured_html(array $structured, string $formatted, string $raw): string
+function guard_dad_ocr_structured_html(array $structured, string $formatted, string $raw, ?array $record = null): string
 {
     $display = document_ai_dad_display_fields($structured);
     if ($display !== []) {
@@ -810,16 +1058,24 @@ function guard_dad_ocr_structured_html(array $structured, string $formatted, str
             $html .= '</div>';
         }
         $html .= '</div>';
+        if (is_array($record) && guard_dad_has_ocr_export($record)) {
+            $html .= guard_dad_ocr_export_actions_html($record);
+        }
 
         return $html;
     }
 
-    $body = trim($formatted !== '' ? $formatted : $raw);
+    $body = trim($formatted);
     if ($body !== '') {
-        return '<pre class="reports-dad-media__ocr">' . e($body) . '</pre>';
+        $html = '<pre class="reports-dad-media__ocr">' . e($body) . '</pre>';
+        if (is_array($record) && guard_dad_has_ocr_export($record)) {
+            $html .= guard_dad_ocr_export_actions_html($record);
+        }
+
+        return $html;
     }
 
-    return '<p class="reports-dad-media__hint">Document AI did not return readable text for this scan.</p>';
+    return '<p class="reports-dad-media__hint">Could not read NAME, TIME IN, or TIME OUT from this sheet. Try a clearer photo of the attendance row.</p>';
 }
 
 /**
@@ -838,8 +1094,8 @@ function guard_dad_submission_media_html(array $record): string
     $formatted = trim((string) ($record['ocr_formatted'] ?? ''));
     $raw = trim((string) ($record['ocr_raw'] ?? ''));
     $structured = is_array($record['ocr_structured'] ?? null) ? $record['ocr_structured'] : [];
-    $hasOcr = $formatted !== '' || $raw !== '';
-    $ocrBody = guard_dad_ocr_structured_html($structured, $formatted, $raw);
+    $hasOcr = guard_dad_has_ocr_export($record);
+    $ocrBody = guard_dad_ocr_structured_html($structured, $formatted, $raw, $record);
 
     $html = '<div class="reports-dad-step1" data-dad-step1' . ($dadId > 0 ? ' data-dad-id="' . $dadId . '"' : '') . '>';
     $html .= '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/messaging_labels.php';
+
 function messaging_ajax_wants_json(): bool
 {
     $requestedWith = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
@@ -29,12 +31,16 @@ function messaging_ajax_format_time(string $createdAt): string
 /**
  * @param list<array{company_id:string,label:string,unread:int}> $contacts
  */
-function messaging_ajax_find_contact_label(array $contacts, string $companyId): string
+function messaging_ajax_find_contact_label(array $contacts, string $companyId, ?PDO $conn = null): string
 {
     foreach ($contacts as $contact) {
         if ($contact['company_id'] === $companyId) {
             return $contact['label'];
         }
+    }
+
+    if ($conn instanceof PDO) {
+        return messaging_resolve_user_label($conn, $companyId);
     }
 
     return $companyId;
@@ -70,7 +76,7 @@ function messaging_ajax_build_direct_payload(
     return [
         'ok' => true,
         'mode' => 'direct',
-        'title' => messaging_ajax_find_contact_label($contacts, $peerId),
+        'title' => messaging_ajax_find_contact_label($contacts, $peerId, $conn),
         'meta' => $peerId,
         'messages' => $formatted,
         'compose' => [

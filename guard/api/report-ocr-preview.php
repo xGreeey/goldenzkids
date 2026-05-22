@@ -29,7 +29,7 @@ try {
 }
 
 $reportType = trim((string) ($_POST['report_type'] ?? ''));
-if (!in_array($reportType, ['Daily Attendance Document', 'Post incident'], true)) {
+if (!in_array($reportType, ['Daily Time Record', 'Daily Attendance Document', 'Post incident'], true)) {
     echo json_encode(['ok' => false, 'error' => 'Invalid report type for OCR preview.']);
     exit;
 }

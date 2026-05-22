@@ -92,16 +92,7 @@ guard_layout_head('Submit report');
                         </fieldset>
                         <input type="hidden" name="daily_activity_details" data-guard-daily-details-input value="">
                         <div class="guard-daily-activity__actions">
-                            <button type="button" class="btn-primary guard-daily-activity__submit-normal" data-guard-daily-submit-normal hidden>
-                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report
-                            </button>
-                            <button type="button" class="btn-ghost" data-guard-daily-open-event hidden>
-                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Add event details
-                            </button>
-                            <p class="form-hint guard-daily-activity__event-ready" data-guard-daily-event-ready hidden>
-                                Event details saved — submit when ready.
-                            </p>
-                            <button type="button" class="btn-primary guard-daily-activity__submit-event" data-guard-daily-submit-event hidden>
+                            <button type="button" class="btn-primary guard-daily-activity__submit" data-guard-daily-submit hidden>
                                 <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report
                             </button>
                         </div>
@@ -245,7 +236,7 @@ guard_layout_head('Submit report');
                     <footer class="guard-daily-activity-modal__foot">
                         <button type="button" class="btn-ghost" data-guard-daily-activity-modal-close>Cancel</button>
                         <button type="button" class="btn-primary" data-guard-daily-activity-modal-save>
-                            Save &amp; continue
+                            Done
                         </button>
                     </footer>
                 </div>

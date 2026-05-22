@@ -7,6 +7,10 @@ require_once __DIR__ . '/admin_ui_icons.php';
 
 const GUARD_DAD_REF_PREFIX = 'DAD';
 const GUARD_DAD_STATUS_PENDING = 'pending';
+/** Canonical guard portal label for DAD / time-record submissions. */
+const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
+/** Legacy value stored on older dgd rows before rename. */
+const GUARD_DTR_REPORT_TYPE_LEGACY = 'Daily Attendance Document';
 
 function guard_dad_table_exists(PDO $conn): bool
 {
@@ -21,7 +25,12 @@ function guard_dad_table_exists(PDO $conn): bool
 
 function guard_dad_is_report_type(string $reportType): bool
 {
-    return $reportType === 'Daily Attendance Document';
+    return in_array(trim($reportType), [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY], true);
+}
+
+function guard_dad_report_type_for_ocr(string $reportType): string
+{
+    return guard_dad_is_report_type($reportType) ? GUARD_DTR_REPORT_TYPE : $reportType;
 }
 
 function guard_dad_has_dual_location_columns(PDO $conn): bool
@@ -665,7 +674,7 @@ function guard_dad_resolve_submission_media(array $row): array
 
     if (($ocrStructured['template'] ?? '') === 'daily_attendance') {
         $ocrStructured = document_ai_enrich_dad_structured($ocrStructured);
-        $ocrFormatted = document_ai_format_structured($ocrStructured, 'Daily Attendance Document', $ocrRaw);
+        $ocrFormatted = document_ai_format_structured($ocrStructured, GUARD_DTR_REPORT_TYPE, $ocrRaw);
     }
 
     $dgdId = (int) ($row['dgd_report_number'] ?? 0);
@@ -692,7 +701,7 @@ function guard_dad_resolve_submission_media(array $row): array
                         }
                         if (($ocrStructured['template'] ?? '') === 'daily_attendance') {
                             $ocrStructured = document_ai_enrich_dad_structured($ocrStructured);
-                            $ocrFormatted = document_ai_format_structured($ocrStructured, 'Daily Attendance Document', $ocrRaw);
+                            $ocrFormatted = document_ai_format_structured($ocrStructured, GUARD_DTR_REPORT_TYPE, $ocrRaw);
                         }
                     }
                 }
@@ -732,7 +741,7 @@ function guard_dad_run_document_ai(PDO $conn, int $dadId): array
         return ['ok' => false, 'error' => 'Attendance sheet image not found on the server.'];
     }
 
-    $result = document_ai_process_report_scan($absolutePath, 'Daily Attendance Document');
+    $result = document_ai_process_report_scan($absolutePath, GUARD_DTR_REPORT_TYPE);
     if (!$result['ok']) {
         return ['ok' => false, 'error' => (string) ($result['error'] ?? 'Document AI failed.')];
     }
@@ -783,7 +792,7 @@ function guard_dad_run_document_ai(PDO $conn, int $dadId): array
 
     return [
         'ok' => true,
-        'formatted' => document_ai_format_structured($structured, 'Daily Attendance Document', (string) ($decoded['raw'] ?? '')),
+        'formatted' => document_ai_format_structured($structured, GUARD_DTR_REPORT_TYPE, (string) ($decoded['raw'] ?? '')),
         'raw' => (string) ($decoded['raw'] ?? ''),
         'structured' => $structured,
         'display_fields' => document_ai_dad_display_fields($structured),

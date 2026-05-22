@@ -380,20 +380,28 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__icon-btn {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            min-height: 40px;
             border-color: var(--guard-drawer-border);
             background: var(--guard-drawer-cream);
             color: var(--guard-drawer-ink);
         }
 
-        body.guard-portal .guard-app__drawer-footer .guard-app__logout-btn {
+        body.guard-portal .guard-app__drawer-footer .guard-app__toolbar-btn {
             width: auto;
             min-width: auto;
+            height: 38px;
+            min-height: 38px;
             padding: 0 12px 0 10px;
             gap: 8px;
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        body.guard-portal .guard-app__drawer-footer .guard-app__toolbar-btn.is-active {
+            background: var(--guard-drawer-hover);
+            border-color: var(--guard-drawer-border);
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__icon-btn .guard-ui-svg {
@@ -690,6 +698,7 @@ function guard_ui_styles(): void
             display: inline-flex;
         }
 
+        body.guard-portal .guard-app__toolbar-btn,
         body.guard-portal .guard-app__logout-btn {
             width: auto;
             min-width: auto;
@@ -702,6 +711,7 @@ function guard_ui_styles(): void
             white-space: nowrap;
         }
 
+        body.guard-portal .guard-app__toolbar-btn-label,
         body.guard-portal .guard-app__logout-btn-label {
             color: inherit;
         }

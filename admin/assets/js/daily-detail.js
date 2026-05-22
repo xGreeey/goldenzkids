@@ -18,7 +18,7 @@
     }
 
     function initDailyDetailModule() {
-        const root = document.getElementById('daily-detail-module');
+        const root = document.querySelector('#reports-module[data-registry-kind="dtr"]');
         if (!root) {
             return;
         }
@@ -34,8 +34,8 @@
         window.__dailyDetailAbort = new AbortController();
         const panelSignal = window.__dailyDetailAbort.signal;
 
-        const tableHeadWrap = document.getElementById('daily-table-head-wrap');
-        const tableBodyWrap = document.getElementById('daily-table-body-wrap');
+        const tableHeadWrap = document.getElementById('reports-table-head-wrap');
+        const tableBodyWrap = document.getElementById('reports-table-body-wrap');
         if (!isReinit && tableHeadWrap && tableBodyWrap) {
             tableBodyWrap.addEventListener(
                 'scroll',

@@ -196,7 +196,7 @@
                       ['Reference', p.ref],
                       ['Week', p.week_label],
                       ['Head guard', p.head_guard_name],
-                      ['Site / post', p.site_name],
+                      ['Post', p.site_name],
                       ['Summary', p.summary],
                       ['Highlights', p.highlights || '—'],
                       ['Submitted', p.submitted_display || '—'],
@@ -205,7 +205,7 @@
                 : [
                       ['Reference', p.ref],
                       ['Head guard', p.head_guard_name],
-                      ['Site', p.site_name],
+                      ['Post', p.site_name],
                       ['Mode', p.activity_mode_label],
                       ['Summary', p.summary],
                       ['Activity details', p.activity_details || '—'],
@@ -334,8 +334,8 @@
                 if (key === 'headGuard') {
                     return entry.el.dataset.sortHg || '';
                 }
-                if (key === 'site') {
-                    return entry.el.dataset.sortSite || '';
+                if (key === 'post') {
+                    return entry.el.dataset.sortPost || '';
                 }
                 if (key === 'week') {
                     return entry.el.dataset.sortWeek || '';

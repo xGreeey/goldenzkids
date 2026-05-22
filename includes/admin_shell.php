@@ -382,10 +382,13 @@ function admin_shell_styles(): void
 
         .sidebar-brand {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 28px 16px;
-            min-height: 140px;
+            gap: 10px;
+            padding: 20px 12px 16px;
+            min-height: 0;
+            text-align: center;
             border-bottom: 1px solid var(--app-border-on-dark);
         }
 
@@ -406,16 +409,29 @@ function admin_shell_styles(): void
             min-width: 0;
         }
 
-        .brand-name {
-            display: block;
-            font-family: var(--font-body-family);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: var(--color-white);
-            line-height: 1.3;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .sidebar-brand .brand-name {
+            margin: 0;
+            padding: 0 4px;
+            max-width: 100%;
+            font-family: var(--font-heading-family);
+            font-size: clamp(0.6875rem, 2.4vw, 0.8125rem);
+            font-weight: 400;
+            letter-spacing: var(--font-heading-letter);
+            line-height: 1.35;
+            color: var(--app-ink-on-dark);
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            overflow-wrap: anywhere;
+            hyphens: auto;
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-brand .brand-name {
+            color: var(--color-primary);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-brand .brand-name {
+            color: var(--app-ink-on-dark);
         }
 
         .sidebar-nav {
@@ -423,13 +439,17 @@ function admin_shell_styles(): void
             flex-direction: column;
             gap: 2px;
             padding: 12px 8px;
-            flex: 0 0 auto;
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .sidebar-link {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0;
             padding: 10px 14px;
             font-size: var(--font-body-size-sm);
             font-weight: 600;
@@ -523,12 +543,14 @@ function admin_shell_styles(): void
             display: flex;
             flex-direction: column;
             gap: 2px;
+            min-width: 0;
+            width: 100%;
         }
 
         .sidebar-nav-group__toggle {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             width: 100%;
             padding: 10px 14px;
             font-size: var(--font-body-size-sm);
@@ -578,9 +600,11 @@ function admin_shell_styles(): void
         .sidebar-nav-group__menu {
             display: flex;
             flex-direction: column;
-            gap: 2px;
-            margin: 0 0 2px 20px;
-            padding: 2px 0 2px 10px;
+            gap: 1px;
+            box-sizing: border-box;
+            width: calc(100% - 10px);
+            margin: 2px 4px 4px 10px;
+            padding: 4px 0 4px 8px;
             border-left: 2px solid color-mix(in srgb, var(--app-border-on-dark) 65%, transparent);
         }
 
@@ -593,10 +617,26 @@ function admin_shell_styles(): void
         }
 
         .sidebar-link--sub {
-            padding: 8px 12px;
-            font-size: var(--font-body-size-xs);
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 7px 8px;
+            font-size: 0.8125rem;
             font-weight: 600;
-            line-height: 1.35;
+            line-height: 1.3;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .sidebar-link--sub.active {
+            box-shadow: inset 3px 0 0 0 var(--brand-accent);
+        }
+
+        body.light-mode .sidebar-link--sub.active {
+            box-shadow: inset 3px 0 0 0 var(--color-primary);
         }
 
         .sidebar-link--sub .sidebar-link__icon {
@@ -840,12 +880,27 @@ function admin_shell_styles(): void
             overflow: visible;
         }
 
+        /* Content-sized admin pages (dashboard, activity registries). */
+        body.page-dashboard .app-main {
+            max-width: none;
+        }
+
         /* Full-viewport workspaces (incident registry, DTR). Everything else sizes to content. */
         body.page-incident-reports .app-shell,
-        body.page-daily-detail .app-shell {
-            min-height: 100vh;
+        body.page-daily-detail .app-shell,
+        body.page-dtr .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
             min-height: 100dvh;
+            max-height: 100dvh;
             overflow: hidden;
+        }
+
+        body.page-incident-reports .admin-app__topbar,
+        body.page-daily-detail .admin-app__topbar,
+        body.page-dtr .admin-app__topbar {
+            flex-shrink: 0;
         }
 
         .app-main {
@@ -962,21 +1017,30 @@ function admin_shell_styles(): void
 
         /* Full-height workspaces (incident + DTR only). Activity registries size to content in reports.css. */
         body.page-incident-reports .app-main,
-        body.page-daily-detail .app-main {
+        body.page-daily-detail .app-main,
+        body.page-dtr .app-main {
             flex: 1 1 auto;
             align-self: stretch;
             display: flex;
             flex-direction: column;
+            width: 100%;
+            max-width: none;
+            margin: 0;
             min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         body.page-incident-reports .app-main__stage,
-        body.page-daily-detail .app-main__stage {
+        body.page-daily-detail .app-main__stage,
+        body.page-dtr .app-main__stage {
             display: flex;
             flex-direction: column;
             flex: 1 1 auto;
             min-height: 0;
+            min-width: 0;
             width: 100%;
+            overflow: hidden;
         }
 
         .report-hub-placeholder {

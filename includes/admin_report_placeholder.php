@@ -15,7 +15,7 @@ function admin_report_placeholder_panel(string $navSlug): void
     }
     $title = (string) $item['label'];
     $hints = [
-        'weekly-activity' => 'Weekly summaries from head guards will appear here with filters, export, and status tabs.',
+        'weekly-activity' => 'Weekly Summary Reports from head guards will appear here with filters, export, and status tabs.',
         'daily-activity' => 'Shift logs and field activity for the current day will appear here with search and date filters.',
     ];
     $hint = $hints[$navSlug] ?? 'Full registry and filters for this module are coming next.';

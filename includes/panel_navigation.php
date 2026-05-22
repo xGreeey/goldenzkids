@@ -232,7 +232,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function isFullHeightPanelPage() {
         return document.body.classList.contains('page-incident-reports')
-            || document.body.classList.contains('page-daily-detail');
+            || document.body.classList.contains('page-daily-detail')
+            || document.body.classList.contains('page-dtr');
     }
 
     function lockMainHeight() {
@@ -284,18 +285,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!fetchedBody) {
             return;
         }
-        if (doc.getElementById('daily-detail-module')) {
-            document.body.dataset.openRecord = fetchedBody.getAttribute('data-open-record') || '';
-            document.body.dataset.openMode = fetchedBody.getAttribute('data-open-mode') || 'view';
-            document.body.dataset.statusTab = fetchedBody.getAttribute('data-status-tab') || '';
-            delete document.body.dataset.openIncident;
-            return;
-        }
-        if (doc.getElementById('reports-module')) {
+        if (doc.getElementById('reports-module') && doc.getElementById('reports-tbody')) {
             document.body.dataset.openIncident = fetchedBody.getAttribute('data-open-incident') || '';
             document.body.dataset.openMode = fetchedBody.getAttribute('data-open-mode') || 'view';
             document.body.dataset.statusTab = fetchedBody.getAttribute('data-status-tab') || '';
             delete document.body.dataset.openRecord;
+            delete document.body.dataset.openActivity;
+            delete document.body.dataset.openWeekly;
+            return;
+        }
+        if (
+            (doc.body && doc.body.classList.contains('page-dtr'))
+            || (doc.getElementById('reports-module')
+                && doc.getElementById('reports-module').getAttribute('data-registry-kind') === 'dtr')
+        ) {
+            document.body.dataset.openRecord = fetchedBody.getAttribute('data-open-record') || '';
+            document.body.dataset.openMode = fetchedBody.getAttribute('data-open-mode') || 'view';
+            document.body.dataset.statusTab = fetchedBody.getAttribute('data-status-tab') || '';
+            delete document.body.dataset.openIncident;
             delete document.body.dataset.openActivity;
             delete document.body.dataset.openWeekly;
             return;
@@ -337,7 +344,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function teardownPanelModules(doc) {
-        if (!doc.getElementById('daily-detail-module') && window.__dailyDetailAbort) {
+        var isDtrPage = doc.body && doc.body.classList.contains('page-dtr');
+        if (!isDtrPage && window.__dailyDetailAbort) {
             window.__dailyDetailAbort.abort();
             window.__dailyDetailAbort = null;
         }
@@ -348,6 +356,18 @@ document.addEventListener('DOMContentLoaded', function () {
         ) {
             window.__activityRegistryAbort.abort();
             window.__activityRegistryAbort = null;
+        }
+        if (!doc.getElementById('reports-tbody')) {
+            var reportsRoot = document.getElementById('reports-module');
+            if (reportsRoot && !reportsRoot.getAttribute('data-registry-kind')) {
+                delete reportsRoot.dataset.reportsBound;
+            }
+        }
+        if (!isDtrPage) {
+            var dtrRoot = document.querySelector('#reports-module[data-registry-kind="dtr"]');
+            if (dtrRoot) {
+                delete dtrRoot.dataset.dailyBound;
+            }
         }
     }
 
@@ -426,11 +446,12 @@ document.addEventListener('DOMContentLoaded', function () {
             window.initAdminNotifications();
         }
         if (typeof window.initReportsModule === 'function'
-            && (doc.getElementById('reports-module') || document.getElementById('reports-module'))) {
+            && (doc.getElementById('reports-tbody') || document.getElementById('reports-tbody'))) {
             window.initReportsModule();
         }
         if (typeof window.initDailyDetailModule === 'function'
-            && (doc.getElementById('daily-detail-module') || document.getElementById('daily-detail-module'))) {
+            && ((doc.body && doc.body.classList.contains('page-dtr'))
+                || document.querySelector('#reports-module[data-registry-kind="dtr"]'))) {
             window.initDailyDetailModule();
         }
         if (typeof window.initActivityRegistryModule === 'function'

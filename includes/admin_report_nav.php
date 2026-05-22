@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Report submenu — single source for sidebar links and active-state slugs.
  *
- * @return list<array{slug: string, href: string, label: string, icon: string, tip: string, active: list<string>}>
+ * @return list<array{slug: string, href: string, label: string, menu_label: string, icon: string, tip: string, active: list<string>}>
  */
 function admin_report_nav_items(): array
 {
@@ -12,15 +12,17 @@ function admin_report_nav_items(): array
         [
             'slug' => 'weekly-activity',
             'href' => 'weekly-activity.php',
-            'label' => 'Weekly Activity Report',
+            'label' => 'Weekly Summary Report',
+            'menu_label' => 'Weekly summary report',
             'icon' => 'clipboard-list',
-            'tip' => 'Weekly Activity Report — review head guard weekly summaries',
+            'tip' => 'Weekly Summary Report — review head guard weekly summaries',
             'active' => ['weekly-activity', 'weekly-accomplishment'],
         ],
         [
             'slug' => 'daily-activity',
             'href' => 'daily-activity.php',
             'label' => 'Daily Activity Report',
+            'menu_label' => 'Daily activity report',
             'icon' => 'clock',
             'tip' => 'Daily Activity Report — shift logs and field activity for the current day',
             'active' => ['daily-activity'],
@@ -29,6 +31,7 @@ function admin_report_nav_items(): array
             'slug' => 'dtr',
             'href' => 'dtr.php',
             'label' => 'Daily Time Record',
+            'menu_label' => 'Daily Time Record report',
             'icon' => 'calendar-day',
             'tip' => 'Daily Time Record (DTR) — time-in/out, NTE, missing values',
             'active' => ['dtr', 'dtr-registry', 'dad', 'duty'],
@@ -37,6 +40,7 @@ function admin_report_nav_items(): array
             'slug' => 'reports',
             'href' => 'reports.php',
             'label' => 'Incident report',
+            'menu_label' => 'Incident report',
             'icon' => 'file-lines',
             'tip' => 'Incident reports — monitor and archive',
             'active' => ['reports'],

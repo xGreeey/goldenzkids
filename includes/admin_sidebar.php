@@ -11,19 +11,17 @@ $reportNavItems = admin_report_nav_items();
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
         <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo" width="104" height="104" decoding="async">
+        <p class="brand-name"><?= e(app_agency_name()) ?></p>
     </div>
 
     <nav class="sidebar-nav" aria-label="Workspace">
         <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Operations dashboard') ?>>
-            <?= admin_nav_icon('chart-line') ?>
             Dashboard
         </a>
         <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging board') ?>>
-            <?= admin_nav_icon('inbox') ?>
             Inbox
         </a>
         <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Publish memos to all head guards — Guard corner announcements') ?>>
-            <?= admin_nav_icon('bullhorn') ?>
             Announcement
         </a>
         <div class="sidebar-nav-group<?= $reportNavOpen ? ' is-open has-active' : '' ?>" data-sidebar-nav-group>
@@ -31,8 +29,7 @@ $reportNavItems = admin_report_nav_items();
                     class="sidebar-nav-group__toggle"
                     aria-expanded="<?= $reportNavOpen ? 'true' : 'false' ?>"
                     aria-controls="sidebarReportMenu"
-                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly activity, daily activity, DTR, incident') ?>>
-                <?= admin_nav_icon('folder-open') ?>
+                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly summary, daily activity, DTR, incident') ?>>
                 <span class="sidebar-nav-group__label">Report</span>
                 <span class="sidebar-nav-group__chevron" aria-hidden="true"><?= admin_ui_icon('chevron-down', 16) ?></span>
             </button>
@@ -49,14 +46,12 @@ $reportNavItems = admin_report_nav_items();
                    data-nav-slug="<?= e((string) $item['slug']) ?>"
                    <?= $itemActive ? ' aria-current="page"' : '' ?>
                    <?= ui_tooltip((string) $item['tip']) ?>>
-                    <?= admin_nav_icon((string) $item['icon']) ?>
-                    <?= e((string) $item['label']) ?>
+                    <?= e((string) ($item['menu_label'] ?? $item['label'])) ?>
                 </a>
                 <?php endforeach; ?>
             </div>
         </div>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
-            <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts
         </a>
     </nav>

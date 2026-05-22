@@ -5,6 +5,10 @@ require_once __DIR__ . '/admin_weekly_activity_status.php';
 require_once __DIR__ . '/admin_incident_reports.php'; // modal field helpers
 
 const ADMIN_WEEKLY_ACTIVITY_SESSION_KEY = 'admin_weekly_activity_reports_store';
+
+/** Full module name shown in page titles, sidebar, and section headers. */
+const ADMIN_WEEKLY_SUMMARY_MODULE_LABEL = 'Weekly Summary Report';
+
 const GUARD_WEEKLY_ACTIVITY_REF_PREFIX = 'GWA';
 
 function admin_weekly_activity_history_now(): string
@@ -249,6 +253,7 @@ function admin_weekly_activity_row_attrs(array $report): string
         'data-updated-at="' . e(substr((string) ($report['updated_at'] ?? ''), 0, 10)) . '"',
         'data-sort-week="' . e(strtolower((string) ($report['week_label'] ?? ''))) . '"',
         'data-sort-hg="' . e(strtolower((string) ($report['head_guard_name'] ?? ''))) . '"',
+        'data-sort-post="' . e(strtolower((string) ($report['site_name'] ?? ''))) . '"',
         'data-search="' . e(admin_weekly_activity_search_blob($report)) . '"',
         'data-detail="' . e($detailJson) . '"',
     ]);
@@ -263,7 +268,7 @@ function admin_weekly_activity_modal_details_html(array $report): string
     $html .= admin_incident_modal_sheet_field_html('Reference', (string) ($report['ref'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Week', (string) ($report['week_label'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Site / post', (string) ($report['site_name'] ?? ''));
+    $html .= admin_incident_modal_sheet_field_html('Post', (string) ($report['site_name'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Summary', (string) ($report['summary'] ?? ''), 'wide');
     $html .= admin_incident_modal_sheet_field_html('Highlights', (string) ($report['highlights'] ?? ''), 'wide');
     $html .= admin_incident_modal_sheet_field_html('Submitted', (string) ($report['submitted_display'] ?? ''));

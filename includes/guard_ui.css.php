@@ -199,7 +199,8 @@ function guard_ui_styles(): void
         body.guard-portal .guard-app__drawer-panel {
             position: absolute;
             top: 0;
-            right: 0;
+            left: 0;
+            right: auto;
             z-index: 2;
             width: min(280px, 86vw);
             height: 100%;
@@ -210,8 +211,8 @@ function guard_ui_styles(): void
             font-family: var(--guard-ui-font);
             background: #ffffff;
             color: #0f172a;
-            box-shadow: -8px 0 24px rgba(15, 23, 42, 0.14);
-            transform: translateX(100%);
+            box-shadow: 8px 0 24px rgba(15, 23, 42, 0.14);
+            transform: translateX(-100%);
             transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
             --guard-drawer-ink: #0f172a;
             --guard-drawer-muted: #475569;
@@ -224,7 +225,7 @@ function guard_ui_styles(): void
         body.guard-portal:not(.light-mode) .guard-app__drawer-panel {
             background: #1e293b;
             color: #f1f5f9;
-            box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
+            box-shadow: 8px 0 28px rgba(0, 0, 0, 0.45);
             --guard-drawer-ink: #f1f5f9;
             --guard-drawer-muted: #cbd5e1;
             --guard-drawer-soft: #94a3b8;

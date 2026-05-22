@@ -403,6 +403,16 @@ function guard_incident_create_submission(
         return ['ok' => false, 'error' => 'Could not register incident report. Check database logs or run migrations.'];
     }
 
+    require_once __DIR__ . '/portal_audit.php';
+    portal_audit_log(
+        $conn,
+        'INCIDENT_SUBMITTED',
+        'Reference: ' . $reference,
+        $headGuardCompanyId,
+        $headGuardCompanyId,
+        AUTH_ROLE_GUARD
+    );
+
     return [
         'ok' => true,
         'inc_id' => db_last_insert_id($conn),
@@ -581,6 +591,17 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
     if (!$ok) {
         return null;
     }
+
+    $ref = (string) ($row['reference_code'] ?? ('inc-' . $incId));
+    require_once __DIR__ . '/portal_audit.php';
+    portal_audit_log(
+        $conn,
+        'INCIDENT_UPDATED',
+        'Reference: ' . $ref . ($status !== $oldStatus ? '; status → ' . $status : ''),
+        (string) ($row['head_guard_company_id'] ?? ''),
+        $actorId,
+        auth_user_role()
+    );
 
     return guard_incident_find_by_id($conn, 'inc-' . $incId);
 }

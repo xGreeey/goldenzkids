@@ -174,6 +174,12 @@ function admin_handle_profile_post(PDO $conn, string $sessionCompanyId): array
         ];
     }
 
+    require_once __DIR__ . '/portal_audit.php';
+    $profileDetail = $finalId !== $sessionCompanyId
+        ? 'Username changed to ' . $finalId
+        : ($wantsPasswordChange ? 'Profile and password updated' : 'Profile updated');
+    portal_audit_log($conn, 'PROFILE_UPDATED', $profileDetail, $finalId, $finalId, auth_user_role());
+
     $_SESSION['company_id'] = $finalId;
     if ($wantsPasswordChange) {
         $_SESSION['must_change_password'] = 0;

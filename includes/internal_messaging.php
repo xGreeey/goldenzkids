@@ -240,13 +240,28 @@ function internal_messaging_send(PDO $conn, string $senderId, int $senderRole, s
         return false;
     }
 
-    return db_execute(
+    $ok = db_execute(
         $conn,
         'INSERT INTO internal_messages (sender_company_id, recipient_company_id, body_text, is_read)
          VALUES (?, ?, ?, 0)',
         'sss',
         [$senderId, $recipientId, $body]
     );
+
+    if ($ok) {
+        require_once __DIR__ . '/portal_audit.php';
+        $preview = strlen($body) > 80 ? substr($body, 0, 77) . '…' : $body;
+        portal_audit_log(
+            $conn,
+            'MESSAGE_SENT',
+            'To ' . $recipientId . ': ' . $preview,
+            $recipientId,
+            $senderId,
+            $senderRole
+        );
+    }
+
+    return $ok;
 }
 
 function internal_messaging_can_use_direct(int $viewerRole): bool

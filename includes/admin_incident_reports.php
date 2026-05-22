@@ -728,7 +728,8 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
         || $summary !== $oldSummary;
     $statusChanged = $status !== $oldStatus;
 
-    if ($statusChanged || $fieldsChanged || $opsNote !== '') {
+    $didChange = $statusChanged || $fieldsChanged || $opsNote !== '';
+    if ($didChange) {
         $event = $statusChanged
             ? 'Status: ' . admin_incident_status_label($status)
             : 'Updated by operations';
@@ -750,6 +751,19 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
 
     $reports[$idx] = $found;
     admin_incident_store_save($reports);
+
+    if ($didChange && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO) {
+        require_once __DIR__ . '/portal_audit.php';
+        portal_audit_log(
+            $GLOBALS['conn'],
+            'INCIDENT_UPDATED',
+            'Reference: ' . (string) ($found['ref'] ?? $id)
+                . ($statusChanged ? '; status → ' . $status : ''),
+            (string) ($found['submitter_id'] ?? ''),
+            $actorId,
+            auth_user_role()
+        );
+    }
 
     return $found;
 }

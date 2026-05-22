@@ -83,7 +83,7 @@ $superadminMobileTitle = 'System Dashboard';
         <div class="sa-dashboard">
             <header class="page-header sa-dashboard__hero">
                 <h1 class="page-title">System Dashboard</h1>
-                <p class="page-subtitle">Overview of portal accounts, sign-in activity, and recent audit events across the agency.</p>
+                <p class="page-subtitle">Overview of portal accounts, sign-in activity, and recent user actions across the agency.</p>
             </header>
 
             <section class="sa-dashboard__kpis" aria-labelledby="sa-dashboard-kpi-heading">

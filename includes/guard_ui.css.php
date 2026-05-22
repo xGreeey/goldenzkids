@@ -756,6 +756,22 @@ function guard_ui_styles(): void
             max-width: none;
         }
 
+        /* Account settings — center panel + header on mobile */
+        body.guard-portal .guard-app__scroll:has(.profile-settings-panel) .page-header,
+        body.guard-portal .guard-app__scroll:has(.profile-settings-panel) .profile-settings-panel {
+            width: 100%;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-app__scroll:has(.profile-settings-panel) {
+                align-items: center;
+            }
+        }
+
         body.guard-portal .guard-app__scroll .panel-title {
             font-family: var(--guard-ui-font);
             font-size: 0.875rem;

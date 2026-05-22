@@ -361,7 +361,7 @@ function guard_incident_create_submission(
             $lng,
             $acc,
             $label !== '' ? $label : null,
-            json_encode($history, JSON_THROW_ON_ERROR),
+            json_encode($history, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]',
             $submittedAt,
         ]
     );

@@ -175,11 +175,9 @@ function admin_daily_activity_store_all(): array
         foreach (guard_daily_activity_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_daily_activity_normalize($row);
         }
-        if ($out !== []) {
-            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-            return $out;
-        }
+        return $out;
     }
 
     if (!isset($_SESSION[ADMIN_DAILY_ACTIVITY_SESSION_KEY]) || !is_array($_SESSION[ADMIN_DAILY_ACTIVITY_SESSION_KEY])) {
@@ -356,6 +354,15 @@ function admin_daily_activity_modal_details_html(array $report): string
  */
 function admin_daily_activity_update(string $id, array $input, string $actorId): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^da-(\d+)$/', $id, $m)) {
+        $updated = guard_daily_activity_admin_update($GLOBALS['conn'], (int) $m[1], $input, $actorId);
+        if ($updated !== null) {
+            return admin_daily_activity_normalize($updated);
+        }
+
+        return null;
+    }
+
     $reports = admin_daily_activity_store_all();
     $index = null;
     foreach ($reports as $i => $row) {

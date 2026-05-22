@@ -30,6 +30,21 @@ try {
     exit;
 }
 
+try {
+    guard_report_submit_handle_post($conn);
+} catch (Throwable $e) {
+    error_log('guard report-submit: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Could not submit report. Please try again.']);
+}
+
+exit;
+
+/**
+ * @param PDO $conn
+ */
+function guard_report_submit_handle_post(PDO $conn): void
+{
 $companyId = (string) ($_SESSION['company_id'] ?? '');
 $establishment = guard_portal_assigned_post($conn, $companyId);
 $reportType = trim((string) ($_POST['report_type'] ?? $_POST['template_name'] ?? ''));
@@ -262,3 +277,4 @@ echo json_encode([
     'incident_reference' => $incReference,
     'redirect' => guard_dad_is_report_type($templateName) ? 'submit-report.php?view=history' : null,
 ]);
+}

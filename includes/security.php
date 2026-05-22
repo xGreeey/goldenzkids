@@ -241,6 +241,11 @@ function mobile_base_css(): string
             min-height: 30px;
             min-width: 30px;
         }
+        button.guard-daily-activity-photo-list__remove,
+        button.guard-evidence-card__remove {
+            min-height: unset;
+            min-width: unset;
+        }
         body.superadmin-portal .app-main .btn-primary,
         body.superadmin-portal .app-main .btn-ghost,
         body.superadmin-portal .app-main button.btn-primary,
@@ -254,8 +259,43 @@ function mobile_base_css(): string
         input, select, textarea, .form-input {
             font-size: 16px;
         }
+        /* iOS/Android: editable fields below 16px trigger focus zoom */
+        @media (hover: none) and (pointer: coarse), (max-width: 767px) {
+            input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="image"]),
+            select,
+            textarea,
+            .form-input {
+                font-size: 16px;
+            }
+        }
         @media (max-width: 600px) {
             .portal-section { padding-left: 16px; padding-right: 16px; }
+        }
+CSS;
+}
+
+/**
+ * Guard portal: keep 16px on inputs that use compact rem sizes (prevents iOS focus zoom).
+ */
+function guard_mobile_input_no_zoom_css(): string
+{
+    return <<<'CSS'
+        @media (hover: none) and (pointer: coarse), (max-width: 767px) {
+            body.guard-portal .guard-app__scroll .form-field input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="image"]),
+            body.guard-portal .guard-app__scroll .form-field select,
+            body.guard-portal .guard-app__scroll .form-field textarea,
+            body.guard-portal .guard-app__scroll .guard-select__native,
+            body.guard-portal .guard-inbox-page .messaging-compose__input,
+            body.guard-portal .guard-inbox-page .messaging-create-group__input,
+            body.guard-portal .guard-daily-activity-modal__textarea,
+            body.guard-portal .guard-daily-activity-modal input[type="text"],
+            body.guard-portal .guard-daily-activity-modal input[type="search"],
+            body.guard-portal .guard-daily-activity-modal select,
+            body.guard-portal .guard-app__scroll input.form-input,
+            body.guard-portal .guard-app__scroll textarea,
+            body.guard-portal .guard-app__scroll select {
+                font-size: 16px;
+            }
         }
 CSS;
 }

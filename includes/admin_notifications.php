@@ -214,6 +214,7 @@ function admin_notifications_pending_reports(PDO $conn): array
         "SELECT d.Report_Number, d.Company_ID, d.Establishment, d.Time_of_Report, d.created_at
          FROM dgd d
          WHERE d.Status = 'Pending'
+           AND (d.Template IS NULL OR d.Template NOT IN ('Daily Activity'))
          ORDER BY d.Time_of_Report DESC
          LIMIT 12"
     );

@@ -58,6 +58,8 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null, boo
 
     <style>
 
+<?= mobile_base_css() ?>
+
 <?php admin_shell_styles(); ?>
 
 <?php superadmin_page_styles(); ?>

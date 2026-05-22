@@ -67,10 +67,9 @@ CREATE TABLE `callout_posts` (
 --
 
 INSERT INTO `callout_posts` (`post_id`, `post_name`, `is_active`, `created_at`) VALUES
-(1, 'SM Megamall', 1, '2026-05-21 07:25:08'),
-(2, 'SM Fairview', 1, '2026-05-21 07:25:08'),
-(3, 'SM Marilao', 1, '2026-05-21 07:25:08'),
-(4, 'St. Lukes Medical Center', 1, '2026-05-21 07:25:08');
+(1, 'Quiapo, Manila', 1, '2026-05-21 07:25:08'),
+(2, 'Tondo, Manila', 1, '2026-05-21 07:25:08'),
+(3, 'Sta. Ana, Manila', 1, '2026-05-21 07:25:08');
 
 -- --------------------------------------------------------
 
@@ -177,10 +176,6 @@ CREATE TABLE `guard_announcements` (
 --
 -- Dumping data for table `guard_announcements`
 --
-
-INSERT INTO `guard_announcements` (`id`, `title`, `body`, `is_active`, `created_at`) VALUES
-(1, 'Shift briefing', 'Review post orders and radio check every hour. Report incidents through the portal immediately.', 1, '2026-05-21 13:01:54'),
-(2, 'Uniform inspection', 'Full uniform and ID must be worn during duty hours. Non-compliance will be noted in daily reports.', 1, '2026-05-21 13:01:54');
 
 -- --------------------------------------------------------
 

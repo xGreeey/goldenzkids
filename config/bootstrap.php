@@ -58,3 +58,11 @@ function app_logo_url(): string
 {
     return app_url('assets/images/goldenz_logo.png');
 }
+
+function app_favicon_link(): string
+{
+    $href = e(app_logo_url());
+
+    return '    <link rel="icon" href="' . $href . '" type="image/png">'
+        . "\n    <link rel=\"apple-touch-icon\" href=\"{$href}\">";
+}

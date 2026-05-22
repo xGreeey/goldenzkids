@@ -243,7 +243,7 @@ if (guard_incident_is_report_type($templateName)) {
 $message = guard_dad_is_report_type($templateName)
     ? 'Daily time record submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
     : (guard_incident_is_report_type($templateName)
-        ? 'Post incident submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
+        ? 'Incident report submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
         : 'Report submitted. Status: Pending review.');
 if ($aiStored !== '') {
     $message .= ' Form text extracted via Document AI.';

@@ -586,6 +586,52 @@
             border-bottom: none;
         }
 
+        .panel--hg-roster {
+            margin-top: 1.25rem;
+        }
+
+        .panel--hg-roster .data-table--hg-roster .col-hg-account { width: 22%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-post { width: 18%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-team { width: 24%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-pick { width: 36%; }
+
+        .hg-roster-count {
+            display: block;
+            font-size: var(--font-body-size-xs);
+            font-weight: 700;
+            color: var(--app-ink-deep);
+        }
+
+        .hg-roster-team-preview {
+            display: block;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .hg-roster-assign-form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 8px;
+            max-width: 100%;
+        }
+
+        .hg-roster-assign-form__field {
+            flex: 1 1 14rem;
+            min-width: min(100%, 14rem);
+        }
+
+        .hg-roster-assign-form__select {
+            width: 100%;
+            min-height: 8.5rem;
+            padding: 8px 10px;
+        }
+
+        .hg-roster-assign-form__hint {
+            margin: 6px 0 0;
+            font-size: 0.6875rem;
+        }
+
         @media (max-width: 720px) {
             .hg-post-assign-form {
                 flex-direction: column;

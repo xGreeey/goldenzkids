@@ -143,6 +143,39 @@ function guard_hub_styles(): void
             display: none;
         }
 
+        body.guard-portal .guard-corner-page .guard-corner-reminder {
+            margin: 0 0 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--guard-card-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-reminder__heading {
+            margin: 0 0 0.35rem;
+            font-size: 0.9375rem;
+            line-height: 1.35;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-reminder__text {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: var(--guard-ui-muted, #64748b);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-memos__title {
+            margin: 0 0 0.75rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-memos .empty-state {
+            margin: 0;
+            padding: 0;
+        }
+
         /* Inbox / hub stack — compact headers and empty states without icons */
         body.guard-portal .guard-section-stack .guard-card__icon {
             display: none;

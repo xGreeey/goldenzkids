@@ -46,12 +46,11 @@ CREATE TABLE IF NOT EXISTS callout_post_assignments (
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Posts
+-- Duty posts (Manila sites — assign to head guards in admin Head guard posts)
 INSERT IGNORE INTO callout_posts (post_name) VALUES
-    ('SM Megamall'),
-    ('SM Fairview'),
-    ('SM Marilao'),
-    ('St. Lukes Medical Center');
+    ('Quiapo, Manila'),
+    ('Tondo, Manila'),
+    ('Sta. Ana, Manila');
 
 -- Head guards (set company_id after creating users with role 0)
 INSERT IGNORE INTO callout_head_guards (company_id, first_name, middle_name, last_name, display_name) VALUES
@@ -59,14 +58,3 @@ INSERT IGNORE INTO callout_head_guards (company_id, first_name, middle_name, las
     (NULL, 'Lucy', NULL, 'Heartfillia', 'Lucy Heartfillia'),
     (NULL, 'James', NULL, 'Harbor', 'James Harbor'),
     (NULL, 'Sova Russ', NULL, 'Del Rosario Jr.', 'Sova Russ Del Rosario Jr.');
-
--- Optional: one head guard per post (same order as lists above). Remove this block if assignments differ.
-INSERT IGNORE INTO callout_post_assignments (post_id, head_guard_id)
-SELECT p.post_id, h.head_guard_id
-FROM callout_posts p
-INNER JOIN callout_head_guards h ON (
-    (p.post_name = 'SM Megamall' AND h.display_name = 'Jose Abad Cruz')
-    OR (p.post_name = 'SM Fairview' AND h.display_name = 'Lucy Heartfillia')
-    OR (p.post_name = 'SM Marilao' AND h.display_name = 'James Harbor')
-    OR (p.post_name = 'St. Lukes Medical Center' AND h.display_name = 'Sova Russ Del Rosario Jr.')
-);

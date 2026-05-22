@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/memo_portal.php';
 require_once __DIR__ . '/guard_dad.php';
+require_once __DIR__ . '/guard_incident.php';
 
 /** @return list<array<string,mixed>> */
 function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50): array
@@ -37,7 +38,7 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
 function guard_portal_report_types(): array
 {
     return [
-        'Post incident',
+        GUARD_INCIDENT_REPORT_TYPE,
         GUARD_DTR_REPORT_TYPE,
         'Daily Activity',
     ];
@@ -52,6 +53,9 @@ function guard_portal_report_type_label(string $template): string
     if ($template === GUARD_DTR_REPORT_TYPE_LEGACY) {
         return GUARD_DTR_REPORT_TYPE;
     }
+    if ($template === GUARD_INCIDENT_REPORT_TYPE_LEGACY || $template === 'Incident') {
+        return GUARD_INCIDENT_REPORT_TYPE;
+    }
     if (in_array($template, guard_portal_report_types(), true)) {
         return $template;
     }
@@ -64,7 +68,11 @@ function guard_portal_report_type_icon(string $label): string
     $label = guard_portal_report_type_label($label);
 
     return match ($label) {
+<<<<<<< HEAD
         'Post incident' => 'fa-triangle-exclamation',
+=======
+        GUARD_INCIDENT_REPORT_TYPE => 'fa-triangle-exclamation',
+>>>>>>> ca124865c3583e0aa80e7afa51118aceb6c974c8
         GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY => 'fa-calendar-day',
         'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',

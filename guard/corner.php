@@ -37,32 +37,39 @@ guard_layout_head('Guard Corner');
                 <div class="guard-card__head">
                     <h2 class="panel-title">Announcement</h2>
                 </div>
-                <?php if ($announcements === []): ?>
-                    <p class="empty-state">No announcements yet. Admin memos published from the portal will appear here.</p>
-                <?php else: ?>
-                    <div class="guard-feed">
-                        <?php foreach ($announcements as $item):
-                            $isUnread = empty($item['is_read']);
-                            ?>
-                            <article class="guard-feed__item<?= $isUnread ? ' guard-feed__item--unread' : '' ?>">
-                                <div class="guard-feed__head">
-                                    <div>
-                                        <h3 class="guard-feed__title">
-                                            <?= e((string) ($item['title'] ?? '')) ?>
-                                            <?php if ($isUnread): ?>
-                                                <span class="guard-badge guard-badge--pending">New</span>
-                                            <?php endif; ?>
-                                        </h3>
-                                        <time class="guard-feed__time" datetime="<?= e((string) ($item['created_at'] ?? '')) ?>">
-                                            <?= e((string) ($item['created_display'] ?? $item['created_at'] ?? '')) ?>
-                                        </time>
+                <div class="guard-corner-reminder">
+                    <p class="guard-corner-reminder__heading"><strong>DDO Expiry Reminder</strong></p>
+                    <p class="guard-corner-reminder__text">If your Daily Duty Order (DDO) is nearing its expiration, please ensure necessary actions are taken before the expiration date.</p>
+                </div>
+                <div class="guard-corner-memos">
+                    <h3 class="guard-corner-memos__title">Published memo</h3>
+                    <?php if ($announcements === []): ?>
+                        <p class="empty-state">No published memos yet. Admin memos sent from the portal will appear here.</p>
+                    <?php else: ?>
+                        <div class="guard-feed">
+                            <?php foreach ($announcements as $item):
+                                $isUnread = empty($item['is_read']);
+                                ?>
+                                <article class="guard-feed__item<?= $isUnread ? ' guard-feed__item--unread' : '' ?>">
+                                    <div class="guard-feed__head">
+                                        <div>
+                                            <h4 class="guard-feed__title">
+                                                <?= e((string) ($item['title'] ?? '')) ?>
+                                                <?php if ($isUnread): ?>
+                                                    <span class="guard-badge guard-badge--pending">New</span>
+                                                <?php endif; ?>
+                                            </h4>
+                                            <time class="guard-feed__time" datetime="<?= e((string) ($item['created_at'] ?? '')) ?>">
+                                                <?= e((string) ($item['created_display'] ?? $item['created_at'] ?? '')) ?>
+                                            </time>
+                                        </div>
                                     </div>
-                                </div>
-                                <p class="guard-feed__body"><?= nl2br(e((string) ($item['body'] ?? ''))) ?></p>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                                    <p class="guard-feed__body"><?= nl2br(e((string) ($item['body'] ?? ''))) ?></p>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </section>
 

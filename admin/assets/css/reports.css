@@ -7,6 +7,8 @@ body.page-incident-reports {
     /* Dark ink for body copy (not gray-blue primary) — status chips stay colorful */
     --report-text: #1a222c;
     --report-text-muted: #4a5f73;
+    --report-surface: #f1f5f9;
+    --report-border: rgba(15, 23, 42, 0.1);
     --report-ongoing: #2563eb;
     --report-ongoing-bg: rgba(37, 99, 235, 0.14);
     --report-ongoing-border: rgba(37, 99, 235, 0.35);
@@ -42,6 +44,8 @@ body.page-incident-reports {
 body.page-incident-reports:not(.light-mode) {
     --report-text: var(--app-ink-on-dark);
     --report-text-muted: var(--app-ink-muted-on-dark);
+    --report-surface: rgba(255, 255, 255, 0.06);
+    --report-border: rgba(255, 255, 255, 0.12);
 }
 
 body.page-incident-reports:has(.app-shell) .page-title {
@@ -5240,71 +5244,85 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 
 /* DTR modal — step 1 split (sheet image left, OCR right) */
 .reports-dad-step1 {
-    margin-bottom: 1.25rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--report-border);
 }
 
 .reports-dad-step1__label {
-    margin: 0 0 0.65rem;
-    font-size: 0.75rem;
+    margin: 0 0 8px;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
 }
 
 .reports-dad-step1__split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1rem;
+    gap: 10px;
     align-items: stretch;
-    min-height: 220px;
+    min-height: 0;
 }
 
 .reports-dad-step1__col {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 6px;
     min-width: 0;
-    padding: 0.65rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+    padding: 10px 12px;
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
     border-radius: 8px;
 }
 
 .reports-dad-step1__col-title {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 6px;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
+}
+
+.reports-dad-step1__col-title .admin-ui-icon,
+.reports-dad-step1__col-title i {
+    color: var(--app-accent-text, #9a8200);
+    opacity: 0.95;
+}
+
+.reports-dad-media__hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--report-text-muted);
 }
 
 .reports-dad-step1__col--sheet .reports-dad-media__link {
     flex: 1 1 auto;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    min-height: 180px;
-    padding: 0.35rem;
-    background: var(--app-card-bg, #fff);
+    align-items: center;
+    min-height: 120px;
+    padding: 6px;
+    background: var(--app-card-bg);
     border-radius: 6px;
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+    border: 1px solid var(--report-border);
 }
 
 .reports-dad-step1__ocr-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    max-height: min(280px, 42vh);
 }
 
 .reports-dad-step1__col--ocr {
-    max-height: min(520px, 70vh);
+    max-height: min(360px, 48vh);
 }
 
 @media (max-width: 900px) {
@@ -5317,12 +5335,12 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 .reports-dad-ocr-form {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 8px;
     margin: 0;
-    padding: 1rem 1.1rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
-    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--app-card-bg);
+    border: 1px solid var(--report-border);
+    border-radius: 6px;
 }
 
 .reports-dad-ocr-form__row {
@@ -5341,10 +5359,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-ocr-form__value {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.35;
-    color: var(--report-text, #0f172a);
+    color: var(--report-text);
     word-break: break-word;
 }
 
@@ -5386,10 +5404,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-step1__footer {
-    margin-top: 1rem;
-    padding: 1rem 1.1rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
     border-radius: 8px;
 }
 
@@ -5398,10 +5416,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-ocr-export__hint {
-    margin: 0 0 0.75rem;
-    font-size: 0.8125rem;
+    margin: 0 0 8px;
+    font-size: 0.75rem;
     line-height: 1.45;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
 }
 
 .reports-dad-ocr-export__actions {
@@ -5453,7 +5471,59 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-step1__col--sheet .reports-dad-media__scan {
-    max-height: min(480px, 65vh);
+    max-height: min(240px, 38vh);
+}
+
+/* DTR step 1 — dark mode (nested surfaces must not use light fallbacks) */
+body.page-incident-reports:not(.light-mode) .reports-dad-step1 {
+    border-bottom-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col,
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer {
+    background: var(--report-surface);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col-title,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form__label,
+body.page-incident-reports:not(.light-mode) .reports-dad-media__hint,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-export__hint,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-status {
+    color: var(--report-text-muted);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form__value {
+    color: var(--report-text);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col--sheet .reports-dad-media__link {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--app-border);
+    color: var(--report-text);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary:hover,
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--app-accent, #ffdd00);
+    color: var(--app-ink-on-dark);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-run.reports-btn--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--app-border);
+    color: var(--report-text);
 }
 
 .reports-dad-media__ocr {

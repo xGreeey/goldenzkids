@@ -42,7 +42,7 @@ if (!empty($error)) {
                         name="company_id"
                         id="username"
                         class="form-input no-toggle<?= !empty($company_idErr) ? ' input-error' : '' ?>"
-                        placeholder="Username or guard ID"
+                        placeholder="Username"
                         value="<?= e($company_id) ?>"
                         maxlength="20"
                         autocomplete="username"
@@ -74,11 +74,11 @@ if (!empty($error)) {
                             <?= !empty($passwordErr) ? 'aria-invalid="true"' : '' ?>
                         >
                         <button type="button" class="btn-toggle-pin" id="togglePin" aria-label="Show password"<?= ui_tooltip('Show password') ?>>
-                            <svg class="toggle-pin-icon toggle-pin-icon--show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <svg class="toggle-pin-icon toggle-pin-icon--show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
-                            <svg class="toggle-pin-icon toggle-pin-icon--hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <svg class="toggle-pin-icon toggle-pin-icon--hide is-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M3 3l18 18"></path>
                                 <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path>
                                 <path d="M9.9 5.1A11.5 11.5 0 0 1 12 5c6.5 0 10 7 10 7a16.8 16.8 0 0 1-3 3.9"></path>

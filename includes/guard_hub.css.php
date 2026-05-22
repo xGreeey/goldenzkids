@@ -1327,4 +1327,6 @@ function guard_hub_styles(): void
             }
         }
     <?php
+    require_once __DIR__ . '/guard_inbox.css.php';
+    guard_inbox_styles();
 }

@@ -2,9 +2,22 @@
     margin-bottom: clamp(24px, 3vw, 36px);
 }
 
+body.guard-portal .guard-inbox-page .inbox-messaging-solo {
+    margin: 0;
+    margin-bottom: 0;
+}
+
 .inbox-messaging-solo .messaging-board {
     min-width: 0;
-    min-height: clamp(480px, 70vh, 720px);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Guard inbox layout: see includes/guard_inbox.css.php (loaded on inbox pages) */
+body.guard-portal .guard-inbox-page .inbox-messaging-solo {
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
 }
@@ -12,11 +25,13 @@
 .inbox-messaging-solo .messaging-board__layout {
     flex: 1 1 auto;
     min-height: 0;
+    overflow: hidden;
 }
 
 .inbox-messaging-solo .messaging-board__thread {
     flex: 1 1 auto;
     min-height: 0;
+    overflow: hidden;
 }
 
 .announcement-layout {

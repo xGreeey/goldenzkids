@@ -11,6 +11,60 @@
         return escapeHtml(text).replace(/\n/g, '<br>');
     }
 
+    function avatarInitials(label) {
+        var text = String(label || '').trim();
+        if (!text) {
+            return '?';
+        }
+        var email = text.match(/^([^@]+)@/);
+        if (email && email[1]) {
+            var local = email[1].replace(/[^a-zA-Z0-9]/g, '');
+            if (local) {
+                return local.substring(0, 2).toUpperCase();
+            }
+        }
+        var parts = text.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+        return text.replace(/\s+/g, '').substring(0, 2).toUpperCase();
+    }
+
+    function avatarTone(seed) {
+        var tones = ['navy', 'slate', 'blue', 'steel'];
+        var hash = 0;
+        var s = String(seed || '');
+        for (var i = 0; i < s.length; i++) {
+            hash = (hash + s.charCodeAt(i)) | 0;
+        }
+        return 'messaging-avatar--' + tones[Math.abs(hash) % tones.length];
+    }
+
+    var paperclipSvg =
+        '<svg class="messaging-compose__icon-svg messaging-compose__icon-svg--attach" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<path d="M21.44 11.05l-8.54 8.54a5 5 0 1 1-7.07-7.07l8.54-8.54a3.5 3.5 0 1 1 4.95 4.95l-9.19 9.19a2.5 2.5 0 1 1-3.54-3.54l8.28-8.28" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    var sendSvg =
+        '<svg class="messaging-compose__icon-svg messaging-compose__icon-svg--send" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<path d="M22 2 11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M22 2 15 22 11 13 2 9 22 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function avatarHtml(label, seed, size, extraClass) {
+        size = size || 'sm';
+        extraClass = extraClass || '';
+        return (
+            '<span class="messaging-avatar messaging-avatar--' +
+            size +
+            ' ' +
+            avatarTone(seed) +
+            ' ' +
+            extraClass +
+            '" aria-hidden="true">' +
+            escapeHtml(avatarInitials(label)) +
+            '</span>'
+        );
+    }
+
     function scrollThread() {
         var el = document.getElementById('messagingThreadScroll');
         if (el) {
@@ -69,41 +123,49 @@
     }
 
     function renderCompose(data, csrf, mode) {
-        if (mode === 'group') {
-            return (
-                '<form class="messaging-compose js-messaging-compose" data-mode="group">' +
-                '<input type="hidden" name="_csrf" value="' +
-                escapeHtml(csrf) +
-                '">' +
-                '<input type="hidden" name="group_id" value="' +
-                escapeHtml(String(data.group_id)) +
-                '">' +
-                '<label class="visually-hidden" for="messagingGroupBody">Group message</label>' +
-                '<div class="messaging-compose__field">' +
-                '<textarea name="body" id="messagingGroupBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Message the group…"></textarea>' +
-                '<button type="submit" class="messaging-compose__submit" aria-label="Send group message">' +
-                '<svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>' +
-                '</button></div></form>'
-            );
-        }
+        var hidden =
+            mode === 'group'
+                ? '<input type="hidden" name="group_id" value="' + escapeHtml(String(data.group_id)) + '">'
+                : '<input type="hidden" name="recipient_id" value="' +
+                  escapeHtml(data.recipient_id) +
+                  '"><input type="hidden" name="return_peer" value="' +
+                  escapeHtml(data.return_peer || data.recipient_id) +
+                  '">';
+        var textareaId = mode === 'group' ? 'messagingGroupBody' : 'messagingBody';
+
+        var attachInputId = mode === 'group' ? 'messagingAttachGroup' : 'messagingAttachDirect';
 
         return (
-            '<form class="messaging-compose js-messaging-compose" data-mode="direct">' +
+            '<form class="messaging-compose js-messaging-compose" data-mode="' +
+            escapeHtml(mode) +
+            '">' +
             '<input type="hidden" name="_csrf" value="' +
             escapeHtml(csrf) +
             '">' +
-            '<input type="hidden" name="recipient_id" value="' +
-            escapeHtml(data.recipient_id) +
-            '">' +
-            '<input type="hidden" name="return_peer" value="' +
-            escapeHtml(data.return_peer || data.recipient_id) +
-            '">' +
-            '<label class="visually-hidden" for="messagingBody">Message</label>' +
-            '<div class="messaging-compose__field">' +
-            '<textarea name="body" id="messagingBody" class="messaging-compose__input" rows="2" maxlength="4000" required placeholder="Type your message…"></textarea>' +
-            '<button type="submit" class="messaging-compose__submit" aria-label="Send message">' +
-            '<svg class="messaging-compose__submit-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>' +
-            '</button></div></form>'
+            hidden +
+            '<label class="visually-hidden" for="' +
+            textareaId +
+            '">Message</label>' +
+            '<div class="messaging-compose__bar">' +
+            '<textarea name="body" id="' +
+            textareaId +
+            '" class="messaging-compose__input" rows="1" maxlength="4000" placeholder="Type a message…"></textarea>' +
+            '<div class="messaging-compose__actions">' +
+            '<label class="messaging-compose__attach" for="' +
+            attachInputId +
+            '" title="Attach photo or PDF">' +
+            '<input type="file" name="attachment" id="' +
+            attachInputId +
+            '" class="messaging-compose__file-input" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf">' +
+            '<span class="messaging-compose__attach-icon" aria-hidden="true">' +
+            paperclipSvg +
+            '</span>' +
+            '<span class="visually-hidden">Attach photo or PDF</span></label>' +
+            '<button type="submit" class="messaging-compose__send" aria-label="Send message">' +
+            '<span class="messaging-compose__send-label">Send</span>' +
+            sendSvg +
+            '</button></div></div>' +
+            '<p class="messaging-compose__file-chip js-messaging-file-chip" hidden></p></form>'
         );
     }
 
@@ -145,15 +207,20 @@
 
     function renderThread(payload, csrf) {
         var isGroup = payload.mode === 'group';
+        var seed = isGroup ? 'group-' + String(payload.compose && payload.compose.group_id ? payload.compose.group_id : payload.title) : payload.meta;
+        var groupIcon = isGroup ? '<i class="fa-solid fa-users messaging-thread__header-icon" aria-hidden="true"></i>' : '';
         var html =
             '<div class="messaging-thread__header">' +
-            '<div class="messaging-thread__header-main">' +
-            '<strong>' +
+            '<div class="messaging-thread__header-profile">' +
+            avatarHtml(payload.title, seed, 'lg', isGroup ? 'messaging-avatar--group' : '') +
+            '<div class="messaging-thread__header-info">' +
+            '<strong class="messaging-thread__name">' +
             escapeHtml(payload.title) +
             '</strong>' +
-            '<span class="messaging-thread__meta">' +
+            '<span class="messaging-thread__status">' +
+            groupIcon +
             escapeHtml(payload.meta) +
-            '</span></div>' +
+            '</span></div></div>' +
             renderThreadActions(payload.actions, payload.mode) +
             '</div>' +
             '<div class="messaging-thread__messages" id="messagingThreadScroll" tabindex="0" aria-live="polite">' +
@@ -175,6 +242,14 @@
             return;
         }
         board.dataset.messagingBound = '1';
+
+        if (document.body.classList.contains('guard-portal') && document.querySelector('.guard-inbox-page')) {
+            document.body.classList.add('guard-page-inbox');
+            var guardScroll = document.querySelector('.guard-app__scroll');
+            if (guardScroll) {
+                guardScroll.style.overflow = 'hidden';
+            }
+        }
 
         var threadApi = board.dataset.threadApi || 'messaging-thread.php';
         var actionUrl = board.dataset.actionUrl || 'messaging-action.php';
@@ -200,6 +275,25 @@
         function updateUnreadUi(total) {
             total = Math.max(0, parseInt(String(total), 10) || 0);
             board.dataset.unreadTotal = String(total);
+
+            var sidebarBadge = board.querySelector('.messaging-board__sidebar-badge');
+            if (total > 0) {
+                if (!sidebarBadge) {
+                    var title = board.querySelector('.messaging-board__sidebar-title');
+                    if (title) {
+                        sidebarBadge = document.createElement('span');
+                        sidebarBadge.className = 'messaging-board__sidebar-badge';
+                        title.appendChild(sidebarBadge);
+                    }
+                }
+                if (sidebarBadge) {
+                    sidebarBadge.textContent = String(total);
+                    sidebarBadge.setAttribute('aria-label', total + ' unread');
+                    sidebarBadge.hidden = false;
+                }
+            } else if (sidebarBadge) {
+                sidebarBadge.remove();
+            }
 
             var banner = document.getElementById('messagingUnreadBanner');
             var textEl = banner && banner.querySelector('[data-messaging-unread-banner-text]');
@@ -522,12 +616,14 @@
             btn.setAttribute('data-chat-type', 'group');
             btn.setAttribute('data-group-id', String(data.group_id));
             btn.setAttribute('data-chat-label', data.group_name || 'Group');
+            var groupName = data.group_name || 'Group';
             btn.innerHTML =
-                '<span class="messaging-contact__label"><i class="fa-solid fa-users" aria-hidden="true"></i> ' +
-                escapeHtml(data.group_name || 'Group') +
-                '</span><span class="messaging-contact__id">' +
+                avatarHtml(groupName, 'group-' + data.group_id, 'sm', 'messaging-avatar--group') +
+                '<span class="messaging-contact__body"><span class="messaging-contact__row"><span class="messaging-contact__label">' +
+                escapeHtml(groupName) +
+                '</span></span><span class="messaging-contact__id">' +
                 escapeHtml(String(data.member_count || '')) +
-                ' members</span>';
+                ' members</span></span>';
             li.appendChild(btn);
             list.appendChild(li);
         }
@@ -642,10 +738,29 @@
                 });
         }
 
+        function bindComposeFile(form) {
+            var fileInput = form.querySelector('input[type="file"][name="attachment"]');
+            var chip = form.querySelector('.js-messaging-file-chip');
+            if (!fileInput || !chip) {
+                return;
+            }
+            fileInput.addEventListener('change', function () {
+                var file = fileInput.files && fileInput.files[0];
+                if (!file) {
+                    chip.hidden = true;
+                    chip.textContent = '';
+                    return;
+                }
+                chip.hidden = false;
+                chip.textContent = file.name;
+            });
+        }
+
         function bindCompose(form, mode) {
             if (!form) {
                 return;
             }
+            bindComposeFile(form);
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
                 var bodyInput = form.querySelector('textarea[name="body"]');
@@ -659,7 +774,9 @@
                     return;
                 }
 
-                var submitBtn = form.querySelector('.messaging-compose__submit');
+                var submitBtn =
+                    form.querySelector('.messaging-compose__send') ||
+                    form.querySelector('.messaging-compose__submit');
                 if (submitBtn) {
                     submitBtn.disabled = true;
                 }
@@ -694,6 +811,15 @@
                             }
                         }
                         bodyInput.value = '';
+                        var fileInput = form.querySelector('input[type="file"][name="attachment"]');
+                        if (fileInput) {
+                            fileInput.value = '';
+                        }
+                        var chip = form.querySelector('.js-messaging-file-chip');
+                        if (chip) {
+                            chip.hidden = true;
+                            chip.textContent = '';
+                        }
                         var scroll = document.getElementById('messagingThreadScroll');
                         var placeholder = scroll && scroll.querySelector('.messaging-board__placeholder');
                         if (placeholder) {

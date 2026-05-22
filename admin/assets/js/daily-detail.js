@@ -1130,6 +1130,72 @@
             applyFilters();
         }
 
+        function archiveRecord(id, refLabel) {
+            const archiveUrl = root.dataset.archiveUrl || window.location.pathname;
+            const csrf = root.dataset.csrf || '';
+            const label = refLabel || id || 'this record';
+            const confirmed = window.confirm(
+                'Archive ' +
+                    label +
+                    '? The case will be marked Closed and removed from open tabs.'
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'archive_attendance');
+            fd.append('record_id', id);
+            if (csrf) {
+                fd.append('_csrf', csrf);
+            }
+
+            fetch(archiveUrl, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+            })
+                .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        window.alert(data.error || 'Could not archive record.');
+                        return;
+                    }
+                    const record = data.record;
+                    if (record && record.id) {
+                        updateRowFromPayload(record);
+                        const idx = recordsIndex.findIndex((r) => r.id === record.id);
+                        if (idx >= 0) {
+                            const archiveBtn = recordsIndex[idx].el.querySelector('[data-action="archive"]');
+                            archiveBtn?.remove();
+                        }
+                        if (dataEl && Array.isArray(allRecords)) {
+                            const dataIdx = allRecords.findIndex((r) => r && r.id === record.id);
+                            if (dataIdx >= 0) {
+                                allRecords[dataIdx] = record;
+                                dataEl.textContent = JSON.stringify(allRecords);
+                            }
+                        }
+                        refreshTabCounts();
+                        applyFilters();
+                        if (currentRecordId === record.id) {
+                            recordsById[record.id] = record;
+                            openRecord(record.id, currentMode);
+                        }
+                    }
+                    if (data.message && window.appNotify && typeof window.appNotify.success === 'function') {
+                        window.appNotify.success(data.message);
+                    }
+                })
+                .catch(() => {
+                    window.alert('Could not archive record. Refresh the page and try again.');
+                });
+        }
+
         function deleteRecord(id, refLabel) {
             const deleteUrl = root.dataset.deleteUrl || window.location.pathname;
             const csrf = root.dataset.csrf || '';
@@ -1254,6 +1320,7 @@
         root.addEventListener('click', (e) => {
             const viewBtn = e.target.closest('[data-action="view"]');
             const editBtn = e.target.closest('[data-action="edit"]');
+            const archiveBtn = e.target.closest('[data-action="archive"]');
             const deleteBtn = e.target.closest('[data-action="delete"]');
             if (viewBtn) {
                 e.preventDefault();
@@ -1267,6 +1334,15 @@
                 e.stopPropagation();
                 const rid = editBtn.getAttribute('data-record-id') || editBtn.dataset.recordId || '';
                 openRecord(rid, 'edit');
+                return;
+            }
+            if (archiveBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const rid = archiveBtn.getAttribute('data-record-id') || archiveBtn.dataset.recordId || '';
+                const ref =
+                    archiveBtn.getAttribute('data-record-ref') || archiveBtn.dataset.recordRef || '';
+                archiveRecord(rid, ref);
                 return;
             }
             if (deleteBtn) {

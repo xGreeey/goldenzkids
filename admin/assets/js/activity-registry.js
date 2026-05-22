@@ -230,6 +230,20 @@
         const editForm = document.getElementById('activity-edit-form');
         const editId = document.getElementById('activity-edit-id');
         const editStatus = document.getElementById('activity-edit-status');
+        if (editStatus) {
+            Array.from(editStatus.options).forEach((opt) => {
+                if (opt.value === 'archived') {
+                    opt.remove();
+                }
+            });
+        }
+
+        const STATUS_TAB_SHORT = {
+            pending: 'Pending',
+            reviewed: 'Reviewed',
+            on_hold: 'On hold',
+            archived: 'Archived',
+        };
 
         let activeStatus = document.body.dataset.statusTab || 'all';
         if (!activeStatus) {
@@ -242,7 +256,7 @@
                 : document.body.dataset.openActivity || '';
         let currentMode = document.body.dataset.openMode || 'view';
 
-        let sortKey = isWeekly ? 'updated' : 'submitted';
+        let sortKey = 'submitted';
         let sortDir = 'desc';
 
         function buildIndex() {
@@ -278,7 +292,7 @@
             }
             const from = dateFrom?.value || '';
             const to = dateTo?.value || '';
-            const rawDate = isWeekly ? entry.updatedAt : entry.submittedAt;
+            const rawDate = entry.submittedAt;
             const dateField = rawDate ? String(rawDate).slice(0, 10) : '';
             if (from && dateField && dateField < from) {
                 return false;
@@ -286,7 +300,7 @@
             if (to && dateField && dateField > to) {
                 return false;
             }
-            if (!statusMatchesTab(entry.status, activeStatus)) {
+            if (!isWeekly && !statusMatchesTab(entry.status, activeStatus)) {
                 return false;
             }
 
@@ -379,6 +393,163 @@
             modalDetails.innerHTML = html;
         }
 
+        function buildWeeklyPrintHtml(p) {
+            const ref = String(p.ref || 'Weekly summary');
+            const printedAt = new Date().toLocaleString();
+            const pageTitle = (document.title || '').replace(/\s*\|\s*.*$/, '').trim() || 'Weekly Summary Report';
+            const summary = String(p.summary || '—').trim() || '—';
+            const highlights = String(p.highlights || '—').trim() || '—';
+            const weekRange =
+                p.week_label ||
+                (p.week_start && p.week_end ? p.week_start + ' – ' + p.week_end : '—');
+
+            return (
+                '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
+                escapeHtml(ref) +
+                '</title><style>' +
+                'body{font-family:system-ui,sans-serif;font-size:12pt;line-height:1.45;color:#111;margin:1.25in;}' +
+                'h1{font-size:18pt;margin:0 0 4px;} .meta{color:#444;font-size:10pt;margin-bottom:20px;}' +
+                'dl{display:grid;grid-template-columns:9rem 1fr;gap:6px 12px;margin:0 0 16px;} dt{font-weight:700;margin:0;} dd{margin:0;}' +
+                'h2{font-size:12pt;margin:18px 0 8px;}' +
+                '.narrative{white-space:pre-wrap;margin:0;}' +
+                '@media print{body{margin:0.75in;}}' +
+                '</style></head><body>' +
+                '<h1>' +
+                escapeHtml(ref) +
+                '</h1>' +
+                '<p class="meta">' +
+                escapeHtml(pageTitle) +
+                ' · Printed ' +
+                escapeHtml(printedAt) +
+                '</p>' +
+                '<dl>' +
+                '<dt>Week</dt><dd>' +
+                escapeHtml(weekRange) +
+                '</dd>' +
+                '<dt>Post</dt><dd>' +
+                escapeHtml(p.site_name || '—') +
+                '</dd>' +
+                '<dt>Head guard</dt><dd>' +
+                escapeHtml(p.head_guard_name || '—') +
+                (p.head_guard_id ? ' (' + escapeHtml(p.head_guard_id) + ')' : '') +
+                '</dd>' +
+                '<dt>Status</dt><dd>' +
+                escapeHtml(p.status_label || p.status || '—') +
+                '</dd>' +
+                '<dt>Submitted</dt><dd>' +
+                escapeHtml(p.submitted_display || '—') +
+                '</dd>' +
+                '<dt>Last updated</dt><dd>' +
+                escapeHtml(p.updated_display || '—') +
+                '</dd>' +
+                '</dl>' +
+                '<h2>Summary</h2><p class="narrative">' +
+                escapeHtml(summary) +
+                '</p>' +
+                '<h2>Highlights</h2><p class="narrative">' +
+                escapeHtml(highlights) +
+                '</p></body></html>'
+            );
+        }
+
+        function buildDailyPrintHtml(p) {
+            const ref = String(p.ref || 'Daily activity report');
+            const printedAt = new Date().toLocaleString();
+            const pageTitle = (document.title || '').replace(/\s*\|\s*.*$/, '').trim() || 'Daily Activity Report';
+            const mode = String(p.activity_mode || 'normal').toLowerCase();
+            const summary = String(p.summary || '—').trim() || '—';
+
+            let submissionHtml =
+                '<p class="narrative"><em>Normal operation — submitted without the event details step. No activity narrative or supporting photos were required.</em></p>';
+            if (mode === 'event') {
+                const details = String(p.activity_details || '—').trim() || '—';
+                submissionHtml =
+                    '<h2>Activity details</h2><p class="narrative">' + escapeHtml(details) + '</p>';
+                const attachments = Array.isArray(p.attachments) ? p.attachments : [];
+                if (attachments.length > 0) {
+                    const names = attachments
+                        .map((a) => String(a?.label || a?.name || 'Photo').trim())
+                        .filter(Boolean)
+                        .join(', ');
+                    submissionHtml +=
+                        '<h2>Supporting photos</h2><p class="narrative">' +
+                        escapeHtml(String(attachments.length) + ' file(s): ' + names) +
+                        '</p>';
+                } else {
+                    submissionHtml += '<h2>Supporting photos</h2><p class="narrative">None attached.</p>';
+                }
+            }
+
+            return (
+                '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>' +
+                escapeHtml(ref) +
+                '</title><style>' +
+                'body{font-family:system-ui,sans-serif;font-size:12pt;line-height:1.45;color:#111;margin:1.25in;}' +
+                'h1{font-size:18pt;margin:0 0 4px;} .meta{color:#444;font-size:10pt;margin-bottom:20px;}' +
+                'dl{display:grid;grid-template-columns:9rem 1fr;gap:6px 12px;margin:0 0 16px;} dt{font-weight:700;margin:0;} dd{margin:0;}' +
+                'h2{font-size:12pt;margin:18px 0 8px;}' +
+                '.narrative{white-space:pre-wrap;margin:0;}' +
+                '@media print{body{margin:0.75in;}}' +
+                '</style></head><body>' +
+                '<h1>' +
+                escapeHtml(ref) +
+                '</h1>' +
+                '<p class="meta">' +
+                escapeHtml(pageTitle) +
+                ' · Printed ' +
+                escapeHtml(printedAt) +
+                '</p>' +
+                '<dl>' +
+                '<dt>Mode</dt><dd>' +
+                escapeHtml(p.activity_mode_label || p.activity_mode || '—') +
+                '</dd>' +
+                '<dt>Post</dt><dd>' +
+                escapeHtml(p.site_name || '—') +
+                '</dd>' +
+                '<dt>Head guard</dt><dd>' +
+                escapeHtml(p.head_guard_name || '—') +
+                (p.head_guard_id ? ' (' + escapeHtml(p.head_guard_id) + ')' : '') +
+                '</dd>' +
+                '<dt>Location</dt><dd>' +
+                escapeHtml(p.location_label || '—') +
+                '</dd>' +
+                '<dt>Status</dt><dd>' +
+                escapeHtml(p.status_label || p.status || '—') +
+                '</dd>' +
+                '<dt>Submitted</dt><dd>' +
+                escapeHtml(p.submitted_display || '—') +
+                '</dd>' +
+                '<dt>Last updated</dt><dd>' +
+                escapeHtml(p.updated_display || '—') +
+                '</dd>' +
+                '</dl>' +
+                '<h2>Summary</h2><p class="narrative">' +
+                escapeHtml(summary) +
+                '</p>' +
+                submissionHtml +
+                '</body></html>'
+            );
+        }
+
+        function printActivityRecord(id) {
+            const p = resolveRecord(id);
+            if (!p) {
+                return;
+            }
+            const win = window.open('', '_blank', 'noopener,noreferrer');
+            if (!win) {
+                window.alert('Allow pop-ups to print this report.');
+                return;
+            }
+            win.document.open();
+            win.document.write(isWeekly ? buildWeeklyPrintHtml(p) : buildDailyPrintHtml(p));
+            win.document.close();
+            win.focus();
+            setTimeout(function () {
+                win.print();
+            }, 200);
+        }
+
         function historyEventLabel(event) {
             const raw = String(event || '').trim();
             if (!raw) {
@@ -460,23 +631,29 @@
         }
 
         function setModalMode(mode) {
-            const isEdit = mode === 'edit';
+            const resolved = isWeekly ? 'view' : mode;
+            const isEdit = resolved === 'edit';
             editForm?.toggleAttribute('hidden', !isEdit);
             footerView?.toggleAttribute('hidden', isEdit);
             footerEdit?.toggleAttribute('hidden', !isEdit);
-            currentMode = mode;
+            currentMode = resolved;
         }
 
         function pushUrl(id, mode) {
             const url = new URL(window.location.href);
+            const resolvedMode = isWeekly ? 'view' : mode || 'view';
             if (id) {
                 url.searchParams.set(openParam, id);
-                url.searchParams.set('mode', mode || 'view');
+                if (isWeekly) {
+                    url.searchParams.delete('mode');
+                } else {
+                    url.searchParams.set('mode', resolvedMode);
+                }
             } else {
                 url.searchParams.delete(openParam);
                 url.searchParams.delete('mode');
             }
-            window.history.pushState({ [openParam]: id, mode: mode || 'view' }, '', url);
+            window.history.pushState({ [openParam]: id, mode: resolvedMode }, '', url);
         }
 
         function resolveRecord(id) {
@@ -501,8 +678,9 @@
             if (!p) {
                 return;
             }
+            const resolvedMode = isWeekly ? 'view' : mode || 'view';
             currentId = id;
-            setModalMode(mode || 'view');
+            setModalMode(resolvedMode);
             if (modalRef) {
                 modalRef.textContent = p.ref || '—';
             }
@@ -525,13 +703,13 @@
                 editStatus.value = p.status || '';
             }
             if (gotoEdit) {
-                gotoEdit.hidden = false;
+                gotoEdit.hidden = isWeekly;
             }
             modalOverlay.classList.add('is-open');
             modalOverlay.setAttribute('aria-hidden', 'false');
             document.body.classList.add('activity-registry-modal-open');
             document.body.style.overflow = 'hidden';
-            pushUrl(id, mode || 'view');
+            pushUrl(id, resolvedMode);
             recordsIndex.forEach((r) => {
                 r.el.classList.toggle('is-selected', r.id === id);
             });
@@ -642,9 +820,222 @@
             { signal }
         );
 
+        function refreshWeeklyKpi() {
+            if (!isWeekly) {
+                return;
+            }
+            const counts = { all: 0 };
+            recordsIndex.forEach((entry) => {
+                counts.all += 1;
+                const st = entry.status || '';
+                if (st) {
+                    counts[st] = (counts[st] || 0) + 1;
+                }
+            });
+            const module = document.getElementById('weekly-activity-module');
+            module?.querySelectorAll('[data-kpi]').forEach((el) => {
+                const key = el.getAttribute('data-kpi');
+                if (key) {
+                    el.textContent = String(counts[key] ?? 0);
+                }
+            });
+        }
+
+        function removeRecordFromUi(id) {
+            const row = recordsIndex.find((r) => r.id === id)?.el;
+            if (row) {
+                row.remove();
+            }
+            delete recordsById[id];
+            recordsIndex = buildIndex();
+            const dataEl = document.getElementById('activity-data-json');
+            if (dataEl) {
+                dataEl.textContent = JSON.stringify(Object.values(recordsById));
+            }
+            refreshWeeklyKpi();
+            applyFilters();
+        }
+
+        function syncActivityRowStatus(p) {
+            const entry = recordsIndex.find((r) => r.id === p.id);
+            if (!entry?.el) {
+                return;
+            }
+            const slug = p.status || 'pending';
+            entry.status = slug;
+            entry.el.dataset.status = slug;
+            entry.payload = p;
+            recordsById[p.id] = p;
+            entry.el.dataset.detail = JSON.stringify(p);
+
+            const statusBtn = entry.el.querySelector('.reports-col-status [data-action="status"]');
+            if (statusBtn) {
+                const label = p.status_label || STATUS_LABELS[slug] || slug;
+                const short = STATUS_TAB_SHORT[slug] || label;
+                statusBtn.className =
+                    'reports-action-btn reports-action-btn--status reports-action-btn--' + slug;
+                statusBtn.textContent = short;
+                statusBtn.title = label + ' — Click to update status';
+                statusBtn.setAttribute('aria-label', 'Status: ' + label + ', update');
+            }
+            entry.el.querySelector('.reports-col-actions [data-action="archive"]')?.remove();
+        }
+
+        function archiveDailyRecord(id, refLabel) {
+            const postUrl = window.location.pathname;
+            const csrf = root.dataset.csrf || '';
+            const label = refLabel || id || 'this report';
+            if (!window.confirm('Archive ' + label + '? It will move to the Archived tab.')) {
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'archive_activity');
+            fd.append('activity_id', id);
+            if (csrf) {
+                fd.append('_csrf', csrf);
+            }
+
+            fetch(postUrl, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+            })
+                .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        window.alert(data.error || 'Could not archive report.');
+                        return;
+                    }
+                    const record = data.record;
+                    if (record?.id) {
+                        syncActivityRowStatus(record);
+                        if (dataEl && Array.isArray(allRecords)) {
+                            const dataIdx = allRecords.findIndex((r) => r && r.id === record.id);
+                            if (dataIdx >= 0) {
+                                allRecords[dataIdx] = record;
+                                dataEl.textContent = JSON.stringify(allRecords);
+                            }
+                        }
+                        applyFilters();
+                        if (currentId === record.id) {
+                            openRecord(record.id, currentMode);
+                        }
+                    }
+                    if (data.message && window.appNotify?.success) {
+                        window.appNotify.success(data.message);
+                    }
+                })
+                .catch(() => {
+                    window.alert('Could not archive report. Refresh the page and try again.');
+                });
+        }
+
+        function deleteWeeklyRecord(id, refLabel) {
+            const deleteUrl = root.dataset.deleteUrl || window.location.pathname;
+            const csrf = root.dataset.csrf || '';
+            const label = refLabel || id || 'this summary';
+            if (
+                !window.confirm(
+                    'Delete ' + label + '? This removes the weekly summary from the registry and cannot be undone.'
+                )
+            ) {
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'delete_weekly');
+            fd.append('weekly_id', id);
+            if (csrf) {
+                fd.append('_csrf', csrf);
+            }
+
+            const headers = {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/json',
+            };
+            if (csrf) {
+                headers['X-CSRF-Token'] = csrf;
+            }
+
+            fetch(deleteUrl, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers,
+            })
+                .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        window.alert(data.error || 'Could not delete summary.');
+                        return;
+                    }
+                    if (currentId === id) {
+                        closeModal();
+                    }
+                    removeRecordFromUi(id);
+                    if (data.message && window.appNotify && typeof window.appNotify.success === 'function') {
+                        window.appNotify.success(data.message);
+                    }
+                })
+                .catch(() => {
+                    window.alert('Could not delete summary. Check your connection and try again.');
+                });
+        }
+
         root.addEventListener(
             'click',
             (e) => {
+                const deleteBtn = e.target.closest('[data-action="delete"]');
+                if (deleteBtn && isWeekly) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const row = deleteBtn.closest('[data-activity-row]');
+                    const id = deleteBtn.dataset.activityId || row?.dataset.id || '';
+                    const ref = row?.dataset.ref || '';
+                    if (id) {
+                        deleteWeeklyRecord(id, ref);
+                    }
+                    return;
+                }
+                const archiveBtn = e.target.closest('[data-action="archive"]');
+                if (archiveBtn && !isWeekly) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const row = archiveBtn.closest('[data-activity-row]');
+                    const id = archiveBtn.dataset.activityId || row?.dataset.id || '';
+                    const ref = archiveBtn.dataset.activityRef || row?.dataset.ref || '';
+                    if (id) {
+                        archiveDailyRecord(id, ref);
+                    }
+                    return;
+                }
+                const statusBtn = e.target.closest('[data-action="status"]');
+                if (statusBtn && !isWeekly) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id =
+                        statusBtn.dataset.activityId || statusBtn.closest('[data-activity-row]')?.dataset.id || '';
+                    if (id) {
+                        openRecord(id, 'edit');
+                    }
+                    return;
+                }
+                const printBtn = e.target.closest('[data-action="print"]');
+                if (printBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id =
+                        printBtn.dataset.activityId || printBtn.closest('[data-activity-row]')?.dataset.id || '';
+                    if (id) {
+                        printActivityRecord(id);
+                    }
+                    return;
+                }
                 const viewBtn = e.target.closest('[data-action="view"]');
                 if (viewBtn) {
                     e.preventDefault();
@@ -656,7 +1047,7 @@
                     return;
                 }
                 const row = e.target.closest('[data-activity-row]');
-                if (row && !e.target.closest('.reports-actions')) {
+                if (row && !e.target.closest('.reports-actions, .reports-col-status')) {
                     const id = row.dataset.id || '';
                     if (id) {
                         openRecord(id, 'view');
@@ -676,16 +1067,18 @@
             },
             { signal }
         );
-        gotoEdit?.addEventListener('click', () => {
-            if (currentId) {
-                openRecord(currentId, 'edit');
-            }
-        }, { signal });
-        cancelEdit?.addEventListener('click', () => {
-            if (currentId) {
-                openRecord(currentId, 'view');
-            }
-        }, { signal });
+        if (!isWeekly) {
+            gotoEdit?.addEventListener('click', () => {
+                if (currentId) {
+                    openRecord(currentId, 'edit');
+                }
+            }, { signal });
+            cancelEdit?.addEventListener('click', () => {
+                if (currentId) {
+                    openRecord(currentId, 'view');
+                }
+            }, { signal });
+        }
 
         document.addEventListener(
             'keydown',
@@ -703,7 +1096,7 @@
                 const state = e.state || {};
                 const url = new URL(window.location.href);
                 const id = state[openParam] || url.searchParams.get(openParam) || '';
-                const mode = state.mode || url.searchParams.get('mode') || 'view';
+                const mode = isWeekly ? 'view' : state.mode || url.searchParams.get('mode') || 'view';
                 if (id && resolveRecord(id)) {
                     openRecord(id, mode);
                 } else {

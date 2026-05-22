@@ -21,6 +21,7 @@ $adminNavActive = 'announcements';
     </style>
 </head>
 <body class="light-mode">
+<?php admin_theme_body_boot(); ?>
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 

@@ -93,6 +93,15 @@ function admin_sidebar_icon(string $icon): string
     };
 }
 
+/** Run immediately after `<body>` opens so saved dark/light mode applies before paint. */
+function admin_theme_body_boot(): void
+{
+    if (!function_exists('theme_body_boot_script')) {
+        require_once __DIR__ . '/theme.php';
+    }
+    theme_body_boot_script('light-class');
+}
+
 function admin_shell_styles(): void
 {
     static $loaded = false;

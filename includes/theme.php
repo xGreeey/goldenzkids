@@ -103,9 +103,9 @@ function theme_toggle_markup(array $options = []): string
 }
 
 /**
- * Apply saved theme on <body> and sync the sidebar toggle (call once after footer toggle markup).
+ * Apply saved theme on <body> before paint (first script inside <body> on admin pages).
  */
-function theme_sidebar_boot_script(string $mode = 'light-class'): void
+function theme_body_boot_script(string $mode = 'light-class'): void
 {
     static $done = false;
     if ($done) {
@@ -116,11 +116,17 @@ function theme_sidebar_boot_script(string $mode = 'light-class'): void
     ?>
 <script>
 (function () {
+    if (window.__abcThemeBodyBoot) {
+        return;
+    }
+    window.__abcThemeBodyBoot = 1;
     var key = 'abc_theme';
     var mode = <?= json_encode($mode, JSON_THROW_ON_ERROR) ?>;
     var saved = localStorage.getItem(key);
     var body = document.body;
-    if (!body) return;
+    if (!body) {
+        return;
+    }
     var dark = saved === 'dark'
         ? true
         : saved === 'light'
@@ -134,6 +140,36 @@ function theme_sidebar_boot_script(string $mode = 'light-class'): void
         body.classList.toggle('light-mode', !dark);
     }
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+    window.__abcThemeDark = dark;
+})();
+</script>
+    <?php
+}
+
+/**
+ * Sync sidebar theme toggles to the current <body> class (after toggle markup exists).
+ */
+function theme_sidebar_boot_script(string $mode = 'light-class'): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    $mode = $mode === 'dark-class' ? 'dark-class' : 'light-class';
+    ?>
+<script>
+(function () {
+    var body = document.body;
+    if (!body) {
+        return;
+    }
+    var mode = <?= json_encode($mode, JSON_THROW_ON_ERROR) ?>;
+    var dark = typeof window.__abcThemeDark === 'boolean'
+        ? window.__abcThemeDark
+        : mode === 'dark-class'
+            ? body.classList.contains('dark-mode')
+            : !body.classList.contains('light-mode');
     var tip = dark ? 'Switch to light mode' : 'Switch to dark mode';
     document.querySelectorAll('.theme-switch').forEach(function (toggle) {
         toggle.setAttribute('aria-checked', dark ? 'true' : 'false');
@@ -188,6 +224,7 @@ function theme_toggle_script(): void
             } else {
                 body.classList.toggle('light-mode', !dark);
             }
+            window.__abcThemeDark = dark;
             localStorage.setItem(storageKey, dark ? 'dark' : 'light');
             syncToggles(dark);
         }
@@ -197,10 +234,8 @@ function theme_toggle_script(): void
             applyTheme(true);
         } else if (saved === 'light') {
             applyTheme(false);
-        } else if (mode === 'light-class') {
-            applyTheme(!body.classList.contains('light-mode'));
         } else {
-            applyTheme(body.classList.contains('dark-mode'));
+            syncToggles(isDark());
         }
 
         toggles.forEach(function (toggle) {

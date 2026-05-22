@@ -1136,6 +1136,82 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
     return $found;
 }
 
+/**
+ * Close (archive) an incident — sets registry status to Closed.
+ *
+ * @return array<string, mixed>|null
+ */
+function admin_incident_archive(string $id, string $actorId): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    $record = admin_incident_find($id);
+    if ($record === null) {
+        return null;
+    }
+
+    $status = (string) ($record['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    if (!admin_incident_status_is_valid($status)) {
+        $status = ADMIN_INCIDENT_STATUS_ONGOING;
+    }
+    $defs = admin_incident_status_definitions();
+    if (($defs[$status]['closed'] ?? false) === true) {
+        return admin_incident_normalize($record);
+    }
+
+    return admin_incident_update($id, [
+        'progression_only' => true,
+        'status' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
+    ], $actorId);
+}
+
+/**
+ * Delete an incident report (database or demo session).
+ *
+ * @return array{id:string,ref:string}|null
+ */
+function admin_incident_delete(string $id): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^inc-(\d+)$/', $id, $m)) {
+        return guard_incident_admin_delete($GLOBALS['conn'], (int) $m[1]);
+    }
+
+    if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {
+        return null;
+    }
+
+    $reports = admin_incident_store_all();
+    $deleted = null;
+    $remaining = [];
+
+    foreach ($reports as $row) {
+        if ((string) ($row['id'] ?? '') === $id) {
+            $deleted = $row;
+            continue;
+        }
+        $remaining[] = $row;
+    }
+
+    if ($deleted === null) {
+        return null;
+    }
+
+    admin_incident_store_save($remaining);
+
+    return [
+        'id' => $id,
+        'ref' => (string) ($deleted['ref'] ?? $id),
+    ];
+}
+
 /** @param list<array<string, mixed>> $reports */
 function admin_incident_status_counts(array $reports): array
 {
@@ -1486,6 +1562,11 @@ function admin_incident_action_icon(string $kind): string
             . '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'
             . '<path d="M10 11v6M14 11v6"/>'
             . '<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'
+            . '</svg>',
+        'archive' => '<svg ' . $attrs . '>'
+            . '<polyline points="21 8 21 21 3 21 3 8"/>'
+            . '<rect x="1" y="3" width="22" height="5"/>'
+            . '<line x1="10" y1="12" x2="14" y2="12"/>'
             . '</svg>',
         default => '',
     };

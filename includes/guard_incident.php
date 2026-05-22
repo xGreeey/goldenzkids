@@ -980,3 +980,39 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
 
     return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
 }
+
+/**
+ * Permanently remove an incident submission from the registry.
+ *
+ * @return array{id:string,ref:string}|null
+ */
+function guard_incident_admin_delete(PDO $conn, int $incId): ?array
+{
+    if (!guard_incident_table_exists($conn)) {
+        return null;
+    }
+
+    $row = db_fetch_one(
+        $conn,
+        'SELECT inc_id, reference_code FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1',
+        'i',
+        [$incId]
+    );
+    if ($row === null) {
+        return null;
+    }
+
+    $id = 'inc-' . $incId;
+    $ref = (string) ($row['reference_code'] ?? $id);
+    $ok = db_execute(
+        $conn,
+        'DELETE FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1',
+        'i',
+        [$incId]
+    );
+    if (!$ok) {
+        return null;
+    }
+
+    return ['id' => $id, 'ref' => $ref];
+}

@@ -209,22 +209,30 @@
                 }
 
                 const viewBtn = e.target.closest('[data-action="view"]');
-                const editBtn = e.target.closest('[data-action="edit"]');
-                const printBtn = e.target.closest('[data-action="print"]');
+                const archiveBtn = e.target.closest('[data-action="archive"]');
+                const deleteBtn = e.target.closest('[data-action="delete"]');
                 if (viewBtn) {
                     e.preventDefault();
-                    h.openIncident(viewBtn.dataset.incidentId, 'view');
+                    e.stopPropagation();
+                    h.openIncident(viewBtn.dataset.incidentId || '', 'view');
                     return;
                 }
-                if (editBtn) {
-                    e.preventDefault();
-                    h.openIncident(editBtn.dataset.incidentId, 'edit');
-                    return;
-                }
-                if (printBtn) {
+                if (archiveBtn) {
                     e.preventDefault();
                     e.stopPropagation();
-                    h.printIncident(printBtn.dataset.incidentId || '');
+                    h.archiveIncident?.(
+                        archiveBtn.dataset.incidentId || '',
+                        archiveBtn.dataset.incidentRef || ''
+                    );
+                    return;
+                }
+                if (deleteBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    h.deleteIncident?.(
+                        deleteBtn.dataset.incidentId || '',
+                        deleteBtn.dataset.incidentRef || ''
+                    );
                     return;
                 }
 
@@ -1679,6 +1687,128 @@
         reportsLive.reportsById[p.id] = p;
     }
 
+    function removeIncidentFromUi(id) {
+        const idx = reportsIndex.findIndex((r) => r.id === id);
+        if (idx >= 0) {
+            reportsIndex[idx].el.remove();
+            reportsIndex.splice(idx, 1);
+        }
+        delete reportsLive.reportsById[id];
+        if (dataEl && Array.isArray(allReports)) {
+            const dataIdx = allReports.findIndex((r) => r && r.id === id);
+            if (dataIdx >= 0) {
+                allReports.splice(dataIdx, 1);
+                dataEl.textContent = JSON.stringify(allReports);
+            }
+        }
+        updateKpis();
+        applyFilters();
+    }
+
+    function archiveIncident(id, refLabel) {
+        const postUrl = root.dataset.postUrl || window.location.pathname;
+        const csrf = root.dataset.csrf || '';
+        const label = refLabel || id || 'this report';
+        if (!window.confirm('Archive ' + label + '? The case will be marked Closed.')) {
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('action', 'archive_incident');
+        fd.append('incident_id', id);
+        if (csrf) {
+            fd.append('_csrf', csrf);
+        }
+
+        fetch(postUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/json',
+            },
+        })
+            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || !data.ok) {
+                    window.alert(data.error || 'Could not archive report.');
+                    return;
+                }
+                const record = data.record;
+                if (record && record.id) {
+                    updateRowFromPayload(record);
+                    const row = reportsIndex.find((r) => r.id === record.id);
+                    row?.el.querySelector('[data-action="archive"]')?.remove();
+                    if (dataEl && Array.isArray(allReports)) {
+                        const dataIdx = allReports.findIndex((r) => r && r.id === record.id);
+                        if (dataIdx >= 0) {
+                            allReports[dataIdx] = record;
+                            dataEl.textContent = JSON.stringify(allReports);
+                        }
+                    }
+                    updateKpis();
+                    applyFilters();
+                    if (reportsLive.currentIncidentId === record.id) {
+                        openIncident(record.id, reportsLive.currentMode || 'view');
+                    }
+                }
+                if (data.message && window.appNotify?.success) {
+                    window.appNotify.success(data.message);
+                }
+            })
+            .catch(() => {
+                window.alert('Could not archive report. Refresh the page and try again.');
+            });
+    }
+
+    function deleteIncident(id, refLabel) {
+        const postUrl = root.dataset.postUrl || window.location.pathname;
+        const csrf = root.dataset.csrf || '';
+        const label = refLabel || id || 'this report';
+        if (
+            !window.confirm(
+                'Delete ' + label + '? This permanently removes the incident from the registry.'
+            )
+        ) {
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('action', 'delete_incident');
+        fd.append('incident_id', id);
+        if (csrf) {
+            fd.append('_csrf', csrf);
+        }
+
+        fetch(postUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/json',
+            },
+        })
+            .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || !data.ok) {
+                    window.alert(data.error || 'Could not delete report.');
+                    return;
+                }
+                if (reportsLive.currentIncidentId === id) {
+                    closeModal();
+                }
+                removeIncidentFromUi(id);
+                if (data.message && window.appNotify?.success) {
+                    window.appNotify.success(data.message);
+                }
+            })
+            .catch(() => {
+                window.alert('Could not delete report. Refresh the page and try again.');
+            });
+    }
+
     function pushUrl(id, mode) {
         const url = new URL(window.location.href);
         if (id) {
@@ -2064,6 +2194,8 @@
         applyIncidentTypesSearch,
         resetIncidentTypesFilters,
         printIncident,
+        archiveIncident,
+        deleteIncident,
     };
     bindReportsModalUi();
     bindReportsTableUi(root);

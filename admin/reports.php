@@ -154,6 +154,7 @@ function admin_reports_row_attrs(array $report): string
     </style>
 </head>
 <body class="light-mode page-incident-reports"
+      data-admin-nav="reports"
       data-open-incident="<?= e($openIncidentId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
       data-status-tab="<?= e($initialStatusTab) ?>">

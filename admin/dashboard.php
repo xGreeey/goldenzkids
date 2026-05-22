@@ -40,7 +40,7 @@ $adminNavActive = 'dashboard';
 <?php readfile(__DIR__ . '/assets/css/dashboard.css'); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode page-dashboard">
 <?php require_once __DIR__ . '/../includes/admin_sidebar.php'; ?>
 <main class="app-main">
         <header class="page-header">

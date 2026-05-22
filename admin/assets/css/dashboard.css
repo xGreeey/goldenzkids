@@ -104,6 +104,17 @@
             }
         }
 
+        @media (orientation: landscape) and (max-height: 720px) {
+            .content-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .panel--compose {
+                position: static;
+                top: auto;
+            }
+        }
+
         .analytics-col {
             display: flex;
             flex-direction: column;

@@ -630,7 +630,11 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
+<<<<<<< HEAD
+        var DTR_TYPE = 'Daily Time Record';
+=======
         var DAD_TYPE = 'Daily Time Record';
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
         var INCIDENT_TYPE = 'Post incident';
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;
@@ -681,7 +685,7 @@ function guard_hub_scripts(): void
 
         function isDadMode() {
             var sel = qs('[name="report_type"]', form);
-            return sel && String(sel.value || '').trim() === DAD_TYPE;
+            return sel && String(sel.value || '').trim() === DTR_TYPE;
         }
 
         function isIncidentMode() {
@@ -759,7 +763,7 @@ function guard_hub_scripts(): void
             if (step2Title) step2Title.textContent = dad ? 'Step 2 — Site photos & location' : 'Step 2 — Insert evidences';
             if (step2Hint) {
                 step2Hint.textContent = dad
-                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DAD).'
+                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DTR).'
                     : 'Photos are tagged with device date/time and GPS when available.';
             }
             if (sheetLocPanel) sheetLocPanel.hidden = !dad;
@@ -1055,7 +1059,7 @@ function guard_hub_scripts(): void
             }
 
             var fd = new FormData();
-            fd.append('report_type', isIncidentMode() ? INCIDENT_TYPE : DAD_TYPE);
+            fd.append('report_type', isIncidentMode() ? INCIDENT_TYPE : DTR_TYPE);
             fd.append('report_scan', reportFile, reportFile.name || 'scan.jpg');
             var csrfInput = qs('input[name="_csrf"]', form);
             if (csrfInput && csrfInput.value) fd.append('_csrf', csrfInput.value);

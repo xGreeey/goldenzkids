@@ -361,3 +361,150 @@ function guard_daily_activity_create_submission(
         'reference' => $reference,
     ];
 }
+
+/**
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>|null
+ */
+function guard_daily_activity_map_row_for_admin(array $row): ?array
+{
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
+    global $master_key, $cipher_algo;
+
+    $daId = (int) ($row['da_id'] ?? 0);
+    if ($daId <= 0) {
+        return null;
+    }
+
+    $ivB64 = (string) ($row['iv'] ?? '');
+    $iv = base64_decode($ivB64, true);
+    if ($iv === false || $iv === '') {
+        return null;
+    }
+
+    $details = '';
+    $detailsCipher = (string) ($row['activity_details_cipher'] ?? '');
+    if ($detailsCipher !== '') {
+        $details = openssl_decrypt($detailsCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+    }
+
+    $mode = (string) ($row['activity_mode'] ?? GUARD_DAILY_ACTIVITY_MODE_NORMAL);
+    $modeLabel = $mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? 'With event / activity' : 'Normal operation';
+    $summary = $details !== '' ? $details : ($mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? 'Event submission' : 'Normal operation check-in');
+
+    $aiPayload = [];
+    $aiCipher = (string) ($row['ai_extracted_cipher'] ?? '');
+    if ($aiCipher !== '') {
+        $aiRaw = openssl_decrypt($aiCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+        if ($aiRaw !== '') {
+            try {
+                $decoded = json_decode($aiRaw, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    $aiPayload = $decoded;
+                }
+            } catch (JsonException) {
+                $aiPayload = [];
+            }
+        }
+    }
+
+    $history = [];
+    $historyJson = (string) ($row['history_json'] ?? '');
+    if ($historyJson !== '') {
+        try {
+            $parsed = json_decode($historyJson, true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($parsed)) {
+                $history = $parsed;
+            }
+        } catch (JsonException) {
+            $history = [];
+        }
+    }
+
+    $status = ADMIN_DAILY_ACTIVITY_STATUS_PENDING;
+    foreach (array_reverse($history) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $event = (string) ($entry['event'] ?? '');
+        if (preg_match('/^Registry:\s*(.+)$/iu', $event, $m)) {
+            $label = trim($m[1]);
+            foreach (admin_daily_activity_status_definitions() as $slug => $def) {
+                if (strcasecmp((string) $def['label'], $label) === 0) {
+                    $status = $slug;
+                    break 2;
+                }
+            }
+        }
+    }
+
+    $submittedAt = (string) ($row['submitted_at'] ?? '');
+    $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
+
+    return [
+        'id' => 'da-' . $daId,
+        'ref' => (string) ($row['reference_code'] ?? ''),
+        'head_guard_id' => (string) ($row['head_guard_company_id'] ?? ''),
+        'head_guard_name' => trim((string) ($row['head_guard_name'] ?? '')) ?: (string) ($row['head_guard_company_id'] ?? ''),
+        'site_name' => (string) ($row['site_name'] ?? ''),
+        'activity_mode' => $mode,
+        'activity_mode_label' => $modeLabel,
+        'summary' => $summary,
+        'activity_details' => $details,
+        'location_label' => (string) ($row['location_label'] ?? ''),
+        'dgd_report_number' => $row['dgd_report_number'] ?? null,
+        'status' => $status,
+        'history' => $history,
+        'submitted_at' => $submittedAt,
+        'updated_at' => $updatedAt,
+        'ai_payload' => $aiPayload,
+    ];
+}
+
+/** @return list<array<string, mixed>> */
+function guard_daily_activity_fetch_admin_records(PDO $conn): array
+{
+    if (!guard_daily_activity_table_exists($conn)) {
+        return [];
+    }
+
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
+    $stmt = db_query($conn, 'SELECT * FROM guard_daily_activity_submissions ORDER BY submitted_at DESC');
+    if ($stmt === false) {
+        return [];
+    }
+
+    $out = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $mapped = guard_daily_activity_map_row_for_admin($row);
+        if ($mapped !== null) {
+            $out[] = $mapped;
+        }
+    }
+
+    return $out;
+}
+
+function guard_daily_activity_find_by_id(PDO $conn, string $id): ?array
+{
+    if (!preg_match('/^da-(\d+)$/', $id, $m)) {
+        return null;
+    }
+
+    $row = db_fetch_one(
+        $conn,
+        'SELECT * FROM guard_daily_activity_submissions WHERE da_id = ? LIMIT 1',
+        'i',
+        [(int) $m[1]]
+    );
+    if ($row === null) {
+        return null;
+    }
+
+    return guard_daily_activity_map_row_for_admin($row);
+}

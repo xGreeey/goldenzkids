@@ -202,7 +202,7 @@ if (guard_dad_is_report_type($templateName)) {
     );
 
     if (!$dadResult['ok']) {
-        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DAD record.')]);
+        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DTR record.')]);
         exit;
     }
     $dadReference = (string) ($dadResult['reference'] ?? '');

@@ -29,7 +29,11 @@ try {
 }
 
 $reportType = trim((string) ($_POST['report_type'] ?? ''));
+<<<<<<< HEAD
+if (!in_array($reportType, [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY, 'Post incident'], true)) {
+=======
 if (!in_array($reportType, ['Daily Time Record', 'Daily Attendance Document', 'Post incident'], true)) {
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
     echo json_encode(['ok' => false, 'error' => 'Invalid report type for OCR preview.']);
     exit;
 }

@@ -5,7 +5,13 @@ require_once __DIR__ . '/document_ai.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/admin_ui_icons.php';
 
-const GUARD_DAD_REF_PREFIX = 'DAD';
+/** Canonical report type label in guard submit flow. */
+const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
+
+/** @deprecated Legacy label still accepted in DB and OCR. */
+const GUARD_DTR_REPORT_TYPE_LEGACY = 'Daily Attendance Document';
+
+const GUARD_DAD_REF_PREFIX = 'DTR';
 const GUARD_DAD_STATUS_PENDING = 'pending';
 /** Canonical guard portal label for DAD / time-record submissions. */
 const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
@@ -25,12 +31,16 @@ function guard_dad_table_exists(PDO $conn): bool
 
 function guard_dad_is_report_type(string $reportType): bool
 {
+<<<<<<< HEAD
+    return in_array($reportType, [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY], true);
+=======
     return in_array(trim($reportType), [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY], true);
 }
 
 function guard_dad_report_type_for_ocr(string $reportType): string
 {
     return guard_dad_is_report_type($reportType) ? GUARD_DTR_REPORT_TYPE : $reportType;
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
 }
 
 function guard_dad_has_dual_location_columns(PDO $conn): bool
@@ -95,20 +105,54 @@ function guard_dad_location_block_html(string $title, ?float $lat, ?float $lng, 
         return '';
     }
 
-    $html = '<div class="reports-detail-about"><h4 class="reports-detail-about__title">' . e($title) . '</h4>';
+    $html = '<article class="reports-dad-loc-card">';
+    $html .= '<h4 class="reports-dad-loc-card__title">' . e($title) . '</h4>';
     if ($label !== '') {
-        $html .= '<p>' . e($label) . '</p>';
+        $html .= '<p class="reports-dad-loc-card__label">' . e($label) . '</p>';
     }
     if ($lat !== null && $lng !== null) {
-        $html .= '<p class="mono">' . e(sprintf('%.6f, %.6f', $lat, $lng));
+        $html .= '<p class="reports-dad-loc-card__coords mono">' . e(sprintf('%.6f, %.6f', $lat, $lng));
         if ($accuracy !== null) {
             $html .= ' <span class="reports-optional">(±' . e((string) round($accuracy, 1)) . ' m)</span>';
         }
         $html .= '</p>';
         $mapUrl = 'https://www.google.com/maps?q=' . rawurlencode($lat . ',' . $lng);
-        $html .= '<p><a href="' . e($mapUrl) . '" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></p>';
+        $html .= '<p class="reports-dad-loc-card__map"><a href="' . e($mapUrl) . '" target="_blank" rel="noopener noreferrer">'
+            . admin_ui_icon('location-dot', 14) . ' Open in Google Maps</a></p>';
+    } else {
+        $html .= '<p class="reports-dad-loc-card__empty">No GPS coordinates captured.</p>';
     }
-    $html .= '</div>';
+    $html .= '</article>';
+
+    return $html;
+}
+
+/**
+ * @param array<string, mixed> $record
+ */
+function guard_dad_locations_section_html(array $record): string
+{
+    $sheet = guard_dad_location_block_html(
+        'Attendance sheet capture',
+        isset($record['sheet_latitude']) ? (float) $record['sheet_latitude'] : null,
+        isset($record['sheet_longitude']) ? (float) $record['sheet_longitude'] : null,
+        isset($record['sheet_accuracy_m']) ? (float) $record['sheet_accuracy_m'] : null,
+        (string) ($record['sheet_location_label'] ?? '')
+    );
+    $evidence = guard_dad_location_block_html(
+        'Site evidence (step 2)',
+        isset($record['evidence_latitude']) ? (float) $record['evidence_latitude'] : (isset($record['submit_latitude']) ? (float) $record['submit_latitude'] : null),
+        isset($record['evidence_longitude']) ? (float) $record['evidence_longitude'] : (isset($record['submit_longitude']) ? (float) $record['submit_longitude'] : null),
+        isset($record['evidence_accuracy_m']) ? (float) $record['evidence_accuracy_m'] : (isset($record['submit_accuracy_m']) ? (float) $record['submit_accuracy_m'] : null),
+        (string) ($record['evidence_location_label'] ?? $record['location_label'] ?? '')
+    );
+    if ($sheet === '' && $evidence === '') {
+        return '';
+    }
+
+    $html = '<section class="reports-detail-sheet__section" aria-label="Capture locations">';
+    $html .= '<h4 class="reports-dad-section-heading">Locations</h4>';
+    $html .= '<div class="reports-dad-locations">' . $sheet . $evidence . '</div></section>';
 
     return $html;
 }
@@ -227,10 +271,13 @@ function guard_dad_next_reference(PDO $conn): string
     $row = db_fetch_one(
         $conn,
         "SELECT reference_code FROM guard_dad_submissions
-         WHERE reference_code LIKE ?
+         WHERE reference_code LIKE ? OR reference_code LIKE ?
          ORDER BY dad_id DESC LIMIT 1",
-        's',
-        [GUARD_DAD_REF_PREFIX . '-' . $year . '-%']
+        'ss',
+        [
+            GUARD_DAD_REF_PREFIX . '-' . $year . '-%',
+            'DAD-' . $year . '-%',
+        ]
     );
     $seq = 1;
     if ($row !== null && preg_match('/-(\d+)$/', (string) ($row['reference_code'] ?? ''), $m)) {
@@ -255,7 +302,7 @@ function guard_dad_create_submission(
     array $payload
 ): array {
     if (!guard_dad_table_exists($conn)) {
-        return ['ok' => false, 'error' => 'DAD registry is not available. Run database migrations.'];
+        return ['ok' => false, 'error' => 'DTR registry is not available. Run database migrations.'];
     }
 
     $structured = is_array($payload['structured'] ?? null) ? $payload['structured'] : [];
@@ -370,7 +417,7 @@ function guard_dad_create_submission(
     if (!$ok) {
         error_log('guard_dad_create_submission INSERT failed for ' . $reference);
 
-        return ['ok' => false, 'error' => 'Could not register DAD submission. Check database logs or run migrations.'];
+        return ['ok' => false, 'error' => 'Could not register DTR submission. Check database logs or run migrations.'];
     }
 
     $dadId = db_last_insert_id($conn);
@@ -378,7 +425,7 @@ function guard_dad_create_submission(
     require_once __DIR__ . '/portal_audit.php';
     portal_audit_log(
         $conn,
-        'DAD_SUBMITTED',
+        'DTR_SUBMITTED',
         'Reference: ' . $reference,
         $headGuardCompanyId,
         $headGuardCompanyId,
@@ -733,7 +780,7 @@ function guard_dad_run_document_ai(PDO $conn, int $dadId): array
 
     $row = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ? LIMIT 1', 'i', [$dadId]);
     if ($row === null) {
-        return ['ok' => false, 'error' => 'DAD record not found.'];
+        return ['ok' => false, 'error' => 'DTR record not found.'];
     }
 
     $absolutePath = guard_dad_resolve_scan_absolute_path($conn, $dadId);
@@ -770,7 +817,7 @@ function guard_dad_run_document_ai(PDO $conn, int $dadId): array
         'si',
         [$aiCipher, $dadId]
     )) {
-        return ['ok' => false, 'error' => 'OCR completed but could not be saved on the DAD record.'];
+        return ['ok' => false, 'error' => 'OCR completed but could not be saved on the DTR record.'];
     }
 
     $dgdId = (int) ($row['dgd_report_number'] ?? 0);
@@ -820,7 +867,7 @@ function guard_dad_has_ocr_export(array $record): bool
 function guard_dad_ocr_csv_rows(array $record): array
 {
     $rows = [
-        ['DAD reference', (string) ($record['ref'] ?? '')],
+        ['DTR reference', (string) ($record['ref'] ?? '')],
         ['Post', (string) ($record['post'] ?? '')],
         ['Shift', (string) ($record['shift_display'] ?? $record['shift_date'] ?? '')],
         ['Guard', trim((string) ($record['guard_name'] ?? '') . (
@@ -954,13 +1001,13 @@ function guard_dad_send_ocr_export_password_email(string $recipientEmail, string
         . 'Do not share this password or forward this email.</p>'
         . '<p>Account: <span class="mono">' . $safeAdmin . '</span></p>';
 
-    $text = "DAD extract password for {$ref}\n\nZIP password: {$password}\n\n"
+    $text = "DTR extract password for {$ref}\n\nZIP password: {$password}\n\n"
         . "Open the downloaded .zip with this password, then open the CSV in Excel.\n"
         . "Do not share this password.\n\nAccount: {$adminId}";
 
     return app_send_html_email(
         [$recipientEmail],
-        'DAD extract password — ' . $ref,
+        'DTR extract password — ' . $ref,
         $html,
         $text
     );
@@ -992,7 +1039,7 @@ function guard_dad_send_ocr_protected_csv_export(PDO $conn, array $record, strin
     $safeStem = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $ref) ?: 'dad-extract';
     $rows = guard_dad_ocr_csv_rows($record);
     $csvBody = guard_dad_ocr_csv_string($rows);
-    $notice = '# VIEW ONLY — Golden Z Kids DAD extract. Reference copy; do not edit. Generated '
+    $notice = '# VIEW ONLY — Golden Z Kids DTR extract. Reference copy; do not edit. Generated '
         . date('Y-m-d H:i') . ' UTC.';
     $csvPayload = "\xEF\xBB\xBF" . $notice . "\r\n" . $csvBody;
 
@@ -1067,21 +1114,13 @@ function guard_dad_ocr_structured_html(array $structured, string $formatted, str
             $html .= '</div>';
         }
         $html .= '</div>';
-        if (is_array($record) && guard_dad_has_ocr_export($record)) {
-            $html .= guard_dad_ocr_export_actions_html($record);
-        }
 
         return $html;
     }
 
     $body = trim($formatted);
     if ($body !== '') {
-        $html = '<pre class="reports-dad-media__ocr">' . e($body) . '</pre>';
-        if (is_array($record) && guard_dad_has_ocr_export($record)) {
-            $html .= guard_dad_ocr_export_actions_html($record);
-        }
-
-        return $html;
+        return '<pre class="reports-dad-media__ocr">' . e($body) . '</pre>';
     }
 
     return '<p class="reports-dad-media__hint">Could not read NAME, TIME IN, or TIME OUT from this sheet. Try a clearer photo of the attendance row.</p>';
@@ -1108,14 +1147,9 @@ function guard_dad_submission_media_html(array $record): string
 
     $html = '<div class="reports-dad-step1" data-dad-step1' . ($dadId > 0 ? ' data-dad-id="' . $dadId . '"' : '') . '>';
     $html .= '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
-    $html .= '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
-    $html .= '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet">'
-        . admin_ui_icon('image', 14) . ' Sheet image</button>';
-    $html .= '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr">'
-        . admin_ui_icon('wand-magic-sparkles', 14) . ' Extracted text</button>';
-    $html .= '</div>';
-    $html .= '<div class="reports-dad-step1__panels">';
-    $html .= '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';
+    $html .= '<div class="reports-dad-step1__split">';
+    $html .= '<div class="reports-dad-step1__col reports-dad-step1__col--sheet">';
+    $html .= '<h4 class="reports-dad-step1__col-title">' . admin_ui_icon('image', 14) . ' Sheet image</h4>';
     if ($scanUrl !== '') {
         $html .= '<a href="' . e($scanUrl) . '" target="_blank" rel="noopener noreferrer" class="reports-dad-media__link">';
         $html .= '<img class="reports-dad-media__scan" src="' . e($scanUrl) . '" alt="Uploaded attendance sheet">';
@@ -1124,12 +1158,14 @@ function guard_dad_submission_media_html(array $record): string
         $html .= '<p class="reports-dad-media__hint">No scan image on file.</p>';
     }
     $html .= '</div>';
-    $html .= '<div class="reports-dad-step1__panel" role="tabpanel" data-dad-panel="ocr" hidden>';
+    $html .= '<div class="reports-dad-step1__col reports-dad-step1__col--ocr">';
+    $html .= '<h4 class="reports-dad-step1__col-title">' . admin_ui_icon('wand-magic-sparkles', 14) . ' Extracted text</h4>';
+    $html .= '<div class="reports-dad-step1__ocr-body" data-dad-ocr-panel>';
     if ($hasOcr) {
         $html .= $ocrBody;
     } else {
         $html .= '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
-        $html .= '<p class="reports-dad-media__hint">Handwriting will be read with Document AI when you open this tab.</p>';
+        $html .= '<p class="reports-dad-media__hint">Document AI reads NAME, TIME IN, and TIME OUT from the sheet.</p>';
         if ($dadId > 0 && $scanUrl !== '') {
             $html .= '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
         }
@@ -1137,8 +1173,28 @@ function guard_dad_submission_media_html(array $record): string
         $html .= '</div>';
     }
     $html .= '</div></div></div>';
+    if ($hasOcr) {
+        $html .= guard_dad_step1_export_footer_html($record);
+    }
+    $html .= '</div>';
 
     return $html;
+}
+
+/**
+ * CSV export strip below the step 1 split (not inside the OCR column).
+ *
+ * @param array<string, mixed> $record
+ */
+function guard_dad_step1_export_footer_html(array $record): string
+{
+    if (!guard_dad_has_ocr_export($record)) {
+        return '';
+    }
+
+    return '<div class="reports-dad-step1__footer" data-dad-step1-export>'
+        . guard_dad_ocr_export_actions_html($record)
+        . '</div>';
 }
 
 function guard_dad_find_by_id(PDO $conn, string $id): ?array
@@ -1191,7 +1247,7 @@ function guard_dad_unlink_scan_file(array $row): void
 function guard_dad_delete_submission(PDO $conn, int $dadId): array
 {
     if (!guard_dad_table_exists($conn) || $dadId <= 0) {
-        return ['ok' => false, 'error' => 'DAD registry unavailable.'];
+        return ['ok' => false, 'error' => 'DTR registry unavailable.'];
     }
 
     $row = db_fetch_one(
@@ -1219,21 +1275,5 @@ function guard_dad_delete_submission(PDO $conn, int $dadId): array
  */
 function guard_dad_modal_extras_html(PDO $conn, array $record): string
 {
-    $html = guard_dad_submission_media_html($record);
-    $html .= guard_dad_location_block_html(
-        'Location — attendance sheet (step 1)',
-        isset($record['sheet_latitude']) ? (float) $record['sheet_latitude'] : null,
-        isset($record['sheet_longitude']) ? (float) $record['sheet_longitude'] : null,
-        isset($record['sheet_accuracy_m']) ? (float) $record['sheet_accuracy_m'] : null,
-        (string) ($record['sheet_location_label'] ?? '')
-    );
-    $html .= guard_dad_location_block_html(
-        'Location — site evidence (step 2)',
-        isset($record['evidence_latitude']) ? (float) $record['evidence_latitude'] : (isset($record['submit_latitude']) ? (float) $record['submit_latitude'] : null),
-        isset($record['evidence_longitude']) ? (float) $record['evidence_longitude'] : (isset($record['submit_longitude']) ? (float) $record['submit_longitude'] : null),
-        isset($record['evidence_accuracy_m']) ? (float) $record['evidence_accuracy_m'] : (isset($record['submit_accuracy_m']) ? (float) $record['submit_accuracy_m'] : null),
-        (string) ($record['evidence_location_label'] ?? $record['location_label'] ?? '')
-    );
-
-    return $html;
+    return guard_dad_submission_media_html($record);
 }

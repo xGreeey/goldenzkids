@@ -92,14 +92,13 @@ $adminNavActive = 'inbox';
 <?php readfile(__DIR__ . '/assets/css/dashboard.css'); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode page-inbox">
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
     <main class="app-main">
         <header class="page-header">
             <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Staff messaging board for direct and group conversations.</p>
         </header>
 
         <div class="inbox-messaging-solo">

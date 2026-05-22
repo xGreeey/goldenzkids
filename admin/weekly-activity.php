@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
-require_once APP_ROOT . '/includes/admin_daily_activity_reports.php';
+require_once APP_ROOT . '/includes/admin_weekly_activity_reports.php';
 
 auth_require_permission('admin.reports.view');
 
 $actorId = (string) ($_SESSION['company_id'] ?? 'admin');
-$openId = trim((string) ($_GET['activity'] ?? ''));
+$openId = trim((string) ($_GET['weekly'] ?? ''));
 $drawerMode = trim((string) ($_GET['mode'] ?? 'view'));
 if (!in_array($drawerMode, ['view', 'edit'], true)) {
     $drawerMode = 'view';
@@ -18,37 +18,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $action = trim((string) ($_POST['action'] ?? ''));
 
     if ($action === 'reset_demo') {
-        admin_daily_activity_store_reset();
-        redirect_with_alert('Demo daily activity data has been reset.', 'daily-activity.php');
+        admin_weekly_activity_store_reset();
+        redirect_with_alert('Demo weekly activity data has been reset.', 'weekly-activity.php');
     }
 
-    if ($action === 'update_activity') {
-        $id = trim((string) ($_POST['activity_id'] ?? ''));
-        $updated = admin_daily_activity_update($id, [
+    if ($action === 'update_weekly') {
+        $id = trim((string) ($_POST['weekly_id'] ?? ''));
+        $updated = admin_weekly_activity_update($id, [
             'status' => (string) ($_POST['status'] ?? ''),
         ], $actorId);
 
         if ($updated === null) {
-            redirect_with_alert('Daily activity report not found.', 'daily-activity.php');
+            redirect_with_alert('Weekly activity report not found.', 'weekly-activity.php');
         }
 
         redirect_with_alert(
-            'Daily activity ' . (string) ($updated['ref'] ?? $id) . ' saved.',
-            'daily-activity.php?activity=' . rawurlencode($id) . '&mode=view'
+            'Weekly activity ' . (string) ($updated['ref'] ?? $id) . ' saved.',
+            'weekly-activity.php?weekly=' . rawurlencode($id) . '&mode=view'
         );
     }
 }
 
-$records = admin_daily_activity_store_all();
-$statusCounts = admin_daily_activity_status_counts($records);
-$openRecord = $openId !== '' ? admin_daily_activity_find($openId) : null;
+$records = admin_weekly_activity_store_all();
+$statusCounts = admin_weekly_activity_status_counts($records);
+$openRecord = $openId !== '' ? admin_weekly_activity_find($openId) : null;
 if ($openId !== '' && $openRecord === null) {
     $openId = '';
 }
 
-$statusDefinitions = admin_daily_activity_status_definitions();
+$statusDefinitions = admin_weekly_activity_status_definitions();
 $registryStatusTabs = [
-    ['slug' => 'all', 'label' => 'All', 'count' => (int) $statusCounts['all'], 'title' => 'Every daily activity submission'],
+    ['slug' => 'all', 'label' => 'All', 'count' => (int) $statusCounts['all'], 'title' => 'Every weekly activity summary'],
 ];
 foreach ($statusDefinitions as $slug => $def) {
     $registryStatusTabs[] = [
@@ -59,16 +59,17 @@ foreach ($statusDefinitions as $slug => $def) {
     ];
 }
 $statusTabFromQuery = trim((string) ($_GET['status'] ?? ''));
-$validStatusTabs = ['all', ...admin_daily_activity_status_slugs()];
+$validStatusTabs = ['all', ...admin_weekly_activity_status_slugs()];
 $initialStatusTab = in_array($statusTabFromQuery, $validStatusTabs, true) ? $statusTabFromQuery : '';
 
-$adminNavActive = 'daily-activity';
+$adminNavActive = 'weekly-activity';
 $kpiIcons = [
     'all' => 'clipboard-list',
-    'pending' => 'hourglass-half',
-    'reviewed' => 'circle-check',
-    'on_hold' => 'clock',
-    'archived' => 'folder-open',
+    'draft' => 'file-lines',
+    'submitted' => 'file-export',
+    'pending_review' => 'hourglass-half',
+    'approved' => 'circle-check',
+    'returned' => 'rotate-left',
 ];
 ?>
 <!DOCTYPE html>
@@ -76,7 +77,7 @@ $kpiIcons = [
 <head>
     <meta charset="UTF-8">
     <?= mobile_meta_tags() ?>
-    <title><?= e(app_agency_name()) ?> | Daily Activity Report</title>
+    <title><?= e(app_agency_name()) ?> | Weekly Activity Report</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
     <?= app_fonts_link() ?>
     <style>
@@ -85,9 +86,9 @@ $kpiIcons = [
 <?php readfile(__DIR__ . '/assets/css/reports.css'); ?>
     </style>
 </head>
-<body class="light-mode page-daily-activity page-daily-activity-reports page-activity-registry"
-      data-admin-nav="daily-activity"
-      data-open-activity="<?= e($openId) ?>"
+<body class="light-mode page-weekly-activity page-weekly-activity-reports page-activity-registry"
+      data-admin-nav="weekly-activity"
+      data-open-weekly="<?= e($openId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
       data-status-tab="<?= e($initialStatusTab) ?>"<?= $openRecord !== null ? ' style="overflow:hidden"' : '' ?>>
 
@@ -95,21 +96,21 @@ $kpiIcons = [
 
     <main class="app-main">
         <header class="page-header page-header--inline">
-            <h1 class="page-title">Daily Activity Report</h1>
-            <p class="page-subtitle">Review shift logs and field activity from head guards — normal operations and event submissions (reference prefix <strong><?= e(GUARD_DAILY_ACTIVITY_REF_PREFIX) ?></strong>).</p>
+            <h1 class="page-title">Weekly Activity Report</h1>
+            <p class="page-subtitle">Review weekly activity summaries from head guards — accomplishments, post coverage, and follow-ups (reference prefix <strong><?= e(GUARD_WEEKLY_ACTIVITY_REF_PREFIX) ?></strong>).</p>
         </header>
 
-        <div id="daily-activity-module" class="reports-module"
-             data-registry-kind="daily-activity"
-             data-open-param="activity"
+        <div id="weekly-activity-module" class="reports-module"
+             data-registry-kind="weekly-activity"
+             data-open-param="weekly"
              data-csrf="<?= e_attr(csrf_token()) ?>">
-            <section class="kpi-grid" aria-label="Daily activity summary">
-                <article class="kpi-card kpi-card--total" title="All daily activity submissions">
+            <section class="kpi-grid" aria-label="Weekly activity summary">
+                <article class="kpi-card kpi-card--total" title="All weekly summaries">
                     <div class="kpi-stat">
                         <?= admin_kpi_icon($kpiIcons['all']) ?>
                         <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
                     </div>
-                    <p class="kpi-label">Total submissions</p>
+                    <p class="kpi-label">Total summaries</p>
                 </article>
                 <?php foreach ($statusDefinitions as $slug => $def):
                     $icon = $kpiIcons[$slug] ?? 'file-lines';
@@ -124,32 +125,24 @@ $kpiIcons = [
                 <?php endforeach; ?>
             </section>
 
-            <section class="reports-panel" aria-label="Daily activity registry">
+            <section class="reports-panel" aria-label="Weekly activity registry">
                 <div class="reports-panel__filters">
                     <div class="reports-toolbar" role="search">
                         <div class="reports-toolbar__fields">
                             <div class="form-field reports-field--search">
                                 <label for="activity-search" class="reports-label-with-icon"><?= admin_ui_icon('magnifying-glass', 14) ?> Search</label>
-                                <input type="search" id="activity-search" placeholder="Reference, head guard, site, summary…" autocomplete="off">
-                            </div>
-                            <div class="form-field reports-field--category">
-                                <label for="activity-mode">Submission mode</label>
-                                <select id="activity-mode">
-                                    <option value="all">All modes</option>
-                                    <option value="<?= e(GUARD_DAILY_ACTIVITY_MODE_NORMAL) ?>">Normal operation</option>
-                                    <option value="<?= e(GUARD_DAILY_ACTIVITY_MODE_EVENT) ?>">With event / activity</option>
-                                </select>
+                                <input type="search" id="activity-search" placeholder="Reference, week, head guard, site…" autocomplete="off">
                             </div>
                             <div class="form-field reports-field--date">
-                                <label for="activity-date-from">Submitted from</label>
-                                <input type="date" id="activity-date-from" value="<?= e(date('Y-m-d', strtotime('-30 days'))) ?>">
+                                <label for="activity-date-from">Updated from</label>
+                                <input type="date" id="activity-date-from" value="<?= e(date('Y-m-d', strtotime('-60 days'))) ?>">
                             </div>
                             <div class="form-field reports-field--date">
-                                <label for="activity-date-to">Submitted to</label>
+                                <label for="activity-date-to">Updated to</label>
                                 <input type="date" id="activity-date-to" value="<?= e(date('Y-m-d')) ?>">
                             </div>
                         </div>
-                        <div class="reports-toolbar-actions" role="toolbar" aria-label="Daily activity filter actions">
+                        <div class="reports-toolbar-actions" role="toolbar" aria-label="Weekly activity filter actions">
                             <div class="reports-button-set">
                                 <button type="button" class="reports-btn reports-btn--secondary" id="activity-reset">
                                     <?= admin_btn_icon('rotate-left') ?>
@@ -158,7 +151,7 @@ $kpiIcons = [
                                 <form method="POST" class="reports-inline-form">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="reset_demo">
-                                    <button type="submit" class="reports-btn reports-btn--secondary" title="Restore demo daily activity records">
+                                    <button type="submit" class="reports-btn reports-btn--secondary" title="Restore demo weekly activity records">
                                         <?= admin_btn_icon('database') ?>
                                         <span class="reports-btn__text">Reset demo</span>
                                     </button>
@@ -168,7 +161,7 @@ $kpiIcons = [
                     </div>
                 </div>
 
-                <nav class="reports-status-tabs reports-panel__tabs" role="tablist" aria-label="Filter by review status">
+                <nav class="reports-status-tabs reports-panel__tabs" role="tablist" aria-label="Filter by status">
                     <?php foreach ($registryStatusTabs as $tab):
                         $tabSlug = (string) $tab['slug'];
                         $isActive = $initialStatusTab === '' ? $tabSlug === 'all' : $initialStatusTab === $tabSlug;
@@ -186,14 +179,14 @@ $kpiIcons = [
                 </nav>
 
                 <div class="reports-panel__body">
-                    <div class="reports-registry" role="region" aria-label="Daily activity table">
+                    <div class="reports-registry" role="region" aria-label="Weekly activity table">
                         <div class="reports-table-head-wrap" id="activity-table-head-wrap">
-                            <table class="reports-table reports-table--head reports-table--daily-activity">
+                            <table class="reports-table reports-table--head reports-table--weekly-activity">
                                 <colgroup>
                                     <col class="reports-col-ref">
-                                    <col class="reports-col-mode">
-                                    <col class="reports-col-site">
+                                    <col class="reports-col-week">
                                     <col class="reports-col-hg">
+                                    <col class="reports-col-site">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
                                     <col class="reports-col-updated">
@@ -203,12 +196,12 @@ $kpiIcons = [
                                 <thead>
                                     <tr>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="ref"><span class="reports-sort__label">Reference</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort reports-sort--center" data-sort-key="mode"><span class="reports-sort__label">Mode</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="site"><span class="reports-sort__label">Site</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="week"><span class="reports-sort__label">Week</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="headGuard"><span class="reports-sort__label">Head guard</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="site"><span class="reports-sort__label">Site</span></button></th>
                                         <th scope="col"><span class="reports-sort__label">Summary</span></th>
-                                        <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="updated"><span class="reports-sort__label">Updated</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="updated"><span class="reports-sort__label">Updated</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort reports-sort--center" data-sort-key="status"><span class="reports-sort__label">Status</span></button></th>
                                         <th scope="col">Actions</th>
                                     </tr>
@@ -216,12 +209,12 @@ $kpiIcons = [
                             </table>
                         </div>
                         <div class="reports-table-body-wrap" id="activity-table-body-wrap" tabindex="0">
-                            <table class="reports-table reports-table--body reports-table--daily-activity">
+                            <table class="reports-table reports-table--body reports-table--weekly-activity">
                                 <colgroup>
                                     <col class="reports-col-ref">
-                                    <col class="reports-col-mode">
-                                    <col class="reports-col-site">
+                                    <col class="reports-col-week">
                                     <col class="reports-col-hg">
+                                    <col class="reports-col-site">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
                                     <col class="reports-col-updated">
@@ -230,15 +223,11 @@ $kpiIcons = [
                                 </colgroup>
                                 <tbody id="activity-tbody">
                                 <?php foreach ($records as $report): ?>
-                                    <tr <?= admin_daily_activity_row_attrs($report) ?>>
+                                    <tr <?= admin_weekly_activity_row_attrs($report) ?>>
                                         <td class="reports-col-ref"><span class="reports-ref mono"><?= e((string) $report['ref']) ?></span></td>
-                                        <td class="reports-col-mode">
-                                            <span class="reports-badge reports-badge--<?= e((string) $report['activity_mode']) ?>">
-                                                <?= e((string) $report['activity_mode_label']) ?>
-                                            </span>
-                                        </td>
-                                        <td class="reports-col-site"><?= e((string) $report['site_name']) ?></td>
+                                        <td class="reports-col-week mono"><?= e((string) $report['week_label']) ?></td>
                                         <td class="reports-col-hg"><?= e((string) $report['head_guard_name']) ?></td>
+                                        <td class="reports-col-site"><?= e((string) $report['site_name']) ?></td>
                                         <td class="reports-col-summary">
                                             <div class="reports-incident-cell" title="<?= e((string) $report['summary']) ?>">
                                                 <span class="reports-incident-context"><?= e((string) $report['summary']) ?></span>
@@ -246,14 +235,14 @@ $kpiIcons = [
                                         </td>
                                         <td class="reports-col-submitted reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['submitted_at'] ?? ''), (string) ($report['submitted_display'] ?? '')) ?></td>
                                         <td class="reports-col-updated reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['updated_at'] ?? ''), (string) ($report['updated_display'] ?? '')) ?></td>
-                                        <td class="reports-col-status"><?= admin_daily_activity_status_badge_html($report) ?></td>
+                                        <td class="reports-col-status"><?= admin_weekly_activity_status_badge_html($report) ?></td>
                                         <td class="reports-col-actions">
                                             <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $report['ref']) ?>">
-                                                <a href="daily-activity.php?activity=<?= rawurlencode((string) $report['id']) ?>&amp;mode=view"
+                                                <a href="weekly-activity.php?weekly=<?= rawurlencode((string) $report['id']) ?>&amp;mode=view"
                                                    class="reports-action-btn"
                                                    data-action="view"
                                                    data-activity-id="<?= e((string) $report['id']) ?>"
-                                                   title="View report"><?= admin_daily_activity_action_icon('view') ?></a>
+                                                   title="View summary"><?= admin_weekly_activity_action_icon('view') ?></a>
                                             </div>
                                         </td>
                                     </tr>
@@ -264,8 +253,8 @@ $kpiIcons = [
                     </div>
                     <div id="activity-empty" class="reports-empty" role="status" aria-live="polite" hidden>
                         <div class="reports-empty__icon" aria-hidden="true"><?= admin_ui_icon('folder-open', 28) ?></div>
-                        <p class="reports-empty__title">No submissions match your filters</p>
-                        <p class="reports-empty__hint">Adjust the date range, mode, or status tab — or clear search.</p>
+                        <p class="reports-empty__title">No summaries match your filters</p>
+                        <p class="reports-empty__hint">Adjust the date range or status tab — or clear search.</p>
                     </div>
                 </div>
 
@@ -289,13 +278,13 @@ $kpiIcons = [
     <div class="reports-modal" id="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title">
         <header class="reports-modal__header">
             <div class="reports-modal__identity">
-                <span class="reports-modal__eyebrow">Daily activity</span>
+                <span class="reports-modal__eyebrow">Weekly activity</span>
                 <div class="reports-modal__title-row">
                     <h2 id="activity-modal-title" class="reports-modal__ref">
                         <span id="activity-modal-ref"><?= $openRecord ? e((string) $openRecord['ref']) : '—' ?></span>
                     </h2>
                     <div id="activity-modal-status-badge" class="reports-modal__status">
-                        <?= $openRecord ? admin_daily_activity_status_badge_html($openRecord) : '<span class="reports-badge">—</span>' ?>
+                        <?= $openRecord ? admin_weekly_activity_status_badge_html($openRecord) : '<span class="reports-badge">—</span>' ?>
                     </div>
                 </div>
             </div>
@@ -306,10 +295,10 @@ $kpiIcons = [
                 <div id="activity-modal-view" class="reports-modal-panel is-active">
                     <div id="activity-modal-details">
                         <?php if ($openRecord): ?>
-                            <?= admin_daily_activity_modal_details_html($openRecord) ?>
+                            <?= admin_weekly_activity_modal_details_html($openRecord) ?>
                         <?php endif; ?>
                     </div>
-                    <section class="reports-modal-form__section reports-modal__history" aria-label="Activity history">
+                    <section class="reports-modal-form__section reports-modal__history" aria-label="Weekly history">
                         <h3 class="reports-modal-form__section-title">History</h3>
                         <ol id="activity-modal-history" class="reports-timeline">
                             <?php if ($openRecord):
@@ -328,12 +317,12 @@ $kpiIcons = [
                 </div>
                 <form method="POST" id="activity-edit-form" class="reports-edit-form"<?= $drawerMode === 'edit' && $openRecord ? '' : ' hidden' ?>>
                     <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="update_activity">
-                    <input type="hidden" name="activity_id" id="activity-edit-id" value="<?= $openRecord ? e((string) $openRecord['id']) : '' ?>">
+                    <input type="hidden" name="action" value="update_weekly">
+                    <input type="hidden" name="weekly_id" id="activity-edit-id" value="<?= $openRecord ? e((string) $openRecord['id']) : '' ?>">
                     <div class="form-field">
                         <label for="activity-edit-status">Review status</label>
                         <select name="status" id="activity-edit-status">
-                            <?php foreach (admin_daily_activity_status_options() as $val => $label): ?>
+                            <?php foreach (admin_weekly_activity_status_options() as $val => $label): ?>
                             <option value="<?= e($val) ?>"<?= $openRecord && (string) $openRecord['status'] === $val ? ' selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
@@ -363,7 +352,7 @@ $kpiIcons = [
     json_encode($records, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
 ?></script>
 <script type="application/json" id="activity-status-labels"><?=
-    json_encode(admin_daily_activity_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+    json_encode(admin_weekly_activity_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
 ?></script>
 
 <?php admin_shell_scripts(); ?>

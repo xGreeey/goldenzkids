@@ -830,29 +830,51 @@ function admin_shell_styles(): void
             z-index: 1;
             display: flex;
             flex-direction: column;
+            align-items: stretch;
             min-width: 0;
             width: calc(100% - var(--sidebar-w));
             margin-left: var(--sidebar-w);
+            min-height: 0;
+            height: auto;
+            box-sizing: border-box;
+            overflow: visible;
+        }
+
+        /* Full-viewport workspaces (incident registry, DTR). Everything else sizes to content. */
+        body.page-incident-reports .app-shell,
+        body.page-daily-detail .app-shell {
             min-height: 100vh;
             min-height: 100dvh;
-            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .app-main {
-            flex: 1 1 auto;
+            flex: 0 0 auto;
+            align-self: stretch;
             width: 100%;
             max-width: 1440px;
             margin: 0 auto;
             min-width: 0;
             min-height: 0;
+            height: auto;
             font-size: var(--font-body-size);
             line-height: var(--font-body-line-relaxed);
             overflow-x: clip;
+            overflow-y: visible;
             padding:
                 max(clamp(16px, 2.5vw, 32px), env(safe-area-inset-top, 0px))
                 max(clamp(16px, 3vw, 32px), env(safe-area-inset-right, 0px))
                 max(clamp(20px, 4vw, 48px), env(safe-area-inset-bottom, 0px))
                 max(clamp(16px, 3vw, 32px), env(safe-area-inset-left, 0px));
+        }
+
+        .app-main__stage {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            height: auto;
+            overflow: visible;
         }
 
         .page-header {
@@ -936,6 +958,104 @@ function admin_shell_styles(): void
             .page-header {
                 margin-bottom: 16px;
             }
+        }
+
+        /* Full-height workspaces (incident + DTR only). Activity registries size to content in reports.css. */
+        body.page-incident-reports .app-main,
+        body.page-daily-detail .app-main {
+            flex: 1 1 auto;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        body.page-incident-reports .app-main__stage,
+        body.page-daily-detail .app-main__stage {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+        }
+
+        .report-hub-placeholder {
+            margin-top: 8px;
+        }
+
+        .report-hub-placeholder__card {
+            max-width: 42rem;
+            padding: clamp(1.25rem, 2vw, 1.75rem);
+            border-radius: var(--app-radius-lg, 12px);
+            border: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+            background: var(--app-surface-raised, rgba(255, 255, 255, 0.6));
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__card {
+            border-color: var(--app-border-on-dark, rgba(255, 255, 255, 0.12));
+            background: var(--app-surface-dark, rgba(0, 0, 0, 0.2));
+        }
+
+        .report-hub-placeholder__icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--app-accent, #c9a227);
+        }
+
+        .report-hub-placeholder__title {
+            margin: 0 0 0.5rem;
+            font-family: var(--font-heading-family);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--app-ink-deep);
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__title {
+            color: var(--app-ink-on-dark);
+        }
+
+        .report-hub-placeholder__text {
+            margin: 0 0 1rem;
+            color: var(--app-ink-muted);
+            line-height: 1.55;
+            max-width: 50ch;
+        }
+
+        .report-hub-placeholder__badge {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(201, 162, 39, 0.15);
+            color: var(--app-accent, #9a7b1a);
+        }
+
+        .report-hub-placeholder__links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__links {
+            border-top-color: var(--app-border-on-dark, rgba(255, 255, 255, 0.1));
+        }
+
+        .report-hub-placeholder__link {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--app-accent, #9a7b1a);
+            text-decoration: none;
+        }
+
+        .report-hub-placeholder__link:hover {
+            text-decoration: underline;
         }
     <?php
     /* Ensure create-account modal CSS exists even after SPA panel swaps. */
@@ -1032,6 +1152,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (is_readable($dailyDetailJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/daily-detail.js'))
                 . '?v=' . (int) filemtime($dailyDetailJs) . '" defer></script>';
+        }
+        $activityRegistryJs = dirname(__DIR__) . '/admin/assets/js/activity-registry.js';
+        if (is_readable($activityRegistryJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/activity-registry.js'))
+                . '?v=' . (int) filemtime($activityRegistryJs) . '" defer></script>';
         }
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';

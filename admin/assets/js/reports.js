@@ -248,6 +248,9 @@
         root.dataset.reportsBound = '1';
     }
 
+    reportsLive.currentIncidentId = document.body.dataset.openIncident || '';
+    reportsLive.currentMode = document.body.dataset.openMode || 'view';
+
     const tableHeadWrap = document.getElementById('reports-table-head-wrap');
     const tableBodyWrap = document.getElementById('reports-table-body-wrap');
     if (!isReinit && tableHeadWrap && tableBodyWrap) {
@@ -302,9 +305,6 @@
     if (LEGACY_STATUS_TABS[activeStatus]) {
         activeStatus = LEGACY_STATUS_TABS[activeStatus];
     }
-    reportsLive.currentIncidentId = document.body.dataset.openIncident || '';
-    reportsLive.currentMode = document.body.dataset.openMode || 'view';
-
     function statusMatchesTab(reportStatus, tab) {
         if (tab === 'all') return true;
         return reportStatus === tab;

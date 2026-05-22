@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/app.php';
 require_once APP_ROOT . '/includes/guard_dad.php';
 
-if (!auth_user_can('admin.dad.view')) {
+if (!auth_user_can('admin.dtr.view')) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Forbidden';
@@ -22,7 +22,7 @@ $dadId = (int) ($_GET['dad_id'] ?? $_GET['dad'] ?? 0);
 if ($dadId <= 0) {
     http_response_code(400);
     header('Content-Type: text/plain; charset=utf-8');
-    echo 'Invalid DAD record.';
+    echo 'Invalid DTR record.';
     exit;
 }
 
@@ -30,7 +30,7 @@ $row = db_fetch_one($conn, 'SELECT * FROM guard_dad_submissions WHERE dad_id = ?
 if ($row === null) {
     http_response_code(404);
     header('Content-Type: text/plain; charset=utf-8');
-    echo 'DAD record not found.';
+    echo 'DTR record not found.';
     exit;
 }
 
@@ -38,7 +38,7 @@ $record = guard_dad_map_row_for_admin($row);
 if ($record === null) {
     http_response_code(404);
     header('Content-Type: text/plain; charset=utf-8');
-    echo 'DAD record not found.';
+    echo 'DTR record not found.';
     exit;
 }
 

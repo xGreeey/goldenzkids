@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/app.php';
 require_once APP_ROOT . '/includes/guard_dad.php';
 
-auth_require_permission('admin.dad.view');
+auth_require_permission('admin.dtr.view');
 
 $dadId = (int) ($_GET['dad'] ?? 0);
 if ($dadId <= 0) {

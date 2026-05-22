@@ -1178,61 +1178,279 @@ function guard_hub_styles(): void
             margin-top: 0 !important;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion {
+        body.guard-portal .guard-policy-list {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__item {
-            border-radius: 8px;
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            overflow: hidden;
-            background: var(--sa-input-bg, #f8fafc);
+        body.guard-portal .guard-policy-list__item {
+            margin: 0;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__trigger {
+        body.guard-portal .guard-policy-list__trigger {
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
+            gap: 10px;
             padding: 10px 12px;
             font-family: inherit;
             font-size: 0.8125rem;
             font-weight: 600;
             text-align: left;
             color: var(--guard-ui-primary, #0f172a);
-            background: transparent;
-            border: none;
+            background: var(--sa-input-bg, #f8fafc);
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            border-radius: 8px;
             cursor: pointer;
             -webkit-appearance: none;
             appearance: none;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__trigger i {
+        body.guard-portal:not(.light-mode) .guard-policy-list__trigger {
+            background: rgba(15, 23, 42, 0.45);
+            border-color: var(--guard-ui-border, #334155);
+        }
+
+        @media (hover: hover) {
+            body.guard-portal .guard-policy-list__trigger:hover {
+                border-color: #cbd5e1;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            }
+        }
+
+        body.guard-portal .guard-policy-list__icon {
+            flex-shrink: 0;
+            font-size: 0.75rem;
             color: var(--guard-ui-subtle, #64748b);
-            font-size: 0.75rem;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__body {
-            display: none;
-            padding: 0 12px 10px;
-            font-size: 0.75rem;
-            line-height: 1.5;
+        body.guard-portal .guard-policy-list__source {
+            display: none !important;
+        }
+
+        /* Policy modal — lives on body; backdrop + dialog fixed to viewport */
+        body.guard-portal .guard-policy-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10150;
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        body.guard-portal .guard-policy-modal[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-policy-modal.is-open {
+            pointer-events: auto;
+            visibility: visible;
+        }
+
+        body.guard-portal.guard-policy-modal-open {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-policy-modal-open .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-policy-modal__backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(10px) saturate(120%);
+            -webkit-backdrop-filter: blur(10px) saturate(120%);
+            opacity: 0;
+            transition: opacity 0.24s ease;
+        }
+
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            body.guard-portal .guard-policy-modal__backdrop {
+                background: rgba(15, 23, 42, 0.82);
+            }
+        }
+
+        body.guard-portal .guard-policy-modal.is-open .guard-policy-modal__backdrop {
+            opacity: 1;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__backdrop {
+            background: rgba(2, 6, 23, 0.72);
+        }
+
+        body.guard-portal .guard-policy-modal__dialog {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            width: min(520px, calc(100vw - 32px));
+            height: min(72dvh, 560px);
+            max-height: min(72dvh, 560px);
+            margin: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--guard-ui-surface, #ffffff);
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+            opacity: 0;
+            transform: translate(-50%, calc(-50% + 14px)) scale(0.97);
+            transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        body.guard-portal .guard-policy-modal.is-open .guard-policy-modal__dialog {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-policy-modal__dialog {
+                width: calc(100vw - 24px);
+                height: min(78dvh, 600px);
+                max-height: min(78dvh, 600px);
+            }
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__dialog {
+            background: var(--guard-ui-surface, #1e293b);
+            border-color: var(--guard-ui-border, #334155);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__head {
+            background: var(--guard-ui-surface, #1e293b);
+        }
+
+        body.guard-portal .guard-policy-modal__head {
+            position: relative;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 10px 44px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--guard-ui-surface, #ffffff);
+        }
+
+        body.guard-portal .guard-policy-modal__title {
+            margin: 0;
+            width: 100%;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            line-height: 1.3;
+            text-align: center;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-policy-modal__close {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            margin: 0;
+            padding: 0;
+            border: 1px solid var(--guard-ui-border, #cbd5e1);
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            transform: translateY(-50%);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        body.guard-portal .guard-policy-modal__close-glyph {
+            display: block;
+            font-family: inherit;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        body.guard-portal .guard-policy-modal__close:hover {
+            background: #e2e8f0;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        body.guard-portal .guard-policy-modal__close:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__close {
+            background: #334155;
+            border-color: #475569;
+            color: #f8fafc;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__close:hover {
+            background: #475569;
+            border-color: #64748b;
+            color: #ffffff;
+        }
+
+        body.guard-portal .guard-policy-modal__scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 14px 16px 18px;
+            border-radius: 0 0 12px 12px;
+            font-size: 0.8125rem;
+            line-height: 1.55;
             color: var(--guard-ui-secondary, #475569);
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__item.is-open .guard-accordion__body {
-            display: block;
+        body.guard-portal .guard-policy-modal__scroll p {
+            margin: 0 0 0.65em;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__item.is-open .guard-accordion__chev {
-            transform: rotate(180deg);
+        body.guard-portal .guard-policy-modal__scroll p:last-child {
+            margin-bottom: 0;
         }
 
-        body.guard-portal .guard-app__scroll .guard-accordion__chev {
-            transition: transform 0.2s ease;
+        body.guard-portal .guard-policy-modal__list {
+            margin: 0;
+            padding-left: 1.35rem;
+            list-style-type: decimal;
+            list-style-position: outside;
+        }
+
+        body.guard-portal .guard-policy-modal__list li {
+            margin: 0 0 0.85em;
+            padding-left: 0.35rem;
+        }
+
+        body.guard-portal .guard-policy-modal__list li:last-child {
+            margin-bottom: 0;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-policy-modal__scroll,
+        body.guard-portal:not(.light-mode) .guard-policy-modal__list li {
+            color: var(--guard-ui-secondary, #cbd5e1);
         }
 
         body.guard-portal .guard-app__scroll code {

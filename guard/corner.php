@@ -70,17 +70,27 @@ guard_layout_head('Guard Corner');
                 <div class="guard-card__head">
                     <h2 class="panel-title">Company general policies</h2>
                 </div>
-                <div class="guard-accordion">
+                <ul class="guard-policy-list">
                     <?php foreach ($policies as $policy): ?>
-                        <div class="guard-accordion__item">
-                            <button type="button" class="guard-accordion__trigger">
-                                <?= e($policy['title']) ?>
-                                <i class="fa-solid fa-chevron-down guard-accordion__chev" aria-hidden="true"></i>
+                        <?php $sourceId = 'guard-policy-source-' . $policy['slug']; ?>
+                        <li class="guard-policy-list__item">
+                            <button
+                                type="button"
+                                class="guard-policy-list__trigger"
+                                data-policy-trigger
+                                data-policy-title="<?= e($policy['title']) ?>"
+                                data-policy-source="<?= e($sourceId) ?>"
+                                aria-haspopup="dialog"
+                            >
+                                <span class="guard-policy-list__label"><?= e($policy['title']) ?></span>
+                                <i class="fa-solid fa-expand guard-policy-list__icon" aria-hidden="true"></i>
                             </button>
-                            <div class="guard-accordion__body"><?= nl2br(e($policy['body'])) ?></div>
-                        </div>
+                            <div id="<?= e($sourceId) ?>" class="guard-policy-list__source" hidden>
+                                <?= guard_portal_policy_body_html($policy['body']) ?>
+                            </div>
+                        </li>
                     <?php endforeach; ?>
-                </div>
+                </ul>
             </div>
         </section>
         </div>

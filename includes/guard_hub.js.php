@@ -183,6 +183,12 @@ function guard_hub_scripts(): void
                         } else {
                             stopGuardLiveFeeds(cornerPage);
                         }
+                        if (id !== 'policies') {
+                            var policyModal = guardPolicyModalElement();
+                            if (policyModal && typeof policyModal._guardPolicyCloseFn === 'function') {
+                                policyModal._guardPolicyCloseFn();
+                            }
+                        }
                     }
                 }
 
@@ -447,20 +453,153 @@ function guard_hub_scripts(): void
         startGuardLiveFeeds(wrap);
     }
 
-    /* Accordion */
-    function initAccordion(root) {
-        qsa('.guard-accordion__trigger', root).forEach(function (btn) {
-            if (btn._guardAccordionBound) {
+    /* Policies — modal popup (blur backdrop, scrollable body) */
+    function guardPolicyModalElement() {
+        return qs('[data-policy-modal]', document.body) || qs('[data-policy-modal]');
+    }
+
+    function guardPolicyEscapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function guardPolicyBodyHtml(text) {
+        text = String(text || '').trim();
+        if (!text) {
+            return '';
+        }
+        if (!/\d+\.\s/.test(text)) {
+            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
+        }
+        var parts = text.split(/(?=\d+\.\s)/);
+        var items = [];
+        parts.forEach(function (part) {
+            part = part.trim();
+            if (!part) {
                 return;
             }
-            btn._guardAccordionBound = true;
-            btn.addEventListener('click', function () {
-                var item = btn.closest('.guard-accordion__item');
-                if (!item) return;
-                var open = item.classList.contains('is-open');
-                qsa('.guard-accordion__item', root).forEach(function (i) { i.classList.remove('is-open'); });
-                if (!open) item.classList.add('is-open');
+            part = part.replace(/^\d+\.\s*/, '');
+            part = part.trim();
+            if (part) {
+                items.push(part);
+            }
+        });
+        if (!items.length) {
+            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
+        }
+        return '<ol class="guard-policy-modal__list">' + items.map(function (item) {
+            return '<li>' + guardPolicyEscapeHtml(item) + '</li>';
+        }).join('') + '</ol>';
+    }
+
+    function guardPolicyContentFromSource(src) {
+        if (!src) {
+            return '';
+        }
+        if (src.querySelector('.guard-policy-modal__list')) {
+            return src.innerHTML;
+        }
+        return guardPolicyBodyHtml(src.textContent || src.innerText || '');
+    }
+
+    function initPolicyModals(root) {
+        root = root || document;
+        var modal = guardPolicyModalElement();
+        if (!modal) {
+            return;
+        }
+
+        var titleEl = qs('[data-policy-modal-title]', modal);
+        var scrollEl = qs('[data-policy-modal-scroll]', modal);
+        var dialog = qs('.guard-policy-modal__dialog', modal);
+        var lastTrigger = null;
+
+        function openModal(btn) {
+            var sourceId = btn.getAttribute('data-policy-source');
+            var src = sourceId ? document.getElementById(sourceId) : null;
+            if (!src || !titleEl || !scrollEl) {
+                return;
+            }
+            lastTrigger = btn;
+            titleEl.textContent = btn.getAttribute('data-policy-title') || '';
+            scrollEl.innerHTML = guardPolicyContentFromSource(src);
+            scrollEl.scrollTop = 0;
+            modal.classList.add('is-open');
+            modal.removeAttribute('hidden');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('guard-policy-modal-open');
+            requestAnimationFrame(function () {
+                var closeBtn = qs('.guard-policy-modal__close', modal);
+                if (closeBtn) {
+                    closeBtn.focus();
+                }
             });
+        }
+
+        function closeModal() {
+            if (!modal.classList.contains('is-open')) {
+                return;
+            }
+            modal.classList.remove('is-open');
+            modal.setAttribute('hidden', '');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('guard-policy-modal-open');
+            if (scrollEl) {
+                scrollEl.innerHTML = '';
+            }
+            if (lastTrigger) {
+                lastTrigger.focus();
+                lastTrigger = null;
+            }
+        }
+
+        if (!modal._guardPolicyModalBound) {
+            modal._guardPolicyModalBound = true;
+
+            qsa('[data-policy-modal-close]', modal).forEach(function (el) {
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    closeModal();
+                });
+            });
+
+            if (!document._guardPolicyModalEscapeBound) {
+                document._guardPolicyModalEscapeBound = true;
+                document.addEventListener('keydown', function (e) {
+                    var active = guardPolicyModalElement();
+                    if (!active || !active.classList.contains('is-open')) {
+                        return;
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        if (typeof active._guardPolicyCloseFn === 'function') {
+                            active._guardPolicyCloseFn();
+                        }
+                    }
+                });
+            }
+
+            if (dialog) {
+                dialog.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+            }
+        }
+
+        modal._guardPolicyCloseFn = closeModal;
+
+        qsa('[data-policy-trigger]', root).forEach(function (btn) {
+            if (btn._guardPolicyTriggerBound) {
+                btn.removeEventListener('click', btn._guardPolicyTriggerHandler);
+            }
+            btn._guardPolicyTriggerHandler = function () {
+                openModal(btn);
+            };
+            btn._guardPolicyTriggerBound = true;
+            btn.addEventListener('click', btn._guardPolicyTriggerHandler);
         });
     }
 
@@ -1507,7 +1646,7 @@ function guard_hub_scripts(): void
         }
         initCornerJump(root);
         initCornerClickables(root);
-        initAccordion(root);
+        initPolicyModals(root);
         syncCornerTabFromUrl(root);
         syncInboxTabFromUrl(root);
         syncSubmitReportViewFromUrl(root);

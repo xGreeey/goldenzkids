@@ -620,6 +620,32 @@ function guard_hub_scripts(): void
         });
     }
 
+    function guardReportSubmitUrl(form) {
+        var action = (form && form.getAttribute('action')) || 'api/report-submit.php';
+        try {
+            return new URL(action, window.location.href).href;
+        } catch (e) {
+            return action;
+        }
+    }
+
+    function guardFetchJson(url, options) {
+        return fetch(url, options).then(function (r) {
+            return r.text().then(function (text) {
+                var data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (parseErr) {
+                    throw new Error('Server error (' + r.status + '). Try again or refresh the page.');
+                }
+                if (!r.ok && !data.error) {
+                    data.error = 'Request failed (' + r.status + ').';
+                }
+                return data;
+            });
+        });
+    }
+
     /* Report wizard */
     function initReportWizard(form) {
         if (!form || form._guardWizardBound) return;
@@ -788,68 +814,190 @@ function guard_hub_scripts(): void
             renderDailyActivityPhotoPreview();
         }
 
+        function guardDailyActivityIsImageFile(file) {
+            if (!file) {
+                return false;
+            }
+            var type = (file.type || '').toLowerCase();
+            if (type.indexOf('image/') === 0) {
+                return true;
+            }
+            var name = (file.name || '').toLowerCase();
+            if (name === '') {
+                return true;
+            }
+            return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(name);
+        }
+
+        function getDailyActivityDetailsText() {
+            if (dailyModalDetails) {
+                var modalText = String(dailyModalDetails.value || '').trim();
+                if (modalText !== '') {
+                    return modalText;
+                }
+            }
+            if (dailyDetailsInput) {
+                var hidden = String(dailyDetailsInput.value || '').trim();
+                if (hidden !== '') {
+                    return hidden;
+                }
+            }
+            if (dailyActivityEvent && dailyActivityEvent.details) {
+                return String(dailyActivityEvent.details).trim();
+            }
+            return '';
+        }
+
+        function getDailyActivityPhotoFiles() {
+            var fromPreview = dailyActivityPhotos.map(function (item) {
+                return item.file;
+            }).filter(function (f) {
+                return guardDailyActivityIsImageFile(f);
+            });
+            if (fromPreview.length) {
+                return fromPreview;
+            }
+            if (dailyActivityEvent && dailyActivityEvent.files && dailyActivityEvent.files.length) {
+                return dailyActivityEvent.files.filter(function (f) {
+                    return guardDailyActivityIsImageFile(f);
+                });
+            }
+            return [];
+        }
+
+        function isDailyActivityEventReady() {
+            if (getDailyActivityMode() !== 'event') {
+                return false;
+            }
+            var details = getDailyActivityDetailsText();
+            var files = getDailyActivityPhotoFiles();
+            return details !== '' && files.length >= 1 && files.length <= DAILY_ACTIVITY_MAX_PHOTOS;
+        }
+
+        function commitDailyActivityEvent() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            if (details === '' && dailyDetailsInput) {
+                details = String(dailyDetailsInput.value || '').trim();
+            }
+            var files = dailyActivityPhotos.map(function (item) {
+                return item.file;
+            }).filter(function (f) {
+                return guardDailyActivityIsImageFile(f);
+            });
+            if (details === '' || files.length < 1) {
+                return false;
+            }
+            dailyActivityEvent = {
+                details: details,
+                files: files
+            };
+            if (dailyDetailsInput) {
+                dailyDetailsInput.value = details;
+            }
+            if (dailyModalDetails) {
+                dailyModalDetails.value = details;
+            }
+            return true;
+        }
+
+        function syncDailyActivityEventSummary() {
+            var summaryEl = qs('[data-guard-daily-event-summary]', form);
+            var textEl = qs('[data-guard-daily-event-summary-text]', form);
+            if (!summaryEl) {
+                return;
+            }
+            if (!isDailyActivityMode() || getDailyActivityMode() !== 'event' || !isDailyActivityEventReady()) {
+                summaryEl.hidden = true;
+                return;
+            }
+            var files = getDailyActivityPhotoFiles();
+            var details = getDailyActivityDetailsText();
+            var preview = details.length > 72 ? details.slice(0, 69) + '…' : details;
+            if (textEl) {
+                textEl.textContent =
+                    'Event / activity ready — ' + files.length + ' photo' + (files.length === 1 ? '' : 's') + '. ' + preview;
+            }
+            summaryEl.hidden = false;
+        }
+
         function dailyActivityPhotoLabel(item, idx) {
             if (item.file && item.file.name) return item.file.name;
             return 'Photo ' + (idx + 1);
+        }
+
+        function removeDailyActivityPhotoAt(index) {
+            var item = dailyActivityPhotos[index];
+            if (!item) return;
+            if (item.url) URL.revokeObjectURL(item.url);
+            dailyActivityPhotos.splice(index, 1);
+            if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+            renderDailyActivityPhotoPreview();
+            syncDailyActivityUi();
+            if (dailyActivityEvent) {
+                var files = dailyActivityPhotos.map(function (item) {
+                    return item.file;
+                }).filter(function (f) {
+                    return guardDailyActivityIsImageFile(f);
+                });
+                if (files.length) {
+                    dailyActivityEvent.files = files;
+                } else {
+                    dailyActivityEvent = null;
+                    if (dailyDetailsInput) {
+                        dailyDetailsInput.value = '';
+                    }
+                }
+            }
+            syncDailyActivityEventSummary();
         }
 
         function renderDailyActivityPhotoPreview() {
             if (!dailyModalPreview) return;
             dailyModalPreview.innerHTML = '';
             dailyActivityPhotos.slice(0, DAILY_ACTIVITY_MAX_PHOTOS).forEach(function (item, idx) {
-                var row = document.createElement('div');
-                row.className = 'guard-daily-activity-photo-list__row';
+                var label = dailyActivityPhotoLabel(item, idx);
+                var card = document.createElement('div');
+                card.className = 'guard-daily-activity-photo-list__card';
+
+                var thumbWrap = document.createElement('div');
+                thumbWrap.className = 'guard-daily-activity-photo-list__thumb-wrap';
+
                 var thumb = document.createElement('img');
                 thumb.className = 'guard-daily-activity-photo-list__thumb';
                 thumb.src = item.url;
-                thumb.alt = '';
-                var name = document.createElement('span');
-                name.className = 'guard-daily-activity-photo-list__name';
-                name.textContent = dailyActivityPhotoLabel(item, idx);
-                name.title = name.textContent;
+                thumb.alt = label;
+
                 var rm = document.createElement('button');
                 rm.type = 'button';
                 rm.className = 'guard-daily-activity-photo-list__remove';
-                rm.setAttribute('aria-label', 'Remove ' + name.textContent);
-                rm.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-                rm.addEventListener('click', function () {
-                    URL.revokeObjectURL(item.url);
-                    dailyActivityPhotos.splice(idx, 1);
-                    renderDailyActivityPhotoPreview();
-                    syncDailyActivityUi();
+                rm.setAttribute('aria-label', 'Remove ' + label);
+                rm.title = 'Remove photo';
+                rm.innerHTML = '<span class="guard-daily-activity-photo-list__remove-glyph" aria-hidden="true">×</span>';
+                rm.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeDailyActivityPhotoAt(idx);
                 });
-                row.appendChild(thumb);
-                row.appendChild(name);
-                row.appendChild(rm);
-                dailyModalPreview.appendChild(row);
+
+                thumbWrap.appendChild(thumb);
+                thumbWrap.appendChild(rm);
+                card.appendChild(thumbWrap);
+
+                var name = document.createElement('span');
+                name.className = 'guard-daily-activity-photo-list__name';
+                name.textContent = label;
+                name.title = label;
+                card.appendChild(name);
+
+                dailyModalPreview.appendChild(card);
             });
-        }
-
-        function dailyActivityEventFormComplete() {
-            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
-            return details !== '' && dailyActivityPhotos.length >= 1
-                && dailyActivityPhotos.length <= DAILY_ACTIVITY_MAX_PHOTOS;
-        }
-
-        function syncDailyActivityEventFromModal() {
-            if (!dailyActivityEventFormComplete()) {
-                dailyActivityEvent = null;
-                if (dailyDetailsInput) dailyDetailsInput.value = '';
-                return;
-            }
-            var details = String(dailyModalDetails.value || '').trim();
-            dailyActivityEvent = {
-                details: details,
-                files: dailyActivityPhotos.map(function (item) { return item.file; })
-            };
-            if (dailyDetailsInput) dailyDetailsInput.value = details;
         }
 
         function shouldShowDailySubmit() {
             if (!isDailyActivityMode()) return false;
             var mode = getDailyActivityMode();
             if (mode === 'normal') return true;
-            if (mode === 'event') return dailyActivityEventFormComplete();
+            if (mode === 'event') return isDailyActivityEventReady();
             return false;
         }
 
@@ -868,6 +1016,7 @@ function guard_hub_scripts(): void
                 stopCamera();
             }
             if (dailySubmitBtn) dailySubmitBtn.hidden = !shouldShowDailySubmit();
+            syncDailyActivityEventSummary();
             if (submitSubtitle) {
                 if (da) {
                     submitSubtitle.textContent = 'Daily activity: choose normal operation to submit immediately, or with event / activity to complete the popup form (details and photos).';
@@ -877,9 +1026,26 @@ function guard_hub_scripts(): void
 
         function openDailyActivityModal() {
             if (!dailyModal) return;
-            if (dailyModalDetails && dailyActivityEvent) {
-                dailyModalDetails.value = dailyActivityEvent.details || '';
+            if (dailyActivityEvent) {
+                if (dailyModalDetails) {
+                    dailyModalDetails.value = dailyActivityEvent.details || '';
+                }
+                if (dailyDetailsInput) {
+                    dailyDetailsInput.value = dailyActivityEvent.details || '';
+                }
+                if (dailyActivityPhotos.length === 0 && dailyActivityEvent.files && dailyActivityEvent.files.length) {
+                    dailyActivityEvent.files.forEach(function (file) {
+                        if (!guardDailyActivityIsImageFile(file)) {
+                            return;
+                        }
+                        dailyActivityPhotos.push({
+                            file: file,
+                            url: URL.createObjectURL(file)
+                        });
+                    });
+                }
             }
+            renderDailyActivityPhotoPreview();
             if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
             dailyModal.hidden = false;
             dailyModal.classList.add('is-open');
@@ -914,9 +1080,14 @@ function guard_hub_scripts(): void
                 return;
             }
             if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
-            syncDailyActivityEventFromModal();
+            if (!commitDailyActivityEvent()) {
+                window.guardShowToast('Could not save activity. Check details and photos.', 'error');
+                return;
+            }
             closeDailyActivityModal();
+            syncDailyActivityEventSummary();
             syncDailyActivityUi();
+            window.guardShowToast('Activity saved. Tap Submit report when ready.', 'success');
         }
 
         function resetDailyActivityState() {
@@ -931,8 +1102,18 @@ function guard_hub_scripts(): void
             syncDailyActivityUi();
         }
 
+        function releaseDailyActivitySubmitUi() {
+            dailyActivitySubmitting = false;
+            if (dailySubmitBtn) {
+                dailySubmitBtn.classList.remove('is-loading');
+                dailySubmitBtn.disabled = false;
+            }
+        }
+
         function submitDailyActivity() {
-            if (dailyActivitySubmitting) return;
+            if (dailyActivitySubmitting) {
+                return;
+            }
             var reportType = DAILY_ACTIVITY_TYPE;
             var mode = getDailyActivityMode();
             if (!reportType || !isDailyActivityMode()) {
@@ -944,95 +1125,95 @@ function guard_hub_scripts(): void
                 return;
             }
             if (mode === 'event') {
-                syncDailyActivityEventFromModal();
-                if (!dailyActivityEvent || !dailyActivityEvent.details || !dailyActivityEvent.files.length) {
+                if (!isDailyActivityEventReady()) {
+                    commitDailyActivityEvent();
+                }
+                if (!isDailyActivityEventReady()) {
                     window.guardShowToast('Complete activity details and add at least one photo.', 'error');
                     openDailyActivityModal();
                     return;
                 }
-                if (dailyActivityEvent.files.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                var eventFiles = getDailyActivityPhotoFiles();
+                if (eventFiles.length > DAILY_ACTIVITY_MAX_PHOTOS) {
                     window.guardShowToast('You can upload at most 5 photos.', 'error');
                     return;
+                }
+                var i;
+                for (i = 0; i < eventFiles.length; i++) {
+                    if (!eventFiles[i] || (typeof eventFiles[i].size === 'number' && eventFiles[i].size < 1)) {
+                        window.guardShowToast('A photo could not be read. Tap Edit event / activity and re-add your photos.', 'error');
+                        openDailyActivityModal();
+                        return;
+                    }
                 }
             }
 
             dailyActivitySubmitting = true;
-            var activeBtn = dailySubmitBtn;
-            if (activeBtn) {
-                activeBtn.classList.add('is-loading');
-                activeBtn.disabled = true;
+            if (dailySubmitBtn) {
+                dailySubmitBtn.classList.add('is-loading');
+                dailySubmitBtn.disabled = true;
+            }
+            window.guardShowToast('Submitting report…');
+
+            var fd = new FormData();
+            fd.append('report_type', reportType);
+            fd.append('daily_activity_mode', mode);
+            if (mode === 'event') {
+                fd.append('daily_activity_details', getDailyActivityDetailsText());
+                getDailyActivityPhotoFiles().forEach(function (file, idx) {
+                    fd.append('daily_activity_photos[]', file, file.name || ('activity-' + idx + '.jpg'));
+                });
             }
 
-            function finishSubmit(geo) {
-                var fd = new FormData();
-                fd.append('report_type', reportType);
-                fd.append('daily_activity_mode', mode);
-                if (mode === 'event' && dailyActivityEvent) {
-                    fd.append('daily_activity_details', dailyActivityEvent.details);
-                    dailyActivityEvent.files.forEach(function (file, i) {
-                        fd.append('daily_activity_photos[]', file, file.name || ('activity-' + i + '.jpg'));
-                    });
-                }
-                if (geo && geo.lat != null && geo.lng != null) {
-                    fd.append('submit_latitude', String(geo.lat));
-                    fd.append('submit_longitude', String(geo.lng));
-                    if (geo.accuracy != null) fd.append('submit_accuracy_m', String(geo.accuracy));
-                    if (geo.label) fd.append('location_label', geo.label);
-                }
-                var csrfInput = qs('input[name="_csrf"]', form);
-                var csrfValue = csrfInput ? csrfInput.value : '';
-                if (csrfValue) fd.append('_csrf', csrfValue);
+            var csrfInput = qs('input[name="_csrf"]', form);
+            var csrfValue = csrfInput ? csrfInput.value : '';
+            if (csrfValue) {
+                fd.append('_csrf', csrfValue);
+            }
 
-                var fetchHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
-                if (csrfValue) fetchHeaders['X-CSRF-Token'] = csrfValue;
+            var fetchHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
+            if (csrfValue) {
+                fetchHeaders['X-CSRF-Token'] = csrfValue;
+            }
 
-                fetch(form.getAttribute('action') || 'api/report-submit.php', {
-                    method: 'POST',
-                    body: fd,
-                    credentials: 'same-origin',
-                    headers: fetchHeaders
+            guardFetchJson(guardReportSubmitUrl(form), {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: fetchHeaders
+            })
+                .then(function (data) {
+                    if (data.ok) {
+                        window.guardShowToast(data.message || 'Report submitted successfully.', 'success');
+                        resetDailyActivityState();
+                        form.reset();
+                        if (reportTypeSelect) {
+                            reportTypeSelect.value = '';
+                        }
+                        syncReportTypeSummary();
+                        syncDadUi();
+                        setTimeout(function () {
+                            window.location.href = data.redirect || 'submit-report.php?view=history';
+                        }, 1200);
+                    } else {
+                        window.guardShowToast(data.error || 'Submission failed.', 'error');
+                    }
                 })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.ok) {
-                            window.guardShowToast(data.message || 'Report submitted successfully.', 'success');
-                            resetDailyActivityState();
-                            form.reset();
-                            if (reportTypeSelect) reportTypeSelect.value = '';
-                            syncReportTypeSummary();
-                            syncDadUi();
-                            setTimeout(function () {
-                                window.location.href = data.redirect || 'submit-report.php?view=history';
-                            }, 1200);
-                        } else {
-                            window.guardShowToast(data.error || 'Submission failed.', 'error');
-                        }
-                    })
-                    .catch(function () {
-                        window.guardShowToast('Network error. Try again.', 'error');
-                    })
-                    .finally(function () {
-                        dailyActivitySubmitting = false;
-                        if (activeBtn) {
-                            activeBtn.classList.remove('is-loading');
-                            activeBtn.disabled = false;
-                        }
-                    });
-            }
+                .catch(function (err) {
+                    window.guardShowToast((err && err.message) ? err.message : 'Network error. Try again.', 'error');
+                })
+                .finally(function () {
+                    releaseDailyActivitySubmitUi();
+                });
 
             if (navigator.geolocation) {
-                acquireGpsFix({ timeoutMs: 20000, targetAccuracyM: 50 })
-                    .then(function (fix) {
-                        finishSubmit({
-                            lat: fix.lat,
-                            lng: fix.lng,
-                            accuracy: fix.accuracy,
-                            label: ''
-                        });
-                    })
-                    .catch(function () { finishSubmit(null); });
-            } else {
-                finishSubmit(null);
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        /* Optional location — not required for submit; future enhancement only */
+                    },
+                    function () { /* ignore */ },
+                    { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 }
+                );
             }
         }
 
@@ -1680,6 +1861,7 @@ function guard_hub_scripts(): void
                     if (dailyModalDetails) dailyModalDetails.value = '';
                     clearDailyActivityPhotos();
                     closeDailyActivityModal();
+                    syncDailyActivityEventSummary();
                 }
                 if (radio.value === 'event' && radio.checked) {
                     openDailyActivityModal();
@@ -1702,6 +1884,17 @@ function guard_hub_scripts(): void
             btn.addEventListener('click', closeDailyActivityModal);
         });
         var dailyModalSave = qs('[data-guard-daily-activity-modal-save]', document);
+        var dailyEventEditBtn = qs('[data-guard-daily-event-edit]', form);
+        if (dailyEventEditBtn) {
+            dailyEventEditBtn.addEventListener('click', function () {
+                var eventRadio = qs('[name="daily_activity_mode"][value="event"]', form);
+                if (eventRadio) {
+                    eventRadio.checked = true;
+                }
+                openDailyActivityModal();
+            });
+        }
+
         if (dailyModalSave) {
             dailyModalSave.addEventListener('click', saveDailyActivityModal);
         }
@@ -1715,14 +1908,19 @@ function guard_hub_scripts(): void
                     dailyModalPhotos.value = '';
                     return;
                 }
+                var added = 0;
                 Array.prototype.forEach.call(files, function (file, i) {
                     if (i >= remaining) return;
-                    if (!file.type || file.type.indexOf('image/') !== 0) return;
+                    if (!guardDailyActivityIsImageFile(file)) return;
                     dailyActivityPhotos.push({
                         file: file,
                         url: URL.createObjectURL(file)
                     });
+                    added++;
                 });
+                if (added < 1) {
+                    window.guardShowToast('Could not add photos. Try JPG or PNG images.', 'error');
+                }
                 dailyModalPhotos.value = '';
                 if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
                 renderDailyActivityPhotoPreview();
@@ -1849,13 +2047,12 @@ function guard_hub_scripts(): void
                 fetchHeaders['X-CSRF-Token'] = csrfValue;
             }
 
-            fetch(form.getAttribute('action') || 'api/report-submit.php', {
+            guardFetchJson(guardReportSubmitUrl(form), {
                 method: 'POST',
                 body: fd,
                 credentials: 'same-origin',
                 headers: fetchHeaders
             })
-                .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data.ok) {
                         window.guardShowToast(data.message || 'Report submitted successfully.', 'success');
@@ -1877,8 +2074,8 @@ function guard_hub_scripts(): void
                         window.guardShowToast(data.error || 'Submission failed.', 'error');
                     }
                 })
-                .catch(function () {
-                    window.guardShowToast('Network error. Try again.', 'error');
+                .catch(function (err) {
+                    window.guardShowToast((err && err.message) ? err.message : 'Network error. Try again.', 'error');
                 })
                 .finally(function () {
                     if (submitBtn) {

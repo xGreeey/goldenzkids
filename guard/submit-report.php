@@ -53,7 +53,7 @@ guard_layout_head('Submit report');
                 class="guard-wizard"
                 data-guard-report-wizard
                 method="POST"
-                action="api/report-submit.php"
+                action="<?= e(app_url('guard/api/report-submit.php')) ?>"
                 enctype="multipart/form-data"
                 autocomplete="off"
                 <?= $showHistory ? 'hidden' : '' ?>
@@ -104,6 +104,12 @@ guard_layout_head('Submit report');
                             </label>
                         </fieldset>
                         <input type="hidden" name="daily_activity_details" data-guard-daily-details-input value="">
+                        <div class="guard-daily-activity__event-summary" data-guard-daily-event-summary hidden>
+                            <p class="guard-daily-activity__event-summary-text" data-guard-daily-event-summary-text></p>
+                            <button type="button" class="btn-ghost guard-daily-activity__event-edit" data-guard-daily-event-edit>
+                                <i class="fa-solid fa-pen" aria-hidden="true"></i> Edit event / activity
+                            </button>
+                        </div>
                         <div class="guard-daily-activity__actions">
                             <button type="button" class="btn-primary guard-daily-activity__submit" data-guard-daily-submit hidden>
                                 <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report

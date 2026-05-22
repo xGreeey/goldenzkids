@@ -1721,6 +1721,29 @@ function guard_hub_styles(): void
             color: var(--guard-ui-primary, #0f172a);
         }
 
+        body.guard-portal .guard-daily-activity__event-summary {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--sa-primary, #2563eb);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-daily-activity__event-summary[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity__event-summary-text {
+            margin: 0 0 8px;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: var(--guard-ui-text, #334155);
+        }
+
+        body.guard-portal .guard-daily-activity__event-edit {
+            font-size: 0.8125rem;
+        }
+
         body.guard-portal .guard-daily-activity__actions {
             display: flex;
             flex-direction: column;
@@ -1822,8 +1845,8 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-daily-activity-photo-list {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-top: 10px;
             max-height: none;
         }
@@ -1832,57 +1855,85 @@ function guard_hub_styles(): void
             display: none;
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__row {
+        body.guard-portal .guard-daily-activity-photo-list__card {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            background: var(--sa-input-bg, #f8fafc);
+            gap: 4px;
+            width: 72px;
+            min-width: 0;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__thumb-wrap {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
         }
 
         body.guard-portal .guard-daily-activity-photo-list__thumb {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-            border-radius: 6px;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
             object-fit: cover;
             display: block;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f1f5f9);
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            z-index: 2;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            margin: 0;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            background: #b91c1c;
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove-glyph {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-top: -1px;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove:hover,
+        body.guard-portal .guard-daily-activity-photo-list__remove:focus-visible {
+            background: #991b1b;
+            color: #fff;
+            outline: none;
         }
 
         body.guard-portal .guard-daily-activity-photo-list__name {
-            flex: 1;
-            min-width: 0;
-            font-size: 0.8125rem;
-            line-height: 1.3;
+            width: 100%;
+            font-size: 0.6875rem;
+            line-height: 1.2;
+            text-align: center;
             color: var(--guard-ui-text, #334155);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__remove {
-            flex-shrink: 0;
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: var(--guard-ui-secondary, #64748b);
-            cursor: pointer;
-            font-size: 0.875rem;
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__thumb {
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.6);
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__remove:hover {
-            background: rgba(15, 23, 42, 0.06);
-            color: #b91c1c;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__row {
-            background: rgba(30, 41, 59, 0.5);
-            border-color: rgba(148, 163, 184, 0.25);
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__remove {
+            border-color: var(--guard-ui-surface, #1e293b);
         }
 
         body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__name {

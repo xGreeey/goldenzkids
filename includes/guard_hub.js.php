@@ -631,11 +631,7 @@ function guard_hub_scripts(): void
         var reportFile = null;
         var evidences = [];
         var DTR_TYPE = 'Daily Time Record';
-<<<<<<< HEAD
-        var INCIDENT_TYPE = 'Post incident';
-=======
         var INCIDENT_TYPE = 'Incident Report';
->>>>>>> ca124865c3583e0aa80e7afa51118aceb6c974c8
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;
         var ocrPreview = qs('[data-guard-ocr-preview]', form);

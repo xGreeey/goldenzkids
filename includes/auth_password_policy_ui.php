@@ -33,11 +33,11 @@ function auth_password_policy_styles(): string
 .password-requirements__item.is-met {
     color: #16a34a;
 }
-body.auth-shell.dark-mode .login-card .password-requirements__title,
-body.auth-shell.dark-mode .login-card .password-requirements__item:not(.is-met),
+body.auth-shell.auth-sign-in.dark-mode .login-card .password-requirements__title,
+body.auth-shell.auth-sign-in.dark-mode .login-card .password-requirements__item:not(.is-met),
 body.auth-shell.dark-mode .forced-modal .password-requirements__title,
 body.auth-shell.dark-mode .forced-modal .password-requirements__item:not(.is-met) {
-    color: #000;
+    color: var(--login-card-muted, rgba(241, 245, 249, 0.72));
 }
 body.auth-shell.dark-mode .login-card .password-requirements__item.is-met,
 body.auth-shell.dark-mode .forced-modal .password-requirements__item.is-met {

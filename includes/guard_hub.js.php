@@ -724,7 +724,7 @@ function guard_hub_scripts(): void
         }
 
         function usesOcrPreview() {
-            return isDadMode() || isIncidentMode();
+            return isIncidentMode();
         }
 
         function escapeOcrHtml(value) {
@@ -799,9 +799,12 @@ function guard_hub_scripts(): void
                 step1Next.innerHTML = (dad ? 'Continue to site photos' : 'Continue to evidences')
                     + ' <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
             }
+            if (ocrPreview) {
+                ocrPreview.hidden = !isIncidentMode();
+            }
             if (submitSubtitle) {
                 submitSubtitle.textContent = dad
-                    ? 'Daily Time Record: take a photo of the filled sheet (step 1) and on-site photos with your camera (step 2). GPS is stamped at each step. Document AI reads handwriting on the sheet.'
+                    ? 'Daily Time Record: take a photo of the filled sheet (step 1) and on-site photos with your camera (step 2). GPS is stamped at each step.'
                     : incident
                       ? 'Incident report: photograph the filled form with your camera. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
                       : 'Photograph your filled report with the camera, add on-site evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
@@ -1606,13 +1609,17 @@ function guard_hub_scripts(): void
                 }
                 if (hint) {
                     hint.textContent = isDadMode()
-                        ? 'Sheet captured. Reading handwriting…'
+                        ? 'Sheet captured. Stamping sheet location…'
                         : 'Report captured. Continue to evidences.';
                 }
                 syncScannerActionsUi();
-                runOcrPreview();
+                if (isIncidentMode()) {
+                    runOcrPreview();
+                }
                 syncDadSheetPreview();
-                if (isDadMode()) stampLocation('sheet');
+                if (isDadMode()) {
+                    stampLocation('sheet');
+                }
             });
         }
 

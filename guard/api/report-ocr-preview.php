@@ -30,7 +30,11 @@ try {
 }
 
 $reportType = trim((string) ($_POST['report_type'] ?? ''));
-if (!in_array($reportType, [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY, GUARD_INCIDENT_REPORT_TYPE, GUARD_INCIDENT_REPORT_TYPE_LEGACY, 'Incident'], true)) {
+if (guard_dad_is_report_type($reportType)) {
+    echo json_encode(['ok' => false, 'error' => 'Daily Time Record does not use OCR preview — photo and GPS only.']);
+    exit;
+}
+if (!in_array($reportType, [GUARD_INCIDENT_REPORT_TYPE, GUARD_INCIDENT_REPORT_TYPE_LEGACY, 'Incident'], true)) {
     echo json_encode(['ok' => false, 'error' => 'Invalid report type for OCR preview.']);
     exit;
 }

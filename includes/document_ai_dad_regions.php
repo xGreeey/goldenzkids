@@ -27,7 +27,7 @@ function document_ai_dad_region_boxes_gd(): array
 {
     return [
         'post' => ['x_min' => 0.08, 'y_min' => 0.20, 'x_max' => 0.92, 'y_max' => 0.28],
-        'col_name' => ['x_min' => 0.08, 'y_min' => 0.30, 'x_max' => 0.38, 'y_max' => 0.88],
+        'col_name' => ['x_min' => 0.14, 'y_min' => 0.30, 'x_max' => 0.38, 'y_max' => 0.88],
         'col_am_in' => ['x_min' => 0.38, 'y_min' => 0.30, 'x_max' => 0.52, 'y_max' => 0.88],
         'col_am_out' => ['x_min' => 0.52, 'y_min' => 0.30, 'x_max' => 0.66, 'y_max' => 0.88],
         'col_pm_in' => ['x_min' => 0.66, 'y_min' => 0.30, 'x_max' => 0.80, 'y_max' => 0.88],
@@ -269,10 +269,20 @@ function document_ai_dad_remove_dir(string $dir): void
     @rmdir($dir);
 }
 
+function document_ai_dad_is_row_number_line(string $line): bool
+{
+    $line = trim($line);
+    if ($line === '' || $line === '#') {
+        return true;
+    }
+
+    return preg_match('/^(?:#?\s*)?\d{1,2}\s*\.?\s*$/u', $line) === 1;
+}
+
 /**
  * @return list<string>
  */
-function document_ai_dad_column_lines(string $text): array
+function document_ai_dad_column_lines(string $text, string $columnKind = 'name'): array
 {
     $text = preg_replace("/\r\n?/", "\n", trim($text)) ?? '';
     if ($text === '') {
@@ -285,12 +295,21 @@ function document_ai_dad_column_lines(string $text): array
         if ($line === '') {
             continue;
         }
-        $upper = strtoupper($line);
-        if (preg_match('/^(?:#|\d{1,2})$/u', $line) === 1) {
+        if (document_ai_dad_is_row_number_line($line)) {
             continue;
         }
+        $upper = strtoupper($line);
         if (preg_match('/\b(?:GUARD|ROASTER|ROSTER|TIME\s*IN|TIME\s*OUT|A\.?\s*M|P\.?\s*M|DAILY|RECORD|CONFIRMATION|HEAD\s*GUARD|GOLDEN)\b/u', $upper) === 1) {
             continue;
+        }
+        if ($columnKind === 'name') {
+            if (document_ai_dad_is_time_text($line)) {
+                continue;
+            }
+        } elseif ($columnKind === 'time') {
+            if (!document_ai_dad_is_time_text($line) && preg_match('/\p{L}{3,}/u', $line) === 1) {
+                continue;
+            }
         }
         $lines[] = $line;
     }
@@ -324,11 +343,11 @@ function document_ai_dad_row_is_redacted(string $name, string $amIn, string $amO
 function document_ai_dad_rows_from_region_columns(array $regionTexts): array
 {
     $cols = [
-        'name' => document_ai_dad_column_lines($regionTexts['col_name'] ?? ''),
-        'am_in' => document_ai_dad_column_lines($regionTexts['col_am_in'] ?? ''),
-        'am_out' => document_ai_dad_column_lines($regionTexts['col_am_out'] ?? ''),
-        'pm_in' => document_ai_dad_column_lines($regionTexts['col_pm_in'] ?? ''),
-        'pm_out' => document_ai_dad_column_lines($regionTexts['col_pm_out'] ?? ''),
+        'name' => document_ai_dad_column_lines($regionTexts['col_name'] ?? '', 'name'),
+        'am_in' => document_ai_dad_column_lines($regionTexts['col_am_in'] ?? '', 'time'),
+        'am_out' => document_ai_dad_column_lines($regionTexts['col_am_out'] ?? '', 'time'),
+        'pm_in' => document_ai_dad_column_lines($regionTexts['col_pm_in'] ?? '', 'time'),
+        'pm_out' => document_ai_dad_column_lines($regionTexts['col_pm_out'] ?? '', 'time'),
     ];
 
     $max = max(

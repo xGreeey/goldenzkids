@@ -865,6 +865,10 @@ function document_ai_sanitize_dad_name(string $name): string
         return '';
     }
 
+    if (preg_match('/^(?:#?\s*)?\d{1,2}\s*\.?\s*$/u', $name) === 1) {
+        return '';
+    }
+
     $stripPatterns = [
         '/\bBIG\s+LETTERS\.?\s*/iu',
         '/\bPLEASE\s+WRITE\b.*$/iu',

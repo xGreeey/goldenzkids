@@ -5262,6 +5262,23 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
     color: var(--report-text-muted);
 }
 
+.reports-dad-step1__sheet-only {
+    display: block;
+    max-width: 100%;
+}
+
+.reports-dad-step1__sheet-only .reports-dad-media__link {
+    display: block;
+    max-width: 100%;
+}
+
+.reports-dad-step1__sheet-only .reports-dad-media__scan {
+    display: block;
+    width: 100%;
+    max-height: min(70vh, 520px);
+    object-fit: contain;
+}
+
 .reports-dad-step1__split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

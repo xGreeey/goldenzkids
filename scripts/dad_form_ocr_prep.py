@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,15 +20,18 @@ try:
 except ImportError:
     ndimage = None  # type: ignore
 
-# Golden Z DTR template (normalized) after perspective warp
+# Golden Z DTR template (normalized) after perspective warp — col_name starts after # column
 FALLBACK = {
     "post": (0.08, 0.20, 0.92, 0.28),
-    "col_name": (0.08, 0.30, 0.38, 0.88),
+    "col_name": (0.14, 0.30, 0.38, 0.88),
     "col_am_in": (0.38, 0.30, 0.52, 0.88),
     "col_am_out": (0.52, 0.30, 0.66, 0.88),
     "col_pm_in": (0.66, 0.30, 0.80, 0.88),
     "col_pm_out": (0.80, 0.30, 0.96, 0.88),
 }
+
+# Narrow left column is row # (1–15); guard roster starts after it
+ROW_NUM_COL_MAX_FRAC = 0.14
 
 
 def order_points(pts: np.ndarray) -> np.ndarray:
@@ -126,6 +130,7 @@ def table_structure(gray: np.ndarray) -> dict[str, Any]:
     if len(col_x) < 6:
         col_x = [
             int(w * 0.08),
+            int(w * 0.14),
             int(w * 0.38),
             int(w * 0.52),
             int(w * 0.66),
@@ -133,24 +138,54 @@ def table_structure(gray: np.ndarray) -> dict[str, Any]:
             int(w * 0.96),
         ]
 
-    col_x = sorted(col_x)
-    while len(col_x) < 6:
-        col_x.append(int(w * 0.96))
+    col_x = sorted(set(col_x))
+    while len(col_x) < 7:
+        col_x.append(int(w * (0.08 + 0.14 * len(col_x))))
 
+    regions = dad_table_column_regions(col_x, w, table_top, table_bottom, h)
     post_bottom = max(int(h * 0.22), min(table_top - int(h * 0.015), int(h * 0.30)))
     if post_bottom <= int(h * 0.14):
         post_bottom = int(h * 0.26)
 
     return {
         "post": (0.08, 0.20, 0.92, post_bottom / h),
-        "col_name": (col_x[0] / w, table_top / h, col_x[1] / w, table_bottom / h),
-        "col_am_in": (col_x[1] / w, table_top / h, col_x[2] / w, table_bottom / h),
-        "col_am_out": (col_x[2] / w, table_top / h, col_x[3] / w, table_bottom / h),
-        "col_pm_in": (col_x[3] / w, table_top / h, col_x[4] / w, table_bottom / h),
-        "col_pm_out": (col_x[4] / w, table_top / h, col_x[5] / w, table_bottom / h),
+        **regions,
         "table_top": table_top,
         "table_bottom": table_bottom,
         "col_x": col_x,
+    }
+
+
+def dad_table_column_regions(
+    col_x: list[int], w: int, table_top: int, table_bottom: int, h: int
+) -> dict[str, tuple[float, float, float, float]]:
+    """
+    Map vertical grid lines to DTR columns, skipping the # (row number) column on the left.
+    Columns: Guard Roaster | A.M. in | A.M. out | P.M. in | P.M. out
+    """
+    xs = sorted(col_x)
+    start = 0
+    if len(xs) >= 7:
+        start = 1
+    elif len(xs) >= 2 and (xs[1] - xs[0]) / max(w, 1) <= ROW_NUM_COL_MAX_FRAC:
+        start = 1
+
+    need = start + 6
+    while len(xs) < need:
+        xs.append(int(w * 0.96))
+
+    y1, y2 = table_top / h, table_bottom / h
+
+    def box(i: int) -> tuple[float, float, float, float]:
+        return (xs[i] / w, y1, xs[i + 1] / w, y2)
+
+    i = start
+    return {
+        "col_name": box(i),
+        "col_am_in": box(i + 1),
+        "col_am_out": box(i + 2),
+        "col_pm_in": box(i + 3),
+        "col_pm_out": box(i + 4),
     }
 
 
@@ -167,9 +202,20 @@ def cluster_positions(positions: list[int], gap: int = 8) -> list[list[int]]:
     return clusters
 
 
+def is_row_number_line(line: str) -> bool:
+    s = line.strip()
+    if s == "" or s == "#":
+        return True
+    if re.match(r"^(?:#?\s*)?\d{1,2}\s*\.?\s*$", s):
+        return True
+    return False
+
+
 def skip_header_lines(lines: list[str]) -> list[str]:
     out: list[str] = []
     for line in lines:
+        if is_row_number_line(line):
+            continue
         u = line.upper()
         if any(
             k in u

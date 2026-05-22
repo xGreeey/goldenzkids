@@ -112,7 +112,8 @@ if ($pathCipher === null) {
 }
 
 $aiStored = '';
-if (document_ai_is_configured()) {
+// DTR: photo + GPS only — Document AI runs for incident reports, not daily time records.
+if (document_ai_is_configured() && !guard_dad_is_report_type($templateName)) {
     $ocr = document_ai_process_report_scan($scanPath, $reportType);
     if ($ocr['ok'] && isset($ocr['payload']) && is_array($ocr['payload'])) {
         try {
@@ -185,12 +186,6 @@ $evidenceSaved = guard_portal_store_report_evidence(
 
 $dadReference = null;
 if (guard_dad_is_report_type($templateName)) {
-    $structured = [];
-    if ($aiStored !== '') {
-        $decoded = document_ai_decode_stored($aiStored);
-        $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
-    }
-
     $dadResult = guard_dad_create_submission(
         $conn,
         $companyId,
@@ -200,7 +195,6 @@ if (guard_dad_is_report_type($templateName)) {
         $pathCipher['cipher'],
         $aiCipher !== '' ? $aiCipher : null,
         [
-            'structured' => $structured,
             'sheet_latitude' => $_POST['sheet_latitude'] ?? null,
             'sheet_longitude' => $_POST['sheet_longitude'] ?? null,
             'sheet_accuracy_m' => $_POST['sheet_accuracy_m'] ?? null,

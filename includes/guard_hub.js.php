@@ -223,7 +223,9 @@ function guard_hub_scripts(): void
         var reportFile = null;
         var evidences = [];
         var DAD_TYPE = 'Daily Attendance Document';
+        var INCIDENT_TYPE = 'Post incident';
         var ocrPreview = qs('[data-guard-ocr-preview]', form);
+        var ocrAsIs = qs('[data-guard-ocr-as-is]', form);
         var ocrStatus = qs('[data-guard-ocr-status]', form);
         var ocrText = qs('[data-guard-ocr-text]', form);
         var dadSheetPreview = qs('[data-guard-dad-sheet-preview]', form);
@@ -258,8 +260,67 @@ function guard_hub_scripts(): void
             return sel && String(sel.value || '').trim() === DAD_TYPE;
         }
 
+        function isIncidentMode() {
+            var sel = qs('[name="report_type"]', form);
+            return sel && String(sel.value || '').trim() === INCIDENT_TYPE;
+        }
+
+        function usesOcrPreview() {
+            return isDadMode() || isIncidentMode();
+        }
+
+        function escapeOcrHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderOcrPreview(data) {
+            var structured = data && data.structured && typeof data.structured === 'object' ? data.structured : {};
+            if (isIncidentMode() && structured.template === 'incident_report') {
+                if (ocrText) {
+                    ocrText.hidden = true;
+                    ocrText.textContent = '';
+                }
+                if (ocrAsIs) {
+                    ocrAsIs.hidden = false;
+                    var desc = escapeOcrHtml(structured.incident_description || '').replace(/\n/g, '<br>');
+                    var action = escapeOcrHtml(structured.action_taken || '').replace(/\n/g, '<br>');
+                    var meta = '';
+                    if (structured.name) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Subject: ' + escapeOcrHtml(structured.name) + '</p>';
+                    }
+                    if (structured.date) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Date: ' + escapeOcrHtml(structured.date) + '</p>';
+                    }
+                    ocrAsIs.innerHTML =
+                        meta +
+                        '<div class="guard-ocr-preview__col"><span class="guard-ocr-preview__col-label">Incident description</span>' +
+                        '<div class="guard-ocr-preview__col-body">' +
+                        (desc || '—') +
+                        '</div></div>' +
+                        '<div class="guard-ocr-preview__col"><span class="guard-ocr-preview__col-label">Action taken</span>' +
+                        '<div class="guard-ocr-preview__col-body">' +
+                        (action || '—') +
+                        '</div></div>';
+                }
+                return;
+            }
+            if (ocrAsIs) {
+                ocrAsIs.hidden = true;
+                ocrAsIs.innerHTML = '';
+            }
+            if (ocrText) {
+                ocrText.hidden = false;
+                ocrText.textContent = (data && (data.formatted || data.raw)) || '(no text detected)';
+            }
+        }
+
         function syncDadUi() {
             var dad = isDadMode();
+            var incident = isIncidentMode();
             if (step2Label) step2Label.textContent = dad ? 'Site photos' : 'Evidences';
             if (step2Title) step2Title.textContent = dad ? 'Step 2 — Site photos & location' : 'Step 2 — Insert evidences';
             if (step2Hint) {
@@ -275,25 +336,35 @@ function guard_hub_scripts(): void
             if (submitSubtitle) {
                 submitSubtitle.textContent = dad
                     ? 'Daily attendance: GPS is stamped when you scan the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
-                    : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
+                    : incident
+                      ? 'Post incident: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
+                      : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
             }
-            if (!dad && ocrPreview) {
+            if (!usesOcrPreview() && ocrPreview) {
                 ocrPreview.hidden = true;
             }
         }
 
         function runOcrPreview() {
-            if (!isDadMode() || !reportFile || ocrBusy) {
+            if (!usesOcrPreview() || !reportFile || ocrBusy) {
                 return;
             }
             ocrBusy = true;
             ocrDone = false;
             if (ocrPreview) ocrPreview.hidden = false;
-            if (ocrStatus) ocrStatus.textContent = 'Reading handwritten attendance sheet with Document AI…';
+            if (ocrStatus) {
+                ocrStatus.textContent = isIncidentMode()
+                    ? 'Reading handwritten incident form with Document AI…'
+                    : 'Reading handwritten attendance sheet with Document AI…';
+            }
             if (ocrText) ocrText.textContent = '';
+            if (ocrAsIs) {
+                ocrAsIs.hidden = true;
+                ocrAsIs.innerHTML = '';
+            }
 
             var fd = new FormData();
-            fd.append('report_type', DAD_TYPE);
+            fd.append('report_type', isIncidentMode() ? INCIDENT_TYPE : DAD_TYPE);
             fd.append('report_scan', reportFile, reportFile.name || 'scan.jpg');
             var csrfInput = qs('input[name="_csrf"]', form);
             if (csrfInput && csrfInput.value) fd.append('_csrf', csrfInput.value);
@@ -316,7 +387,7 @@ function guard_hub_scripts(): void
                     }
                     ocrDone = true;
                     if (ocrStatus) ocrStatus.textContent = 'Handwriting detected — review below before continuing.';
-                    if (ocrText) ocrText.textContent = data.formatted || data.raw || '(no text detected)';
+                    renderOcrPreview(data);
                 })
                 .catch(function () {
                     ocrBusy = false;

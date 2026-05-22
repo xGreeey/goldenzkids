@@ -457,6 +457,38 @@
         );
     }
 
+    function handwritingHtml(value) {
+        const v = String(value ?? '').trim();
+        if (!v) {
+            return '—';
+        }
+        return escapeHtml(v).replace(/\n/g, '<br>');
+    }
+
+    function buildIncidentAsIsHtml(incidentDescription, actionTaken) {
+        const desc = String(incidentDescription ?? '').trim();
+        const action = String(actionTaken ?? '').trim();
+        const emptyClass = !desc && !action ? ' is-empty' : '';
+
+        return (
+            '<section class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">' +
+            '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>' +
+            '<div class="reports-incident-as-is' +
+            emptyClass +
+            '">' +
+            '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">' +
+            '<span class="reports-incident-as-is__label">Incident description</span>' +
+            '<div class="reports-incident-as-is__body">' +
+            handwritingHtml(desc) +
+            '</div></div>' +
+            '<div class="reports-incident-as-is__col reports-incident-as-is__col--action">' +
+            '<span class="reports-incident-as-is__label">Action taken</span>' +
+            '<div class="reports-incident-as-is__body">' +
+            handwritingHtml(action) +
+            '</div></div></div></section>'
+        );
+    }
+
     function buildModalDetailsHtml(p) {
         let headGuard = String(p.head_guard_name || p.submitter_name || '').trim();
         const headGuardId = String(p.head_guard_id || p.submitter_id || '').trim();
@@ -467,22 +499,35 @@
         }
 
         const person = String(p.person_involved || p.guard_involved || '').trim();
-
-        return (
+        const formName = String(p.form_name || '').trim();
+        const formDate = String(p.form_date || '').trim();
+        let html =
             '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
             '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
             sheetField('Post', p.site) +
             sheetField('Head guard', headGuard) +
             sheetField('Guard', person) +
-            '</div></section>' +
-            '<section class="reports-detail-sheet__section" aria-label="Incident">' +
+            '</div></section>';
+
+        if (formName || formDate) {
+            html +=
+                '<section class="reports-detail-sheet__section" aria-label="Form header">' +
+                '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
+                (formName ? sheetField('Subject (form)', formName) : '') +
+                (formDate ? sheetField('Date (form)', formDate) : '') +
+                '</div></section>';
+        }
+
+        html += buildIncidentAsIsHtml(p.incident_description, p.action_taken);
+        html +=
+            '<section class="reports-detail-sheet__section" aria-label="Classification">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
             sheetField('Incident', p.incident_type, 'incident') +
-            sheetField('Description', p.summary, 'description') +
             sheetField('Severity', p.severity, 'severity') +
-            '</div></section></div>'
-        );
+            '</div></section></div>';
+
+        return html;
     }
 
     function buildOperationFlowHtml(history, p) {

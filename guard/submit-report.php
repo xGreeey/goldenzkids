@@ -116,7 +116,8 @@ guard_layout_head('Submit Report');
                     <input type="hidden" name="sheet_location_label" data-guard-sheet-location-label-input value="">
                     <div class="guard-ocr-preview" data-guard-ocr-preview hidden>
                         <h4 class="guard-ocr-preview__title"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Document AI — handwritten text</h4>
-                        <p class="form-hint guard-ocr-preview__status" data-guard-ocr-status>Reading attendance sheet…</p>
+                        <p class="form-hint guard-ocr-preview__status" data-guard-ocr-status>Reading form handwriting…</p>
+                        <div class="guard-ocr-preview__as-is" data-guard-ocr-as-is hidden></div>
                         <pre class="guard-ocr-preview__text" data-guard-ocr-text></pre>
                     </div>
                     <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next>

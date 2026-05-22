@@ -247,6 +247,14 @@ function document_ai_build_structured(Document $document, string $reportType, st
         return document_ai_enrich_dad_structured($merged);
     }
 
+    if (($merged['template'] ?? '') === 'incident_report') {
+        $spatial = document_ai_parse_incident_spatial($document, $rawText);
+        $merged = document_ai_incident_merge_spatial($spatial, $merged);
+        $merged['raw'] = $rawText;
+
+        return document_ai_enrich_incident_structured($merged);
+    }
+
     return $merged;
 }
 
@@ -859,18 +867,515 @@ function document_ai_parse_by_template(string $text, string $reportType): array
 }
 
 /**
+ * Printed notice on incident/DAD forms — never part of handwritten content.
+ */
+function document_ai_incident_boilerplate_phrase_pattern(): string
+{
+    return '/\bthis\s+document\s+is\s+to\s+be\s+processed\s+di[gt]it(?:ally|rally)\b[^.\n]*(?:\.\s*)?(?:please\s+write\s+in\s+capitalized\s*\/?\s*big\s+letters)?\.?/iu';
+}
+
+function document_ai_incident_strip_boilerplate_phrases(string $text): string
+{
+    $text = trim(preg_replace(document_ai_incident_boilerplate_phrase_pattern(), ' ', $text) ?? $text);
+    $text = trim(preg_replace('/\bplease\s+write\s+in\s+capitalized\s*\/?\s*big\s+letters\.?\b/iu', ' ', $text) ?? $text);
+
+    return trim(preg_replace('/\s{2,}/u', ' ', $text) ?? $text);
+}
+
+function document_ai_incident_is_boilerplate(string $text): bool
+{
+    if (document_ai_dad_is_boilerplate($text)) {
+        return true;
+    }
+
+    $upper = strtoupper(trim($text));
+    if ($upper === '') {
+        return true;
+    }
+
+    $labelOnly = [
+        'INCIDENT REPORT',
+        'INCIDENT DESCRIPTION',
+        'ACTION TAKEN',
+        'NAME',
+        'DATE',
+    ];
+    foreach ($labelOnly as $label) {
+        if ($upper === $label || preg_match('/^' . preg_quote($label, '/') . '\s*:?\s*$/u', $upper) === 1) {
+            return true;
+        }
+    }
+
+    if (preg_match(document_ai_incident_boilerplate_phrase_pattern(), $text) === 1) {
+        return true;
+    }
+
+    return preg_match('/\b(?:SECURITY\s+AND\s+INVESTIGATION|GOLDEN\s+Z)\b/iu', $text) === 1
+        && !preg_match('/[a-z]{3,}/u', $text);
+}
+
+function document_ai_incident_is_date_text(string $text): bool
+{
+    $t = trim($text);
+    if ($t === '') {
+        return false;
+    }
+
+    if (document_ai_dad_is_date_text($t)) {
+        return true;
+    }
+
+    return preg_match(
+        '/\b(?:\d{1,2}[\s.\-\/]+\d{1,2}[\s.\-\/]+\d{2,4}|\d{1,2}[\s.\-\/]+(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[\s.\-\/]+\d{2,4}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[\s.\-\/]+\d{1,2}(?:[\s.\-\/]+\d{2,4})?)\b/iu',
+        $t
+    ) === 1;
+}
+
+function document_ai_sanitize_incident_date(string $date): string
+{
+    $date = document_ai_incident_strip_boilerplate_phrases(trim($date));
+    if ($date === '' || document_ai_incident_is_boilerplate($date)) {
+        return '';
+    }
+
+    $date = trim(preg_replace('/^DATE\s*:?\s*/iu', '', $date) ?? $date);
+    if ($date === '') {
+        return '';
+    }
+
+    if (preg_match(
+        '/\b((?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s*[\s,.\-\/]*\d{1,2}(?:\s*[\s,.\-\/]*\d{2,4})?|\d{1,2}\s*[\s,.\-\/]+\d{1,2}\s*[\s,.\-\/]+\d{2,4}|\d{1,2}\s*[\s,.\-\/]+\d{1,2}\s*[\s,.\-\/]+\d{2})\b/iu',
+        $date,
+        $m
+    )) {
+        return trim((string) $m[1]);
+    }
+
+    return document_ai_incident_is_date_text($date) ? $date : '';
+}
+
+function document_ai_incident_field_key(string $label): ?string
+{
+    $normalized = strtoupper(trim(preg_replace('/[\s:._\-]+/u', ' ', $label) ?? $label));
+    $normalized = trim(preg_replace('/\s+/u', ' ', $normalized));
+
+    return match (true) {
+        $normalized === 'NAME' || str_starts_with($normalized, 'NAME ') => 'name',
+        $normalized === 'DATE' || str_starts_with($normalized, 'DATE ') => 'date',
+        default => null,
+    };
+}
+
+function document_ai_incident_looks_like_name(string $name): bool
+{
+    $name = trim($name);
+    if ($name === '' || strlen($name) < 2) {
+        return false;
+    }
+    if (document_ai_incident_is_boilerplate($name) || document_ai_incident_is_date_text($name)) {
+        return false;
+    }
+    if (!preg_match('/\p{L}/u', $name)) {
+        return false;
+    }
+
+    return preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|ATTENDANCE|DOCUMENT)\b/iu', $name) !== 1;
+}
+
+function document_ai_sanitize_incident_name(string $name): string
+{
+    $name = document_ai_incident_strip_boilerplate_phrases(trim($name));
+    if ($name === '' || document_ai_incident_is_boilerplate($name)) {
+        return '';
+    }
+
+    $name = trim(preg_replace('/^NAME\s*:?\s*/iu', '', $name) ?? $name);
+    $name = trim(preg_replace('/\bDATE\s*:.*$/iu', '', $name) ?? $name);
+    $name = trim(preg_replace('/\b(?:PLEASE\s+WRITE|BIG\s+LETTERS|CAPITALIZED|PROCESSED\s+DIGITALLY)\b.*$/iu', '', $name) ?? $name);
+    $name = trim(preg_replace('/\s{2,}/u', ' ', $name) ?? $name);
+
+    return document_ai_incident_looks_like_name($name) ? $name : '';
+}
+
+/**
+ * Read handwritten name from the incident form NAME: field (same line or following lines).
+ */
+function document_ai_extract_incident_name_from_text(string $text): string
+{
+    $text = str_replace(["\r\n", "\r"], "\n", $text);
+    $best = '';
+
+    if (preg_match_all('/\bNAME\s*:+\s*([^\n]+)/iu', $text, $inlineMatches)) {
+        foreach ($inlineMatches[1] as $chunk) {
+            $candidate = document_ai_sanitize_incident_name(trim((string) $chunk));
+            if ($candidate !== '' && strlen($candidate) > strlen($best)) {
+                $best = $candidate;
+            }
+        }
+    }
+
+    if (preg_match(
+        '/\bNAME\s*:?\s*(.*?)(?=\bDATE\s*:|\bINCIDENT\s+DESCRIPTION|\bACTION\s+TAKEN)/isu',
+        $text,
+        $blockMatch
+    )) {
+        $block = trim(preg_replace('/\s*\n\s*/u', ' ', (string) ($blockMatch[1] ?? '')) ?? '');
+        $candidate = document_ai_sanitize_incident_name($block);
+        if ($candidate !== '' && strlen($candidate) > strlen($best)) {
+            $best = $candidate;
+        }
+    }
+
+    if (preg_match(
+        '/\bNAME\s*:?\s*(?:[_\-\s\.]+)?\s*[\n]+\s*([^\n]+)/iu',
+        $text,
+        $nextLineMatch
+    )) {
+        $candidate = document_ai_sanitize_incident_name(trim((string) ($nextLineMatch[1] ?? '')));
+        if ($candidate !== '' && strlen($candidate) > strlen($best)) {
+            $best = $candidate;
+        }
+    }
+
+    if (preg_match(
+        '/\bNAME\s*:?\s*(?:[_\-\s\.]+)?\s*[\n]+\s*([^\n]+(?:\n[^\n]+)?)(?=\s*[\n]+\s*DATE\s*:)/iu',
+        $text,
+        $multiLineMatch
+    )) {
+        $block = trim(preg_replace('/\s*\n\s*/u', ' ', (string) ($multiLineMatch[1] ?? '')) ?? '');
+        $candidate = document_ai_sanitize_incident_name($block);
+        if ($candidate !== '' && strlen($candidate) > strlen($best)) {
+            $best = $candidate;
+        }
+    }
+
+    return $best;
+}
+
+/**
+ * @param list<array{label: string, value: string}> $formFields
+ * @param array{name?: string, date?: string} $seed
+ * @return array{name: string, date: string}
+ */
+function document_ai_incident_merge_form_fields(array $formFields, array $seed): array
+{
+    $name = trim((string) ($seed['name'] ?? ''));
+    $date = trim((string) ($seed['date'] ?? ''));
+
+    foreach ($formFields as $field) {
+        if (!is_array($field)) {
+            continue;
+        }
+        $key = document_ai_incident_field_key((string) ($field['label'] ?? ''));
+        $value = trim((string) ($field['value'] ?? ''));
+        if ($key === null || $value === '') {
+            continue;
+        }
+        if ($key === 'name') {
+            $clean = document_ai_sanitize_incident_name($value);
+            if ($clean !== '' && ($name === '' || strlen($clean) > strlen($name))) {
+                $name = $clean;
+            }
+        } elseif ($key === 'date') {
+            $clean = document_ai_sanitize_incident_date($value);
+            if ($clean !== '') {
+                $date = $clean;
+            }
+        }
+    }
+
+    return ['name' => $name, 'date' => $date];
+}
+
+/**
+ * Keep handwritten blocks as scanned (line breaks); drop printed template lines only.
+ */
+function document_ai_sanitize_incident_handwriting(string $text): string
+{
+    $text = str_replace(["\r\n", "\r"], "\n", $text);
+    $lines = preg_split('/\n+/u', $text) ?: [];
+    $kept = [];
+
+    foreach ($lines as $line) {
+        $line = document_ai_incident_strip_boilerplate_phrases(trim($line));
+        if ($line === '' || document_ai_incident_is_boilerplate($line)) {
+            continue;
+        }
+        $line = trim(preg_replace('/^(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\s*:?\s*/iu', '', $line) ?? $line);
+        if ($line !== '' && !document_ai_incident_is_boilerplate($line)) {
+            $kept[] = $line;
+        }
+    }
+
+    return trim(implode("\n", $kept));
+}
+
+/** @param list<string> $startLabels @param list<string> $endLabels */
+function document_ai_incident_section_between(string $text, array $startLabels, array $endLabels): string
+{
+    $start = document_ai_label_pos($text, $startLabels);
+    $end = document_ai_label_pos($text, $endLabels);
+    if ($start === null) {
+        return '';
+    }
+    $from = $start + strlen(document_ai_first_label($text, $startLabels));
+    $slice = $end !== null && $end > $from ? substr($text, $from, $end - $from) : substr($text, $from);
+
+    return document_ai_sanitize_incident_handwriting(trim((string) ($slice ?? '')));
+}
+
+/** @param list<string> $labels */
+function document_ai_incident_section_after(string $text, array $labels): string
+{
+    $pos = document_ai_label_pos($text, $labels);
+    if ($pos === null) {
+        return '';
+    }
+    $from = $pos + strlen(document_ai_first_label($text, $labels));
+
+    return document_ai_sanitize_incident_handwriting(trim(substr($text, $from) ?: ''));
+}
+
+/**
+ * @param array{incident_description?: string, action_taken?: string, name?: string, date?: string} $spatial
+ * @param array<string, mixed> $textParsed
+ * @return array<string, mixed>
+ */
+function document_ai_incident_merge_spatial(array $spatial, array $textParsed): array
+{
+    $incident = document_ai_sanitize_incident_handwriting((string) ($spatial['incident_description'] ?? ''));
+    $textIncident = document_ai_sanitize_incident_handwriting((string) ($textParsed['incident_description'] ?? ''));
+    if ($incident === '' || ($textIncident !== '' && strlen($textIncident) > strlen($incident))) {
+        $incident = $textIncident;
+    }
+
+    $action = document_ai_sanitize_incident_handwriting((string) ($spatial['action_taken'] ?? ''));
+    $textAction = document_ai_sanitize_incident_handwriting((string) ($textParsed['action_taken'] ?? ''));
+    if ($action === '' || ($textAction !== '' && strlen($textAction) > strlen($action))) {
+        $action = $textAction;
+    }
+
+    $name = document_ai_sanitize_incident_name((string) ($spatial['name'] ?? ''));
+    $textName = document_ai_sanitize_incident_name((string) ($textParsed['name'] ?? ''));
+    if ($name === '' || ($textName !== '' && strlen($textName) > strlen($name))) {
+        $name = $textName;
+    }
+
+    $date = document_ai_sanitize_incident_date((string) ($spatial['date'] ?? ''));
+    if ($date === '') {
+        $date = document_ai_sanitize_incident_date((string) ($textParsed['date'] ?? ''));
+    }
+
+    $textParsed['incident_description'] = $incident;
+    $textParsed['action_taken'] = $action;
+    $textParsed['name'] = $name;
+    $textParsed['date'] = $date;
+
+    return $textParsed;
+}
+
+/**
+ * Handwritten fields from line positions (left = incident description, right = action taken).
+ *
+ * @return array{incident_description: string, action_taken: string, name: string, date: string}
+ */
+function document_ai_parse_incident_spatial(Document $document, string $rawText): array
+{
+    $lines = document_ai_collect_page_lines($document, $rawText);
+    $agencyYMax = 0.0;
+    $sectionYMin = 1.0;
+    $splitX = 0.5;
+    $descLabelX = null;
+    $actionLabelX = null;
+    $name = document_ai_extract_incident_name_from_text($rawText);
+    $date = '';
+    $nameLabelYMax = null;
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $upper = strtoupper(trim($text));
+        if (
+            str_contains($upper, 'GOLDEN')
+            && (str_contains($upper, 'SECURITY') || str_contains($upper, 'AGENCY') || str_contains($upper, 'INVESTIGATION'))
+        ) {
+            $agencyYMax = max($agencyYMax, (float) $line['y_max']);
+        }
+    }
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $upper = strtoupper(trim($text));
+        if (str_contains($upper, 'INCIDENT DESCRIPTION')) {
+            $descLabelX = (float) $line['x_center'];
+            $sectionYMin = min($sectionYMin, (float) $line['y_min']);
+        }
+        if (str_contains($upper, 'ACTION TAKEN')) {
+            $actionLabelX = (float) $line['x_center'];
+            $sectionYMin = min($sectionYMin, (float) $line['y_min']);
+        }
+        if (preg_match('/\bNAME\s*:+/iu', $text)) {
+            $nameLabelYMax = max($nameLabelYMax ?? 0.0, (float) $line['y_max']);
+        }
+    }
+
+    if ($descLabelX !== null && $actionLabelX !== null) {
+        $splitX = ($descLabelX + $actionLabelX) / 2;
+    } elseif ($descLabelX !== null) {
+        $splitX = $descLabelX + 0.18;
+    } elseif ($actionLabelX !== null) {
+        $splitX = $actionLabelX - 0.18;
+    }
+
+    $headerYMax = $sectionYMin < 1.0 ? max($agencyYMax + 0.04, $sectionYMin - 0.02) : 0.58;
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $yc = (float) $line['y_center'];
+        if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.02) {
+            continue;
+        }
+        if ($sectionYMin < 1.0 && $yc >= $headerYMax) {
+            continue;
+        }
+
+        if (preg_match('/\bNAME\s*:+\s*(.+)$/iu', $text, $m)) {
+            $candidate = document_ai_sanitize_incident_name(trim((string) $m[1]));
+            if ($candidate !== '' && strlen($candidate) > strlen($name)) {
+                $name = $candidate;
+            }
+            continue;
+        }
+
+        if (preg_match('/\bDATE\s*:+\s*(.+)$/iu', $text, $m)) {
+            $candidate = document_ai_sanitize_incident_date(trim((string) $m[1]));
+            if ($candidate !== '') {
+                $date = $candidate;
+            }
+            continue;
+        }
+
+        if (document_ai_incident_is_date_text($text) && $date === '' && $yc < $headerYMax) {
+            $date = document_ai_sanitize_incident_date($text);
+            continue;
+        }
+
+        if ($nameLabelYMax !== null && $yc > $nameLabelYMax && $yc < $nameLabelYMax + 0.1) {
+            if (preg_match('/\b(?:NAME|DATE|INCIDENT|ACTION)\b\s*:?/iu', $text)) {
+                continue;
+            }
+            $candidate = document_ai_sanitize_incident_name($text);
+            if ($candidate !== '' && strlen($candidate) > strlen($name)) {
+                $name = $candidate;
+            }
+        }
+    }
+
+    $incidentLines = [];
+    $actionLines = [];
+
+    foreach ($lines as $line) {
+        $text = (string) $line['text'];
+        $yc = (float) $line['y_center'];
+        $xc = (float) $line['x_center'];
+
+        if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.015) {
+            continue;
+        }
+        if ($sectionYMin < 1.0 && $yc <= $sectionYMin + 0.01) {
+            continue;
+        }
+        if (document_ai_incident_is_boilerplate($text)) {
+            continue;
+        }
+        if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|NAME|DATE)\b\s*:?\s*$/iu', trim($text))) {
+            continue;
+        }
+
+        $clean = trim(preg_replace('/^(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\s*:+\s*/iu', '', $text) ?? $text);
+        if ($clean === '' || document_ai_incident_is_boilerplate($clean)) {
+            continue;
+        }
+
+        if ($xc < $splitX) {
+            $incidentLines[] = ['y' => $yc, 'text' => $clean];
+        } else {
+            $actionLines[] = ['y' => $yc, 'text' => $clean];
+        }
+    }
+
+    usort($incidentLines, static fn (array $a, array $b): int => $a['y'] <=> $b['y']);
+    usort($actionLines, static fn (array $a, array $b): int => $a['y'] <=> $b['y']);
+
+    return [
+        'incident_description' => document_ai_sanitize_incident_handwriting(
+            implode("\n", array_map(static fn (array $l): string => (string) $l['text'], $incidentLines))
+        ),
+        'action_taken' => document_ai_sanitize_incident_handwriting(
+            implode("\n", array_map(static fn (array $l): string => (string) $l['text'], $actionLines))
+        ),
+        'name' => $name,
+        'date' => $date,
+    ];
+}
+
+/**
+ * @param array<string, mixed> $structured
+ * @return array<string, mixed>
+ */
+function document_ai_enrich_incident_structured(array $structured): array
+{
+    if (($structured['template'] ?? '') !== 'incident_report') {
+        return $structured;
+    }
+
+    $formFields = is_array($structured['form_fields'] ?? null) ? $structured['form_fields'] : [];
+    $merged = document_ai_incident_merge_form_fields($formFields, [
+        'name' => (string) ($structured['name'] ?? ''),
+        'date' => (string) ($structured['date'] ?? ''),
+    ]);
+
+    $structured['name'] = document_ai_sanitize_incident_name((string) $merged['name']);
+    if ($structured['name'] === '') {
+        $structured['name'] = document_ai_extract_incident_name_from_text(
+            (string) ($structured['raw'] ?? '')
+        );
+    }
+    $structured['date'] = document_ai_sanitize_incident_date((string) $merged['date']);
+    $structured['incident_description'] = document_ai_sanitize_incident_handwriting(
+        (string) ($structured['incident_description'] ?? '')
+    );
+    $structured['action_taken'] = document_ai_sanitize_incident_handwriting(
+        (string) ($structured['action_taken'] ?? '')
+    );
+    $structured['display_template'] = 'as_is_two_column';
+
+    return $structured;
+}
+
+/**
  * @return array<string, mixed>
  */
 function document_ai_parse_incident_report(string $text): array
 {
-    $name = document_ai_match_after_label($text, ['Name:', 'NAME:']);
-    $date = document_ai_match_after_label($text, ['Date:', 'DATE:']);
-    $incident = document_ai_section_between(
+    $text = str_replace(["\r\n", "\r"], "\n", $text);
+    $name = document_ai_extract_incident_name_from_text($text);
+    $date = document_ai_sanitize_incident_date(document_ai_match_after_label($text, ['Date:', 'DATE:']));
+    if ($date === '' && preg_match_all('/\bDATE\s*:?\s*([^\n]+)/iu', $text, $dateMatches)) {
+        foreach ($dateMatches[1] as $rawDate) {
+            $candidate = document_ai_sanitize_incident_date(trim((string) $rawDate));
+            if ($candidate !== '') {
+                $date = $candidate;
+                break;
+            }
+        }
+    }
+
+    $incident = document_ai_incident_section_between(
         $text,
         ['INCIDENT DESCRIPTION', 'Incident Description'],
         ['ACTION TAKEN', 'Action Taken']
     );
-    $action = document_ai_section_after($text, ['ACTION TAKEN', 'Action Taken']);
+    $action = document_ai_incident_section_after($text, ['ACTION TAKEN', 'Action Taken']);
 
     return [
         'template' => 'incident_report',
@@ -1265,14 +1770,19 @@ function document_ai_format_structured(array $structured, string $reportType, st
     $lines = ['Report type: ' . ($reportType !== '' ? $reportType : 'Unknown')];
 
     if (($structured['template'] ?? '') === 'incident_report') {
+        $structured = document_ai_enrich_incident_structured($structured);
         $lines[] = '';
-        $lines[] = 'Name: ' . ($structured['name'] ?? '—');
-        $lines[] = 'Date: ' . ($structured['date'] ?? '—');
+        if (($structured['name'] ?? '') !== '') {
+            $lines[] = 'Name: ' . $structured['name'];
+        }
+        if (($structured['date'] ?? '') !== '') {
+            $lines[] = 'Date: ' . $structured['date'];
+        }
         $lines[] = '';
-        $lines[] = 'Incident description';
+        $lines[] = '── Incident description (as written) ──';
         $lines[] = (string) ($structured['incident_description'] ?? '—');
         $lines[] = '';
-        $lines[] = 'Action taken';
+        $lines[] = '── Action taken (as written) ──';
         $lines[] = (string) ($structured['action_taken'] ?? '—');
     } elseif (($structured['template'] ?? '') === 'daily_attendance') {
         $display = document_ai_dad_display_fields($structured);

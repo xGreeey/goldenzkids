@@ -880,6 +880,39 @@ function admin_incident_modal_cell_text(string $value): string
     return $value !== '' ? htmlspecialchars($value, ENT_QUOTES, 'UTF-8') : '—';
 }
 
+function admin_incident_modal_handwriting_text(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '—';
+    }
+
+    return nl2br(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'), false);
+}
+
+/**
+ * As-scanned two-column layout: incident description (left), action taken (right).
+ */
+function admin_incident_modal_as_is_html(string $incidentDescription, string $actionTaken): string
+{
+    $incidentDescription = trim($incidentDescription);
+    $actionTaken = trim($actionTaken);
+    $emptyClass = $incidentDescription === '' && $actionTaken === '' ? ' is-empty' : '';
+
+    return '<section class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">'
+        . '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>'
+        . '<div class="reports-incident-as-is' . $emptyClass . '">'
+        . '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">'
+        . '<span class="reports-incident-as-is__label">Incident description</span>'
+        . '<div class="reports-incident-as-is__body">' . admin_incident_modal_handwriting_text($incidentDescription) . '</div>'
+        . '</div>'
+        . '<div class="reports-incident-as-is__col reports-incident-as-is__col--action">'
+        . '<span class="reports-incident-as-is__label">Action taken</span>'
+        . '<div class="reports-incident-as-is__body">' . admin_incident_modal_handwriting_text($actionTaken) . '</div>'
+        . '</div>'
+        . '</div></section>';
+}
+
 function admin_incident_modal_sheet_field_html(string $label, string $value, string $modifier = ''): string
 {
     $trimmed = trim($value);
@@ -909,23 +942,38 @@ function admin_incident_modal_details_html(array $report): string
     }
 
     $incident = trim((string) ($report['incident_type'] ?? ''));
-    $description = trim((string) ($report['summary'] ?? ''));
     $severity = trim((string) ($report['severity'] ?? 'Medium'));
     $person = admin_incident_person_involved_label($report);
+    $incidentDescription = trim((string) ($report['incident_description'] ?? ''));
+    $actionTaken = trim((string) ($report['action_taken'] ?? ''));
+    $formName = trim((string) ($report['form_name'] ?? ''));
+    $formDate = trim((string) ($report['form_date'] ?? ''));
 
-    return '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
+    $html = '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
         . '<section class="reports-detail-sheet__section" aria-label="Assignment">'
         . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">'
         . admin_incident_modal_sheet_field_html('Post', $post)
         . admin_incident_modal_sheet_field_html('Head guard', $headGuard)
         . admin_incident_modal_sheet_field_html('Guard', $person)
-        . '</div></section>'
-        . '<section class="reports-detail-sheet__section" aria-label="Incident">'
+        . '</div></section>';
+
+    if ($formName !== '' || $formDate !== '') {
+        $html .= '<section class="reports-detail-sheet__section" aria-label="Form header">'
+            . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">'
+            . admin_incident_modal_sheet_field_html('Subject (form)', $formName)
+            . admin_incident_modal_sheet_field_html('Date (form)', $formDate)
+            . '</div></section>';
+    }
+
+    $html .= admin_incident_modal_as_is_html($incidentDescription, $actionTaken);
+
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Classification">'
         . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">'
         . admin_incident_modal_sheet_field_html('Incident', $incident, 'incident')
-        . admin_incident_modal_sheet_field_html('Description', $description, 'description')
         . admin_incident_modal_sheet_field_html('Severity', $severity, 'severity')
         . '</div></section></div>';
+
+    return $html;
 }
 
 function admin_incident_status_badge_html(array $report): string

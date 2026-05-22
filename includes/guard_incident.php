@@ -25,6 +25,50 @@ function guard_incident_is_report_type(string $reportType): bool
     return $reportType === 'Post incident';
 }
 
+/**
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>
+ */
+function guard_incident_structured_from_row(array $row): array
+{
+    global $master_key, $cipher_algo;
+
+    $ivB64 = (string) ($row['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        return [];
+    }
+
+    $aiCipher = trim((string) ($row['ai_extracted_cipher'] ?? ''));
+    if ($aiCipher === '') {
+        return [];
+    }
+
+    $stored = openssl_decrypt($aiCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+    if ($stored === '') {
+        return [];
+    }
+
+    $decoded = document_ai_decode_stored($stored);
+    $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
+    if (($structured['template'] ?? '') === 'incident_report') {
+        $structured['raw'] = (string) ($decoded['raw'] ?? $structured['raw'] ?? '');
+
+        return document_ai_enrich_incident_structured($structured);
+    }
+
+    return $structured;
+}
+
+function guard_incident_subject_from_summary(string $summary): string
+{
+    if (preg_match('/^Subject:\s*(.+)$/mu', $summary, $m)) {
+        return document_ai_sanitize_incident_name(trim((string) $m[1]));
+    }
+
+    return '';
+}
+
 function guard_incident_head_guard_display_name(PDO $conn, string $companyId): string
 {
     if ($companyId === '') {
@@ -86,6 +130,10 @@ function guard_incident_next_reference(PDO $conn): string
  */
 function guard_incident_fields_from_ocr(array $structured, string $siteName): array
 {
+    if (($structured['template'] ?? '') === 'incident_report') {
+        $structured = document_ai_enrich_incident_structured($structured);
+    }
+
     $description = trim((string) ($structured['incident_description'] ?? ''));
     $action = trim((string) ($structured['action_taken'] ?? ''));
     $name = trim((string) ($structured['name'] ?? ''));
@@ -279,6 +327,19 @@ function guard_incident_map_row_for_admin(array $row): ?array
     $submittedAt = (string) ($row['submitted_at'] ?? '');
     $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
 
+    $structured = guard_incident_structured_from_row($row);
+    $incidentDescription = document_ai_sanitize_incident_handwriting(
+        (string) ($row['incident_description'] ?? $structured['incident_description'] ?? '')
+    );
+    $actionTaken = document_ai_sanitize_incident_handwriting(
+        (string) ($row['action_taken'] ?? $structured['action_taken'] ?? '')
+    );
+    $formName = document_ai_sanitize_incident_name((string) ($structured['name'] ?? ''));
+    if ($formName === '') {
+        $formName = guard_incident_subject_from_summary((string) ($row['summary'] ?? ''));
+    }
+    $formDate = document_ai_sanitize_incident_date((string) ($structured['date'] ?? ''));
+
     return [
         'id' => 'inc-' . $incId,
         'inc_id' => $incId,
@@ -291,6 +352,10 @@ function guard_incident_map_row_for_admin(array $row): ?array
         'head_guard_name' => (string) ($row['head_guard_name'] ?? ''),
         'status' => (string) ($row['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING),
         'summary' => (string) ($row['summary'] ?? ''),
+        'incident_description' => $incidentDescription,
+        'action_taken' => $actionTaken,
+        'form_name' => $formName,
+        'form_date' => $formDate,
         'submitted_at' => substr($submittedAt, 0, 10),
         'submitted_display' => $submittedAt !== '' ? date('j M Y, H:i', strtotime($submittedAt) ?: time()) : '',
         'updated_at' => substr($updatedAt, 0, 10),

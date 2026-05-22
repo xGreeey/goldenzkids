@@ -49,6 +49,9 @@ function guard_portal_report_type_label(string $template): string
     if ($template === '') {
         return 'Guard report';
     }
+    if ($template === GUARD_DTR_REPORT_TYPE_LEGACY) {
+        return GUARD_DTR_REPORT_TYPE;
+    }
     if (in_array($template, guard_portal_report_types(), true)) {
         return $template;
     }
@@ -58,9 +61,15 @@ function guard_portal_report_type_label(string $template): string
 
 function guard_portal_report_type_icon(string $label): string
 {
+    $label = guard_portal_report_type_label($label);
+
     return match ($label) {
         'Post incident' => 'fa-triangle-exclamation',
+<<<<<<< HEAD
         GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY => 'fa-calendar-day',
+=======
+        GUARD_DTR_REPORT_TYPE => 'fa-calendar-day',
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
         'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',
     };
@@ -82,7 +91,7 @@ function guard_portal_report_history_markup(array $reports): void
                     <time class="guard-report-list__date"><?= e((string) ($report['Time_of_Report'] ?? '—')) ?></time>
                     <span class="guard-report-list__meta">
                         <?= e((string) ($report['establishment_label'] ?? '—')) ?>
-                        · <?= e((string) ($report['Template'] ?? 'Report')) ?>
+                        · <?= e(guard_portal_report_type_label((string) ($report['Template'] ?? 'Report'))) ?>
                     </span>
                 </li>
             <?php endforeach; ?>

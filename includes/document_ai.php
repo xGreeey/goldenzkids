@@ -45,7 +45,12 @@ function document_ai_reference_image_url(string $reportType): string
 {
     $file = match ($reportType) {
         'Post incident' => 'report-template-incident.png',
+<<<<<<< HEAD
         'Daily Time Record', 'Daily Attendance Document' => 'report-template-dad.png',
+=======
+        'Daily Time Record' => 'report-template-dad.png',
+        'Daily Attendance Document' => 'report-template-dad.png',
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
         default => '',
     };
     if ($file === '') {
@@ -1125,9 +1130,17 @@ function document_ai_parse_by_template(string $text, string $reportType): array
     }
 
     if (
+<<<<<<< HEAD
         in_array($reportType, ['Daily Time Record', 'Daily Attendance Document'], true)
         || str_contains($upper, 'DAILY TIME RECORD')
         || str_contains($upper, 'DAILY ATTENDANCE')
+=======
+        $reportType === 'Daily Time Record'
+        || $reportType === 'Daily Attendance Document'
+        || str_contains($upper, 'DAILY ATTENDANCE')
+        || str_contains($upper, 'DAILY TIME RECORD')
+        || str_contains($upper, 'TIME RECORD')
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
     ) {
         return document_ai_parse_dad_report($normalized);
     }

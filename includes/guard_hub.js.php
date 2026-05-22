@@ -630,7 +630,11 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
+<<<<<<< HEAD
         var DTR_TYPE = 'Daily Time Record';
+=======
+        var DAD_TYPE = 'Daily Time Record';
+>>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
         var INCIDENT_TYPE = 'Post incident';
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;
@@ -662,10 +666,8 @@ function guard_hub_scripts(): void
         var scanFlow = qs('[data-guard-scan-flow]', form);
         var dailyPanel = qs('[data-guard-daily-activity]', form);
         var dailyDetailsInput = qs('[data-guard-daily-details-input]', form);
-        var dailySubmitNormal = qs('[data-guard-daily-submit-normal]', form);
-        var dailyOpenEvent = qs('[data-guard-daily-open-event]', form);
-        var dailySubmitEvent = qs('[data-guard-daily-submit-event]', form);
-        var dailyEventReady = qs('[data-guard-daily-event-ready]', form);
+        var dailySubmitBtn = qs('[data-guard-daily-submit]', form);
+        var wizardSubmitBtn = qs('[data-guard-submit]', form);
         var dailyModal = qs('[data-guard-daily-activity-modal]', document);
         var dailyModalDetails = qs('[data-guard-daily-activity-details]', document);
         var dailyModalPhotos = qs('[data-guard-daily-activity-photos]', document);
@@ -790,29 +792,69 @@ function guard_hub_scripts(): void
             renderDailyActivityPhotoPreview();
         }
 
+        function dailyActivityPhotoLabel(item, idx) {
+            if (item.file && item.file.name) return item.file.name;
+            return 'Photo ' + (idx + 1);
+        }
+
         function renderDailyActivityPhotoPreview() {
             if (!dailyModalPreview) return;
             dailyModalPreview.innerHTML = '';
-            dailyActivityPhotos.forEach(function (item, idx) {
-                var cell = document.createElement('div');
-                cell.className = 'guard-evidence-grid__item';
-                var img = document.createElement('img');
-                img.src = item.url;
-                img.alt = 'Activity photo ' + (idx + 1);
+            dailyActivityPhotos.slice(0, DAILY_ACTIVITY_MAX_PHOTOS).forEach(function (item, idx) {
+                var row = document.createElement('div');
+                row.className = 'guard-daily-activity-photo-list__row';
+                var thumb = document.createElement('img');
+                thumb.className = 'guard-daily-activity-photo-list__thumb';
+                thumb.src = item.url;
+                thumb.alt = '';
+                var name = document.createElement('span');
+                name.className = 'guard-daily-activity-photo-list__name';
+                name.textContent = dailyActivityPhotoLabel(item, idx);
+                name.title = name.textContent;
                 var rm = document.createElement('button');
                 rm.type = 'button';
-                rm.className = 'guard-evidence-grid__remove';
-                rm.setAttribute('aria-label', 'Remove photo');
+                rm.className = 'guard-daily-activity-photo-list__remove';
+                rm.setAttribute('aria-label', 'Remove ' + name.textContent);
                 rm.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
                 rm.addEventListener('click', function () {
                     URL.revokeObjectURL(item.url);
                     dailyActivityPhotos.splice(idx, 1);
                     renderDailyActivityPhotoPreview();
+                    syncDailyActivityUi();
                 });
-                cell.appendChild(img);
-                cell.appendChild(rm);
-                dailyModalPreview.appendChild(cell);
+                row.appendChild(thumb);
+                row.appendChild(name);
+                row.appendChild(rm);
+                dailyModalPreview.appendChild(row);
             });
+        }
+
+        function dailyActivityEventFormComplete() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            return details !== '' && dailyActivityPhotos.length >= 1
+                && dailyActivityPhotos.length <= DAILY_ACTIVITY_MAX_PHOTOS;
+        }
+
+        function syncDailyActivityEventFromModal() {
+            if (!dailyActivityEventFormComplete()) {
+                dailyActivityEvent = null;
+                if (dailyDetailsInput) dailyDetailsInput.value = '';
+                return;
+            }
+            var details = String(dailyModalDetails.value || '').trim();
+            dailyActivityEvent = {
+                details: details,
+                files: dailyActivityPhotos.map(function (item) { return item.file; })
+            };
+            if (dailyDetailsInput) dailyDetailsInput.value = details;
+        }
+
+        function shouldShowDailySubmit() {
+            if (!isDailyActivityMode()) return false;
+            var mode = getDailyActivityMode();
+            if (mode === 'normal') return true;
+            if (mode === 'event') return dailyActivityEventFormComplete();
+            return false;
         }
 
         function syncDailyActivityUi() {
@@ -821,6 +863,7 @@ function guard_hub_scripts(): void
             if (dailyPanel) dailyPanel.hidden = !da;
             if (scanFlow) scanFlow.hidden = da;
             if (wizardStepsBar) wizardStepsBar.hidden = da;
+            if (wizardSubmitBtn) wizardSubmitBtn.hidden = da;
             qsa('[data-wizard-pane="2"], [data-wizard-pane="3"]', form).forEach(function (pane) {
                 if (da) pane.classList.remove('is-active');
             });
@@ -828,14 +871,10 @@ function guard_hub_scripts(): void
                 goStep(1);
                 stopCamera();
             }
-            var mode = getDailyActivityMode();
-            if (dailySubmitNormal) dailySubmitNormal.hidden = !da || mode !== 'normal';
-            if (dailyOpenEvent) dailyOpenEvent.hidden = !da || mode !== 'event';
-            if (dailySubmitEvent) dailySubmitEvent.hidden = !da || mode !== 'event' || !dailyActivityEvent;
-            if (dailyEventReady) dailyEventReady.hidden = !da || mode !== 'event' || !dailyActivityEvent;
+            if (dailySubmitBtn) dailySubmitBtn.hidden = !shouldShowDailySubmit();
             if (submitSubtitle) {
                 if (da) {
-                    submitSubtitle.textContent = 'Daily activity: choose normal operation for a quick log, or add event details with photos when something happened at your post.';
+                    submitSubtitle.textContent = 'Daily activity: choose normal operation to submit immediately, or with event / activity to complete the popup form (details and photos).';
                 }
             }
         }
@@ -879,14 +918,9 @@ function guard_hub_scripts(): void
                 return;
             }
             if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
-            dailyActivityEvent = {
-                details: details,
-                files: dailyActivityPhotos.map(function (item) { return item.file; })
-            };
-            if (dailyDetailsInput) dailyDetailsInput.value = details;
+            syncDailyActivityEventFromModal();
             closeDailyActivityModal();
             syncDailyActivityUi();
-            window.guardShowToast('Event details saved. Submit when ready.', 'success');
         }
 
         function resetDailyActivityState() {
@@ -914,8 +948,9 @@ function guard_hub_scripts(): void
                 return;
             }
             if (mode === 'event') {
+                syncDailyActivityEventFromModal();
                 if (!dailyActivityEvent || !dailyActivityEvent.details || !dailyActivityEvent.files.length) {
-                    window.guardShowToast('Add event details and at least one photo.', 'error');
+                    window.guardShowToast('Complete activity details and add at least one photo.', 'error');
                     openDailyActivityModal();
                     return;
                 }
@@ -926,7 +961,7 @@ function guard_hub_scripts(): void
             }
 
             dailyActivitySubmitting = true;
-            var activeBtn = mode === 'normal' ? dailySubmitNormal : dailySubmitEvent;
+            var activeBtn = dailySubmitBtn;
             if (activeBtn) {
                 activeBtn.classList.add('is-loading');
                 activeBtn.disabled = true;
@@ -990,18 +1025,16 @@ function guard_hub_scripts(): void
             }
 
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function (pos) {
+                acquireGpsFix({ timeoutMs: 20000, targetAccuracyM: 50 })
+                    .then(function (fix) {
                         finishSubmit({
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
-                            accuracy: pos.coords.accuracy,
+                            lat: fix.lat,
+                            lng: fix.lng,
+                            accuracy: fix.accuracy,
                             label: ''
                         });
-                    },
-                    function () { finishSubmit(null); },
-                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-                );
+                    })
+                    .catch(function () { finishSubmit(null); });
             } else {
                 finishSubmit(null);
             }
@@ -1057,6 +1090,92 @@ function guard_hub_scripts(): void
                 });
         }
 
+        function acquireGpsFix(options) {
+            options = options || {};
+            var timeoutMs = options.timeoutMs || 28000;
+            var targetAccuracyM = options.targetAccuracyM || 35;
+            return new Promise(function (resolve, reject) {
+                if (!navigator.geolocation) {
+                    reject(new Error('unsupported'));
+                    return;
+                }
+                var best = null;
+                var watchId = null;
+                var settled = false;
+                var geoOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs };
+
+                function toFix(pos) {
+                    return {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy
+                    };
+                }
+
+                function cleanup() {
+                    if (watchId != null) {
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    }
+                }
+
+                function finish(pos) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    resolve(toFix(pos));
+                }
+
+                function fail(err) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    if (best) {
+                        resolve(toFix(best));
+                        return;
+                    }
+                    reject(err || new Error('gps_failed'));
+                }
+
+                var timer = setTimeout(function () {
+                    if (best) {
+                        finish({ coords: { latitude: best.lat, longitude: best.lng, accuracy: best.accuracy } });
+                    } else {
+                        fail(new Error('timeout'));
+                    }
+                }, timeoutMs);
+
+                watchId = navigator.geolocation.watchPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                        if (fix.accuracy <= targetAccuracyM) {
+                            finish(pos);
+                        }
+                    },
+                    function (err) {
+                        fail(err);
+                    },
+                    geoOpts
+                );
+
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                    },
+                    function () { /* watchPosition handles errors */ },
+                    geoOpts
+                );
+            });
+        }
+
         function updateLocationUi(kind, lat, lng, accuracy, label, statusText) {
             var coordsEl = kind === 'sheet' ? sheetLocCoords : evidenceLocCoords;
             var addressEl = kind === 'sheet' ? sheetLocAddress : evidenceLocAddress;
@@ -1082,18 +1201,31 @@ function guard_hub_scripts(): void
             if (statusEl && statusText) statusEl.textContent = statusText;
         }
 
-        function reverseGeocode(lat, lng) {
-            return fetch('api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), {
+        function reverseGeocode(lat, lng, accuracyM) {
+            var url = 'api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng);
+            if (accuracyM != null && !isNaN(accuracyM)) {
+                url += '&accuracy_m=' + encodeURIComponent(accuracyM);
+            }
+            return fetch(url, {
                 credentials: 'same-origin',
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.ok && data.label) return String(data.label);
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: data.ok && data.label
+                            ? String(data.label)
+                            : ('Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6)),
+                        locality: data.locality ? String(data.locality) : '',
+                        accuracyWarning: data.accuracy_warning ? String(data.accuracy_warning) : ''
+                    };
                 })
                 .catch(function () {
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6),
+                        locality: '',
+                        accuracyWarning: ''
+                    };
                 });
         }
 
@@ -1105,47 +1237,45 @@ function guard_hub_scripts(): void
             }
             var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
             var pending = kind === 'sheet'
-                ? 'Stamping sheet location from this device…'
-                : 'Stamping evidence location at the site…';
+                ? 'Acquiring GPS for sheet location (wait outdoors if possible)…'
+                : 'Acquiring GPS at the site (wait outdoors if possible)…';
             if (statusEl) statusEl.textContent = pending;
 
-            navigator.geolocation.getCurrentPosition(
-                function (pos) {
-                    var lat = pos.coords.latitude;
-                    var lng = pos.coords.longitude;
-                    var acc = pos.coords.accuracy;
-                    var fix = { lat: lat, lng: lng, accuracy: acc, label: '' };
+            acquireGpsFix({ timeoutMs: 28000, targetAccuracyM: 35 })
+                .then(function (fix) {
+                    var lat = fix.lat;
+                    var lng = fix.lng;
+                    var acc = fix.accuracy;
+                    var locFix = { lat: lat, lng: lng, accuracy: acc, label: '' };
                     if (kind === 'sheet') {
-                        sheetLocationFix = fix;
+                        sheetLocationFix = locFix;
                     } else {
-                        evidenceLocationFix = fix;
+                        evidenceLocationFix = locFix;
                     }
                     updateLocationUi(kind, lat, lng, acc, '', 'Resolving address…');
-                    reverseGeocode(lat, lng).then(function (address) {
-                        fix.label = address;
-                        if (kind === 'sheet') sheetLocationFix = fix;
-                        else evidenceLocationFix = fix;
-                        updateLocationUi(
-                            kind,
-                            lat,
-                            lng,
-                            acc,
-                            address,
-                            kind === 'sheet'
-                                ? 'Sheet location stamped — continue when ready.'
-                                : 'Evidence location stamped — add photos or continue.'
-                        );
+                    return reverseGeocode(lat, lng, acc).then(function (geo) {
+                        locFix.label = geo.label;
+                        if (kind === 'sheet') sheetLocationFix = locFix;
+                        else evidenceLocationFix = locFix;
+                        var statusMsg = kind === 'sheet'
+                            ? 'Sheet location stamped — continue when ready.'
+                            : 'Evidence location stamped — add photos or continue.';
+                        if (geo.accuracyWarning) {
+                            statusMsg = geo.accuracyWarning;
+                            window.guardShowToast(geo.accuracyWarning, 'error');
+                        } else if (geo.locality) {
+                            statusMsg += ' City: ' + geo.locality + '.';
+                        }
+                        updateLocationUi(kind, lat, lng, acc, geo.label, statusMsg);
                     });
-                },
-                function (err) {
+                })
+                .catch(function (err) {
                     if (statusEl) {
-                        statusEl.textContent = err.code === 1
+                        statusEl.textContent = err && err.code === 1
                             ? 'Location denied. Enable GPS in browser settings.'
-                            : 'Could not acquire GPS. Move outdoors and retry.';
+                            : 'Could not acquire GPS. Move outdoors, wait a few seconds, and tap stamp again.';
                     }
-                },
-                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-            );
+                });
         }
 
         function syncDadSheetPreview() {
@@ -1515,18 +1645,9 @@ function guard_hub_scripts(): void
                     evidenceInput.value = '';
                 };
                 if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        function (pos) {
-                            var gps = {
-                                lat: pos.coords.latitude,
-                                lng: pos.coords.longitude,
-                                accuracy: pos.coords.accuracy
-                            };
-                            done(gps);
-                        },
-                        function () { done(null); },
-                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                    );
+                    acquireGpsFix({ timeoutMs: 22000, targetAccuracyM: 40 })
+                        .then(function (fix) { done(fix); })
+                        .catch(function () { done(null); });
                 } else {
                     done(null);
                 }
@@ -1548,12 +1669,7 @@ function guard_hub_scripts(): void
 
         if (reportTypeSelect) {
             reportTypeSelect.addEventListener('change', function () {
-                if (!isDailyActivityMode()) {
-                    resetDailyActivityState();
-                } else {
-                    dailyActivityEvent = null;
-                    syncDailyActivityUi();
-                }
+                resetDailyActivityState();
                 syncReportTypeSummary();
                 syncDadUi();
             });
@@ -1565,29 +1681,25 @@ function guard_hub_scripts(): void
                 if (radio.value === 'normal' && radio.checked) {
                     dailyActivityEvent = null;
                     if (dailyDetailsInput) dailyDetailsInput.value = '';
+                    if (dailyModalDetails) dailyModalDetails.value = '';
+                    clearDailyActivityPhotos();
                     closeDailyActivityModal();
                 }
-                if (radio.value === 'event' && radio.checked && !dailyActivityEvent) {
+                if (radio.value === 'event' && radio.checked) {
                     openDailyActivityModal();
                 }
                 syncDailyActivityUi();
             });
         });
 
-        if (dailyOpenEvent) {
-            dailyOpenEvent.addEventListener('click', function () {
-                openDailyActivityModal();
-            });
-        }
-        if (dailySubmitNormal) {
-            dailySubmitNormal.addEventListener('click', function () {
+        if (dailySubmitBtn) {
+            dailySubmitBtn.addEventListener('click', function () {
                 submitDailyActivity();
             });
         }
-        if (dailySubmitEvent) {
-            dailySubmitEvent.addEventListener('click', function () {
-                submitDailyActivity();
-            });
+
+        if (dailyModalDetails) {
+            dailyModalDetails.addEventListener('input', syncDailyActivityUi);
         }
 
         qsa('[data-guard-daily-activity-modal-close]', document).forEach(function (btn) {
@@ -1618,6 +1730,7 @@ function guard_hub_scripts(): void
                 dailyModalPhotos.value = '';
                 if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
                 renderDailyActivityPhotoPreview();
+                syncDailyActivityUi();
                 if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
                     while (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
                         var removed = dailyActivityPhotos.pop();

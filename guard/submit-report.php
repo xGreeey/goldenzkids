@@ -75,6 +75,38 @@ guard_layout_head('Submit report');
                             </select>
                         </div>
                     </div>
+                    <div class="guard-daily-activity" data-guard-daily-activity hidden>
+                        <p class="form-hint guard-daily-activity__intro">Log today&apos;s shift activity for your post.</p>
+                        <fieldset class="guard-daily-activity__modes">
+                            <legend class="visually-hidden">Daily activity mode</legend>
+                            <label class="guard-daily-activity__mode">
+                                <input type="radio" name="daily_activity_mode" value="normal" data-guard-daily-mode>
+                                <span class="guard-daily-activity__mode-label">Normal Operation</span>
+                                <span class="form-hint">Can be submitted immediately without additional input.</span>
+                            </label>
+                            <label class="guard-daily-activity__mode">
+                                <input type="radio" name="daily_activity_mode" value="event" data-guard-daily-mode>
+                                <span class="guard-daily-activity__mode-label">With Event / Activity</span>
+                                <span class="form-hint">Requires activity details and at least one photo (up to 5).</span>
+                            </label>
+                        </fieldset>
+                        <input type="hidden" name="daily_activity_details" data-guard-daily-details-input value="">
+                        <div class="guard-daily-activity__actions">
+                            <button type="button" class="btn-primary guard-daily-activity__submit-normal" data-guard-daily-submit-normal hidden>
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report
+                            </button>
+                            <button type="button" class="btn-ghost" data-guard-daily-open-event hidden>
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Add event details
+                            </button>
+                            <p class="form-hint guard-daily-activity__event-ready" data-guard-daily-event-ready hidden>
+                                Event details saved — submit when ready.
+                            </p>
+                            <button type="button" class="btn-primary guard-daily-activity__submit-event" data-guard-daily-submit-event hidden>
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report
+                            </button>
+                        </div>
+                    </div>
+                    <div data-guard-scan-flow>
                     <div class="guard-scanner" data-guard-scanner>
                         <video class="guard-scanner__video" data-guard-scanner-video playsinline muted aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
@@ -120,6 +152,7 @@ guard_layout_head('Submit report');
                     <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next>
                         Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                     </button>
+                    </div>
                 </div>
 
                 <div class="guard-wizard__pane" data-wizard-pane="2">
@@ -163,6 +196,60 @@ guard_layout_head('Submit report');
                     </button>
                 </div>
             </form>
+            <div
+                class="guard-daily-activity-modal"
+                data-guard-daily-activity-modal
+                hidden
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="guard-daily-activity-modal-title"
+            >
+                <div class="guard-daily-activity-modal__backdrop" data-guard-daily-activity-modal-close tabindex="-1"></div>
+                <div class="guard-daily-activity-modal__dialog">
+                    <header class="guard-daily-activity-modal__head">
+                        <h3 id="guard-daily-activity-modal-title" class="guard-daily-activity-modal__title">Event / activity details</h3>
+                        <button type="button" class="guard-daily-activity-modal__close" data-guard-daily-activity-modal-close aria-label="Close">
+                            <span class="guard-daily-activity-modal__close-glyph" aria-hidden="true">×</span>
+                        </button>
+                    </header>
+                    <div class="guard-daily-activity-modal__body">
+                        <div class="form-field">
+                            <label for="guard_daily_activity_details">Activity details <span class="form-required">*</span></label>
+                            <textarea
+                                id="guard_daily_activity_details"
+                                class="guard-daily-activity-modal__textarea"
+                                rows="4"
+                                data-guard-daily-activity-details
+                                placeholder="Describe the event or activity at your post…"
+                                required
+                            ></textarea>
+                        </div>
+                        <div class="form-field">
+                            <label class="guard-daily-activity-modal__photos-label">Supporting photos <span class="form-required">*</span></label>
+                            <p class="form-hint">At least 1 image, up to 5 maximum.</p>
+                            <label class="btn-ghost" style="display:inline-flex;cursor:pointer;margin-top:6px;">
+                                <i class="fa-solid fa-camera" aria-hidden="true"></i> Add photos
+                                <input
+                                    type="file"
+                                    class="visually-hidden"
+                                    data-guard-daily-activity-photos
+                                    accept="image/*"
+                                    multiple
+                                    capture="environment"
+                                >
+                            </label>
+                            <p class="form-hint guard-daily-activity-modal__photo-error" data-guard-daily-activity-photo-error hidden></p>
+                            <div class="guard-evidence-grid guard-daily-activity-modal__previews" data-guard-daily-activity-photo-preview></div>
+                        </div>
+                    </div>
+                    <footer class="guard-daily-activity-modal__foot">
+                        <button type="button" class="btn-ghost" data-guard-daily-activity-modal-close>Cancel</button>
+                        <button type="button" class="btn-primary" data-guard-daily-activity-modal-save>
+                            Save &amp; continue
+                        </button>
+                    </footer>
+                </div>
+            </div>
         </section>
         </div>
 <?php

@@ -292,6 +292,33 @@ INSERT INTO `guard_incident_submissions` (`inc_id`, `reference_code`, `dgd_repor
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `guard_daily_activity_submissions`
+--
+
+CREATE TABLE `guard_daily_activity_submissions` (
+  `da_id` int(10) UNSIGNED NOT NULL,
+  `reference_code` varchar(32) NOT NULL,
+  `dgd_report_number` int(11) DEFAULT NULL,
+  `head_guard_company_id` varchar(13) NOT NULL,
+  `head_guard_name` varchar(255) DEFAULT NULL,
+  `site_name` varchar(255) NOT NULL,
+  `activity_mode` varchar(16) NOT NULL,
+  `activity_details_cipher` text DEFAULT NULL,
+  `scan_path_cipher` text DEFAULT NULL,
+  `ai_extracted_cipher` text DEFAULT NULL,
+  `iv` varchar(64) NOT NULL,
+  `submit_latitude` decimal(10,7) DEFAULT NULL,
+  `submit_longitude` decimal(10,7) DEFAULT NULL,
+  `submit_accuracy_m` decimal(8,2) DEFAULT NULL,
+  `location_label` varchar(512) DEFAULT NULL,
+  `history_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`history_json`)),
+  `submitted_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `guard_report_evidence`
 --
 

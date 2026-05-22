@@ -1477,6 +1477,167 @@ function guard_hub_styles(): void
             color: var(--guard-ui-primary, #0f172a);
         }
 
+        /* Daily Activity (submit report) */
+        body.guard-portal .guard-wizard.is-daily-activity [data-guard-scan-flow] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity__intro {
+            margin: 0 0 12px;
+        }
+
+        body.guard-portal .guard-daily-activity__modes {
+            border: 0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        body.guard-portal .guard-daily-activity__mode {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+            cursor: pointer;
+        }
+
+        body.guard-portal .guard-daily-activity__mode:has(input:checked) {
+            border-color: var(--sa-primary, #2563eb);
+            box-shadow: 0 0 0 1px var(--sa-primary, #2563eb);
+        }
+
+        body.guard-portal .guard-daily-activity__mode input {
+            margin: 0 8px 0 0;
+            align-self: flex-start;
+        }
+
+        body.guard-portal .guard-daily-activity__mode-label {
+            font-weight: 600;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-daily-activity__actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        body.guard-portal .guard-daily-activity__submit-normal,
+        body.guard-portal .guard-daily-activity__submit-event {
+            width: 100%;
+        }
+
+        body.guard-portal .guard-daily-activity-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 12000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        body.guard-portal .guard-daily-activity-modal[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity-modal.is-open {
+            display: flex;
+        }
+
+        body.guard-portal.guard-daily-activity-modal-open {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-daily-activity-modal-open .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(6px);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__dialog {
+            position: relative;
+            z-index: 1;
+            width: min(100%, 520px);
+            max-height: min(90vh, 720px);
+            display: flex;
+            flex-direction: column;
+            border-radius: 14px;
+            background: var(--guard-ui-surface, #fff);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__title {
+            margin: 0;
+            font-size: 1.0625rem;
+            font-weight: 700;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__close {
+            border: 0;
+            background: transparent;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            color: var(--guard-ui-secondary, #64748b);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__body {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__textarea {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__photo-error {
+            color: #b91c1c;
+            margin-top: 6px;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__foot {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity__mode {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-modal__dialog {
+            background: var(--guard-ui-surface, #1e293b);
+        }
+
         /* Status badges */
         .guard-badge {
             display: inline-block;

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/guard_portal.php';
 require_once __DIR__ . '/../../includes/document_ai.php';
 require_once __DIR__ . '/../../includes/guard_dad.php';
 require_once __DIR__ . '/../../includes/guard_incident.php';
+require_once __DIR__ . '/../../includes/guard_daily_activity.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -40,6 +41,12 @@ $templateName = $reportType;
 
 if ($establishment === '') {
     echo json_encode(['ok' => false, 'error' => 'No post is assigned to your guard profile. Contact your administrator.']);
+    exit;
+}
+
+if (guard_daily_activity_is_report_type($reportType)) {
+    $daResult = guard_daily_activity_handle_submit($conn, $companyId, $establishment, $reportType);
+    echo json_encode($daResult);
     exit;
 }
 

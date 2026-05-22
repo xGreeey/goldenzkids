@@ -632,6 +632,8 @@ function guard_hub_scripts(): void
         var evidences = [];
         var DAD_TYPE = 'Daily Attendance Document';
         var INCIDENT_TYPE = 'Post incident';
+        var DAILY_ACTIVITY_TYPE = 'Daily Activity';
+        var DAILY_ACTIVITY_MAX_PHOTOS = 5;
         var ocrPreview = qs('[data-guard-ocr-preview]', form);
         var ocrAsIs = qs('[data-guard-ocr-as-is]', form);
         var ocrStatus = qs('[data-guard-ocr-status]', form);
@@ -657,7 +659,23 @@ function guard_hub_scripts(): void
         var step2Title = qs('[data-guard-step2-title]', form);
         var step2Hint = qs('[data-guard-step2-hint]', form);
         var step1Next = qs('[data-guard-step1-next]', form);
+        var scanFlow = qs('[data-guard-scan-flow]', form);
+        var dailyPanel = qs('[data-guard-daily-activity]', form);
+        var dailyDetailsInput = qs('[data-guard-daily-details-input]', form);
+        var dailySubmitNormal = qs('[data-guard-daily-submit-normal]', form);
+        var dailyOpenEvent = qs('[data-guard-daily-open-event]', form);
+        var dailySubmitEvent = qs('[data-guard-daily-submit-event]', form);
+        var dailyEventReady = qs('[data-guard-daily-event-ready]', form);
+        var dailyModal = qs('[data-guard-daily-activity-modal]', document);
+        var dailyModalDetails = qs('[data-guard-daily-activity-details]', document);
+        var dailyModalPhotos = qs('[data-guard-daily-activity-photos]', document);
+        var dailyModalPreview = qs('[data-guard-daily-activity-photo-preview]', document);
+        var dailyModalPhotoError = qs('[data-guard-daily-activity-photo-error]', document);
+        var wizardStepsBar = qs('.guard-wizard__steps', form);
         var submitSubtitle = qs('[data-guard-submit-subtitle]', form.closest('.guard-section-stack') || document);
+        var dailyActivityEvent = null;
+        var dailyActivityPhotos = [];
+        var dailyActivitySubmitting = false;
         var sheetLocationFix = null;
         var evidenceLocationFix = null;
         var ocrDone = false;
@@ -671,6 +689,16 @@ function guard_hub_scripts(): void
         function isIncidentMode() {
             var sel = qs('[name="report_type"]', form);
             return sel && String(sel.value || '').trim() === INCIDENT_TYPE;
+        }
+
+        function isDailyActivityMode() {
+            var sel = qs('[name="report_type"]', form);
+            return sel && String(sel.value || '').trim() === DAILY_ACTIVITY_TYPE;
+        }
+
+        function getDailyActivityMode() {
+            var checked = qs('[name="daily_activity_mode"]:checked', form);
+            return checked ? String(checked.value || '').trim() : '';
         }
 
         function usesOcrPreview() {
@@ -751,10 +779,236 @@ function guard_hub_scripts(): void
             if (!usesOcrPreview() && ocrPreview) {
                 ocrPreview.hidden = true;
             }
+            syncDailyActivityUi();
+        }
+
+        function clearDailyActivityPhotos() {
+            dailyActivityPhotos.forEach(function (item) {
+                if (item.url) URL.revokeObjectURL(item.url);
+            });
+            dailyActivityPhotos = [];
+            renderDailyActivityPhotoPreview();
+        }
+
+        function renderDailyActivityPhotoPreview() {
+            if (!dailyModalPreview) return;
+            dailyModalPreview.innerHTML = '';
+            dailyActivityPhotos.forEach(function (item, idx) {
+                var cell = document.createElement('div');
+                cell.className = 'guard-evidence-grid__item';
+                var img = document.createElement('img');
+                img.src = item.url;
+                img.alt = 'Activity photo ' + (idx + 1);
+                var rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'guard-evidence-grid__remove';
+                rm.setAttribute('aria-label', 'Remove photo');
+                rm.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                rm.addEventListener('click', function () {
+                    URL.revokeObjectURL(item.url);
+                    dailyActivityPhotos.splice(idx, 1);
+                    renderDailyActivityPhotoPreview();
+                });
+                cell.appendChild(img);
+                cell.appendChild(rm);
+                dailyModalPreview.appendChild(cell);
+            });
+        }
+
+        function syncDailyActivityUi() {
+            var da = isDailyActivityMode();
+            form.classList.toggle('is-daily-activity', da);
+            if (dailyPanel) dailyPanel.hidden = !da;
+            if (scanFlow) scanFlow.hidden = da;
+            if (wizardStepsBar) wizardStepsBar.hidden = da;
+            qsa('[data-wizard-pane="2"], [data-wizard-pane="3"]', form).forEach(function (pane) {
+                if (da) pane.classList.remove('is-active');
+            });
+            if (da) {
+                goStep(1);
+                stopCamera();
+            }
+            var mode = getDailyActivityMode();
+            if (dailySubmitNormal) dailySubmitNormal.hidden = !da || mode !== 'normal';
+            if (dailyOpenEvent) dailyOpenEvent.hidden = !da || mode !== 'event';
+            if (dailySubmitEvent) dailySubmitEvent.hidden = !da || mode !== 'event' || !dailyActivityEvent;
+            if (dailyEventReady) dailyEventReady.hidden = !da || mode !== 'event' || !dailyActivityEvent;
+            if (submitSubtitle) {
+                if (da) {
+                    submitSubtitle.textContent = 'Daily activity: choose normal operation for a quick log, or add event details with photos when something happened at your post.';
+                }
+            }
+        }
+
+        function openDailyActivityModal() {
+            if (!dailyModal) return;
+            if (dailyModalDetails && dailyActivityEvent) {
+                dailyModalDetails.value = dailyActivityEvent.details || '';
+            }
+            if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+            dailyModal.hidden = false;
+            dailyModal.classList.add('is-open');
+            document.body.classList.add('guard-daily-activity-modal-open');
+            if (dailyModalDetails) dailyModalDetails.focus();
+        }
+
+        function closeDailyActivityModal() {
+            if (!dailyModal) return;
+            dailyModal.classList.remove('is-open');
+            dailyModal.hidden = true;
+            document.body.classList.remove('guard-daily-activity-modal-open');
+        }
+
+        function saveDailyActivityModal() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            if (details === '') {
+                window.guardShowToast('Enter activity details before continuing.', 'error');
+                if (dailyModalDetails) dailyModalDetails.focus();
+                return;
+            }
+            if (dailyActivityPhotos.length < 1) {
+                if (dailyModalPhotoError) {
+                    dailyModalPhotoError.hidden = false;
+                    dailyModalPhotoError.textContent = 'Add at least one photo (up to 5).';
+                }
+                window.guardShowToast('Add at least one supporting photo.', 'error');
+                return;
+            }
+            if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                window.guardShowToast('You can upload at most 5 photos.', 'error');
+                return;
+            }
+            if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+            dailyActivityEvent = {
+                details: details,
+                files: dailyActivityPhotos.map(function (item) { return item.file; })
+            };
+            if (dailyDetailsInput) dailyDetailsInput.value = details;
+            closeDailyActivityModal();
+            syncDailyActivityUi();
+            window.guardShowToast('Event details saved. Submit when ready.', 'success');
+        }
+
+        function resetDailyActivityState() {
+            dailyActivityEvent = null;
+            if (dailyDetailsInput) dailyDetailsInput.value = '';
+            if (dailyModalDetails) dailyModalDetails.value = '';
+            clearDailyActivityPhotos();
+            qsa('[name="daily_activity_mode"]', form).forEach(function (radio) {
+                radio.checked = false;
+            });
+            closeDailyActivityModal();
+            syncDailyActivityUi();
+        }
+
+        function submitDailyActivity() {
+            if (dailyActivitySubmitting) return;
+            var reportType = DAILY_ACTIVITY_TYPE;
+            var mode = getDailyActivityMode();
+            if (!reportType || !isDailyActivityMode()) {
+                window.guardShowToast('Select Daily Activity as the report type.', 'error');
+                return;
+            }
+            if (!mode) {
+                window.guardShowToast('Choose Normal Operation or With Event / Activity.', 'error');
+                return;
+            }
+            if (mode === 'event') {
+                if (!dailyActivityEvent || !dailyActivityEvent.details || !dailyActivityEvent.files.length) {
+                    window.guardShowToast('Add event details and at least one photo.', 'error');
+                    openDailyActivityModal();
+                    return;
+                }
+                if (dailyActivityEvent.files.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                    window.guardShowToast('You can upload at most 5 photos.', 'error');
+                    return;
+                }
+            }
+
+            dailyActivitySubmitting = true;
+            var activeBtn = mode === 'normal' ? dailySubmitNormal : dailySubmitEvent;
+            if (activeBtn) {
+                activeBtn.classList.add('is-loading');
+                activeBtn.disabled = true;
+            }
+
+            function finishSubmit(geo) {
+                var fd = new FormData();
+                fd.append('report_type', reportType);
+                fd.append('daily_activity_mode', mode);
+                if (mode === 'event' && dailyActivityEvent) {
+                    fd.append('daily_activity_details', dailyActivityEvent.details);
+                    dailyActivityEvent.files.forEach(function (file, i) {
+                        fd.append('daily_activity_photos[]', file, file.name || ('activity-' + i + '.jpg'));
+                    });
+                }
+                if (geo && geo.lat != null && geo.lng != null) {
+                    fd.append('submit_latitude', String(geo.lat));
+                    fd.append('submit_longitude', String(geo.lng));
+                    if (geo.accuracy != null) fd.append('submit_accuracy_m', String(geo.accuracy));
+                    if (geo.label) fd.append('location_label', geo.label);
+                }
+                var csrfInput = qs('input[name="_csrf"]', form);
+                var csrfValue = csrfInput ? csrfInput.value : '';
+                if (csrfValue) fd.append('_csrf', csrfValue);
+
+                var fetchHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
+                if (csrfValue) fetchHeaders['X-CSRF-Token'] = csrfValue;
+
+                fetch(form.getAttribute('action') || 'api/report-submit.php', {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: fetchHeaders
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.ok) {
+                            window.guardShowToast(data.message || 'Report submitted successfully.', 'success');
+                            resetDailyActivityState();
+                            form.reset();
+                            if (reportTypeSelect) reportTypeSelect.value = '';
+                            syncReportTypeSummary();
+                            syncDadUi();
+                            setTimeout(function () {
+                                window.location.href = data.redirect || 'submit-report.php?view=history';
+                            }, 1200);
+                        } else {
+                            window.guardShowToast(data.error || 'Submission failed.', 'error');
+                        }
+                    })
+                    .catch(function () {
+                        window.guardShowToast('Network error. Try again.', 'error');
+                    })
+                    .finally(function () {
+                        dailyActivitySubmitting = false;
+                        if (activeBtn) {
+                            activeBtn.classList.remove('is-loading');
+                            activeBtn.disabled = false;
+                        }
+                    });
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        finishSubmit({
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy,
+                            label: ''
+                        });
+                    },
+                    function () { finishSubmit(null); },
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+                );
+            } else {
+                finishSubmit(null);
+            }
         }
 
         function runOcrPreview() {
-            if (!usesOcrPreview() || !reportFile || ocrBusy) {
+            if (isDailyActivityMode() || !usesOcrPreview() || !reportFile || ocrBusy) {
                 return;
             }
             ocrBusy = true;
@@ -1294,11 +1548,86 @@ function guard_hub_scripts(): void
 
         if (reportTypeSelect) {
             reportTypeSelect.addEventListener('change', function () {
+                if (!isDailyActivityMode()) {
+                    resetDailyActivityState();
+                } else {
+                    dailyActivityEvent = null;
+                    syncDailyActivityUi();
+                }
                 syncReportTypeSummary();
                 syncDadUi();
             });
         }
         syncDadUi();
+
+        qsa('[data-guard-daily-mode]', form).forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (radio.value === 'normal' && radio.checked) {
+                    dailyActivityEvent = null;
+                    if (dailyDetailsInput) dailyDetailsInput.value = '';
+                    closeDailyActivityModal();
+                }
+                if (radio.value === 'event' && radio.checked && !dailyActivityEvent) {
+                    openDailyActivityModal();
+                }
+                syncDailyActivityUi();
+            });
+        });
+
+        if (dailyOpenEvent) {
+            dailyOpenEvent.addEventListener('click', function () {
+                openDailyActivityModal();
+            });
+        }
+        if (dailySubmitNormal) {
+            dailySubmitNormal.addEventListener('click', function () {
+                submitDailyActivity();
+            });
+        }
+        if (dailySubmitEvent) {
+            dailySubmitEvent.addEventListener('click', function () {
+                submitDailyActivity();
+            });
+        }
+
+        qsa('[data-guard-daily-activity-modal-close]', document).forEach(function (btn) {
+            btn.addEventListener('click', closeDailyActivityModal);
+        });
+        var dailyModalSave = qs('[data-guard-daily-activity-modal-save]', document);
+        if (dailyModalSave) {
+            dailyModalSave.addEventListener('click', saveDailyActivityModal);
+        }
+        if (dailyModalPhotos) {
+            dailyModalPhotos.addEventListener('change', function () {
+                var files = dailyModalPhotos.files;
+                if (!files || !files.length) return;
+                var remaining = DAILY_ACTIVITY_MAX_PHOTOS - dailyActivityPhotos.length;
+                if (remaining <= 0) {
+                    window.guardShowToast('Maximum of 5 photos reached.', 'error');
+                    dailyModalPhotos.value = '';
+                    return;
+                }
+                Array.prototype.forEach.call(files, function (file, i) {
+                    if (i >= remaining) return;
+                    if (!file.type || file.type.indexOf('image/') !== 0) return;
+                    dailyActivityPhotos.push({
+                        file: file,
+                        url: URL.createObjectURL(file)
+                    });
+                });
+                dailyModalPhotos.value = '';
+                if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+                renderDailyActivityPhotoPreview();
+                if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                    while (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                        var removed = dailyActivityPhotos.pop();
+                        if (removed && removed.url) URL.revokeObjectURL(removed.url);
+                    }
+                    window.guardShowToast('Only the first 5 photos were kept.', 'error');
+                    renderDailyActivityPhotoPreview();
+                }
+            });
+        }
 
         qsa('[data-wizard-next]', form).forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -1307,6 +1636,10 @@ function guard_hub_scripts(): void
                     if (!selectedReportType()) {
                         window.guardShowToast('Select a report type first.', 'error');
                         if (reportTypeSelect) reportTypeSelect.focus();
+                        return;
+                    }
+                    if (isDailyActivityMode()) {
+                        window.guardShowToast('Use the Daily Activity buttons on this step to submit.', 'error');
                         return;
                     }
                     if (!reportFile) {
@@ -1342,6 +1675,10 @@ function guard_hub_scripts(): void
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (isDailyActivityMode()) {
+                submitDailyActivity();
+                return;
+            }
             var reportType = selectedReportType();
             if (!reportType) {
                 window.guardShowToast('Select a report type first.', 'error');

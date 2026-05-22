@@ -51,6 +51,7 @@ function guard_portal_report_types(): array
     return [
         'Post incident',
         'Daily Attendance Document',
+        'Daily Activity',
     ];
 }
 
@@ -72,6 +73,7 @@ function guard_portal_report_type_icon(string $label): string
     return match ($label) {
         'Post incident' => 'fa-triangle-exclamation',
         'Daily Attendance Document' => 'fa-calendar-day',
+        'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',
     };
 }
@@ -356,7 +358,8 @@ function guard_portal_store_report_evidence(
     string $ivB64,
     string $masterKey,
     string $cipherAlgo,
-    array $evidenceMeta = []
+    array $evidenceMeta = [],
+    string $uploadField = 'evidence'
 ): int {
     if (!db_table_exists($conn, 'guard_report_evidence')) {
         return 0;
@@ -367,7 +370,7 @@ function guard_portal_store_report_evidence(
         return 0;
     }
 
-    $files = guard_portal_normalized_upload_files('evidence');
+    $files = guard_portal_normalized_upload_files($uploadField);
     $saved = 0;
 
     foreach ($files as $i => $file) {

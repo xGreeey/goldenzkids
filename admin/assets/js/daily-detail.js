@@ -989,15 +989,7 @@
             const archiveUrl = root.dataset.archiveUrl || window.location.pathname;
             const csrf = root.dataset.csrf || '';
             const label = refLabel || id || 'this record';
-            const confirmed = window.confirm(
-                'Archive ' +
-                    label +
-                    '? The case will be marked Closed and removed from open tabs.'
-            );
-            if (!confirmed) {
-                return;
-            }
-
+            const runArchive = () => {
             const fd = new FormData();
             fd.append('action', 'archive_attendance');
             fd.append('record_id', id);
@@ -1047,21 +1039,38 @@
                     }
                 })
                 .catch(() => {
-                    window.alert('Could not archive record. Refresh the page and try again.');
+                    if (window.appNotify?.error) {
+                        window.appNotify.error('Could not archive record. Refresh the page and try again.');
+                    } else {
+                        window.alert('Could not archive record. Refresh the page and try again.');
+                    }
                 });
+            };
+            if (typeof window.adminConfirmAction === 'function') {
+                window.adminConfirmAction({
+                    type: 'warning',
+                    title: 'Archive ' + label + '?',
+                    message:
+                        'The case will be marked Closed and removed from open tabs. A copy is saved for the Super Administrator.',
+                    confirmLabel: 'Archive',
+                    onConfirm: runArchive,
+                });
+                return;
+            }
+            if (
+                window.confirm(
+                    'Archive ' + label + '? The case will be marked Closed and removed from open tabs.'
+                )
+            ) {
+                runArchive();
+            }
         }
 
         function deleteRecord(id, refLabel) {
             const deleteUrl = root.dataset.deleteUrl || window.location.pathname;
             const csrf = root.dataset.csrf || '';
             const label = refLabel || id || 'this record';
-            const confirmed = window.confirm(
-                'Delete ' + label + '? This removes the DTR registry entry. The guard report in Reports is not deleted.'
-            );
-            if (!confirmed) {
-                return;
-            }
-
+            const runDelete = () => {
             const fd = new FormData();
             fd.append('action', 'delete_attendance');
             fd.append('record_id', id);
@@ -1093,8 +1102,33 @@
                     }
                 })
                 .catch(() => {
-                    window.alert('Could not delete record. Refresh the page and try again.');
+                    if (window.appNotify?.error) {
+                        window.appNotify.error('Could not delete record. Refresh the page and try again.');
+                    } else {
+                        window.alert('Could not delete record. Refresh the page and try again.');
+                    }
                 });
+            };
+            if (typeof window.adminConfirmAction === 'function') {
+                window.adminConfirmAction({
+                    type: 'warning',
+                    title: 'Delete ' + label + '?',
+                    message:
+                        'This removes the DTR registry entry from your list. The guard report in Reports is not deleted. The Super Administrator can restore this entry from the recovery vault.',
+                    confirmLabel: 'Delete',
+                    onConfirm: runDelete,
+                });
+                return;
+            }
+            if (
+                window.confirm(
+                    'Delete ' +
+                        label +
+                        '? This removes the DTR registry entry. The guard report in Reports is not deleted.'
+                )
+            ) {
+                runDelete();
+            }
         }
 
         function closeModal() {

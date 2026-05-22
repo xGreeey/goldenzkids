@@ -393,6 +393,25 @@ function app_notify_modal_script(): void
         open: openNotify,
         close: closeNotify,
         confirm: confirmNotify,
+        success: function (message) {
+            openNotify({ type: 'success', title: 'Success', message: message || '' });
+        },
+        error: function (message) {
+            openNotify({ type: 'error', title: 'Error', message: message || '' });
+        },
+    };
+
+    window.adminConfirmAction = function (opts) {
+        opts = opts || {};
+        if (window.appNotify && typeof window.appNotify.confirm === 'function') {
+            window.appNotify.confirm(opts);
+            return;
+        }
+        if (opts.message && window.confirm(opts.message)) {
+            if (typeof opts.onConfirm === 'function') {
+                opts.onConfirm();
+            }
+        }
     };
 
     var flash = <?= $flashJson ?>;

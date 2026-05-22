@@ -1764,10 +1764,7 @@
         const postUrl = root.dataset.postUrl || window.location.pathname;
         const csrf = root.dataset.csrf || '';
         const label = refLabel || id || 'this report';
-        if (!window.confirm('Archive ' + label + '? The case will be marked Closed.')) {
-            return;
-        }
-
+        const runArchive = () => {
         const fd = new FormData();
         fd.append('action', 'archive_incident');
         fd.append('incident_id', id);
@@ -1813,22 +1810,34 @@
                 }
             })
             .catch(() => {
-                window.alert('Could not archive report. Refresh the page and try again.');
+                if (window.appNotify?.error) {
+                    window.appNotify.error('Could not archive report. Refresh the page and try again.');
+                } else {
+                    window.alert('Could not archive report. Refresh the page and try again.');
+                }
             });
+        };
+        if (typeof window.adminConfirmAction === 'function') {
+            window.adminConfirmAction({
+                type: 'warning',
+                title: 'Archive ' + label + '?',
+                message:
+                    'The case will be marked Closed and removed from open tabs. A copy is saved for the Super Administrator.',
+                confirmLabel: 'Archive',
+                onConfirm: runArchive,
+            });
+            return;
+        }
+        if (window.confirm('Archive ' + label + '? The case will be marked Closed.')) {
+            runArchive();
+        }
     }
 
     function deleteIncident(id, refLabel) {
         const postUrl = root.dataset.postUrl || window.location.pathname;
         const csrf = root.dataset.csrf || '';
         const label = refLabel || id || 'this report';
-        if (
-            !window.confirm(
-                'Delete ' + label + '? This permanently removes the incident from the registry.'
-            )
-        ) {
-            return;
-        }
-
+        const runDelete = () => {
         const fd = new FormData();
         fd.append('action', 'delete_incident');
         fd.append('incident_id', id);
@@ -1860,8 +1869,31 @@
                 }
             })
             .catch(() => {
-                window.alert('Could not delete report. Refresh the page and try again.');
+                if (window.appNotify?.error) {
+                    window.appNotify.error('Could not delete report. Refresh the page and try again.');
+                } else {
+                    window.alert('Could not delete report. Refresh the page and try again.');
+                }
             });
+        };
+        if (typeof window.adminConfirmAction === 'function') {
+            window.adminConfirmAction({
+                type: 'warning',
+                title: 'Delete ' + label + '?',
+                message:
+                    'This removes the incident from your registry. The Super Administrator can restore it from the recovery vault.',
+                confirmLabel: 'Delete',
+                onConfirm: runDelete,
+            });
+            return;
+        }
+        if (
+            window.confirm(
+                'Delete ' + label + '? This removes the incident from your registry.'
+            )
+        ) {
+            runDelete();
+        }
     }
 
     function pushUrl(id, mode) {

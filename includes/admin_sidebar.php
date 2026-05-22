@@ -81,6 +81,10 @@ $reportNavItems = [
                 <?php endforeach; ?>
             </div>
         </div>
+        <a href="daily-activity.php" class="sidebar-link<?= $adminNavActive === 'daily-activity' ? ' active' : '' ?>"<?= $adminNavActive === 'daily-activity' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Activity — shift logs and field activity for the current day') ?>>
+            <?= admin_nav_icon('clock') ?>
+            Daily Activity
+        </a>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
             <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts

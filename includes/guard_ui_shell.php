@@ -61,15 +61,15 @@ function guard_ui_settings_row_markup(string $themeToggleId, string $navActive =
     ?>
     <div class="guard-app__settings">
         <div class="guard-app__settings-tools" role="toolbar" aria-label="Account settings, sign out, and appearance">
-            <a href="settings.php" class="guard-app__icon-btn<?= $navActive === 'settings' ? ' is-active' : '' ?>" aria-label="Account settings"<?= $navActive === 'settings' ? ' aria-current="page"' : '' ?>>
+            <a href="settings.php" class="guard-app__icon-btn guard-app__toolbar-btn<?= $navActive === 'settings' ? ' is-active' : '' ?>" aria-label="Account settings"<?= $navActive === 'settings' ? ' aria-current="page"' : '' ?>>
                 <?= guard_ui_icon('gear', 20) ?>
-                <span class="guard-app__logout-btn-label">Settings</span>
+                <span class="guard-app__toolbar-btn-label">Settings</span>
             </a>
             <form method="POST" action="../auth/logout-guard.php" class="guard-app__logout-form">
                 <?= csrf_field() ?>
-                <button type="submit" class="guard-app__icon-btn guard-app__logout-btn" aria-label="Sign out">
+                <button type="submit" class="guard-app__icon-btn guard-app__toolbar-btn guard-app__logout-btn" aria-label="Sign out">
                     <?= guard_ui_icon('logout', 20) ?>
-                    <span class="guard-app__logout-btn-label">Logout</span>
+                    <span class="guard-app__toolbar-btn-label">Logout</span>
                 </button>
             </form>
             <div class="guard-app__theme-toggle">

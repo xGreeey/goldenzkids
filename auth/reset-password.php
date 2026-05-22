@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/auth_layout.php';
+require_once APP_ROOT . '/includes/auth_password_policy_ui.php';
 
 if (empty($_SESSION['password_reset_verified']) || empty($_SESSION['password_reset_email'])) {
     header('Location: ' . app_url('auth/forgot-access-code.php'));
@@ -87,6 +88,7 @@ body.auth-shell.dark-mode { --error-bg: #3a3d42; --error-border: #6b7280; }
 .strength__fill { height: 100%; width: 0%; transition: width .2s ease; background: #ef4444; }
 .strength__label { margin-top: 6px; font-size: .82rem; color: var(--ink-soft, #64748b); }
 CSS;
+$headExtra .= auth_password_policy_styles();
 
 auth_page_head('Reset password', 'Set your new portal password.', $headExtra);
 auth_body_start();
@@ -101,7 +103,8 @@ if ($error !== null) {
                 <?= csrf_field() ?>
                 <div class="input-group">
                     <label class="input-label" for="new_password">New password</label>
-                    <input type="password" id="new_password" name="new_password" class="form-input" autocomplete="new-password" required>
+                    <input type="password" id="new_password" name="new_password" class="form-input" autocomplete="new-password" required aria-describedby="passwordRequirements">
+<?php auth_password_policy_requirements_markup(); ?>
                     <div class="strength" aria-live="polite">
                         <div class="strength__bar"><div class="strength__fill" id="strengthFill"></div></div>
                         <p class="strength__label" id="strengthLabel">Password strength: weak</p>
@@ -110,63 +113,13 @@ if ($error !== null) {
 
                 <div class="input-group">
                     <label class="input-label" for="confirm_password">Confirm new password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" autocomplete="new-password" required>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" autocomplete="new-password" required aria-describedby="passwordMatchHint">
+<?php auth_password_policy_match_hint_markup(); ?>
                 </div>
 
                 <button type="submit" class="btn-signin" id="resetPasswordBtn" disabled>Update password</button>
             </form>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var newPassword = document.getElementById('new_password');
-    var confirmPassword = document.getElementById('confirm_password');
-    var submitBtn = document.getElementById('resetPasswordBtn');
-    var fill = document.getElementById('strengthFill');
-    var label = document.getElementById('strengthLabel');
-
-    function scorePassword(value) {
-        var score = 0;
-        if (value.length >= 8) score++;
-        if (/[a-z]/.test(value)) score++;
-        if (/[A-Z]/.test(value)) score++;
-        if (/\d/.test(value)) score++;
-        if (/[^A-Za-z\d]/.test(value)) score++;
-        return score;
-    }
-
-    function isPolicyMet(value) {
-        return value.length >= 8
-            && /[a-z]/.test(value)
-            && /[A-Z]/.test(value)
-            && /\d/.test(value)
-            && /[^A-Za-z\d]/.test(value);
-    }
-
-    function renderStrength() {
-        var val = newPassword.value || '';
-        var score = scorePassword(val);
-        var pct = Math.min(100, score * 20);
-        fill.style.width = pct + '%';
-
-        if (score <= 2) {
-            fill.style.background = '#ef4444';
-            label.textContent = 'Password strength: weak';
-        } else if (score === 3 || score === 4) {
-            fill.style.background = '#f59e0b';
-            label.textContent = 'Password strength: medium';
-        } else {
-            fill.style.background = '#22c55e';
-            label.textContent = 'Password strength: strong';
-        }
-
-        var valid = isPolicyMet(val) && confirmPassword.value === val;
-        submitBtn.disabled = !valid;
-    }
-
-    newPassword.addEventListener('input', renderStrength);
-    confirmPassword.addEventListener('input', renderStrength);
-    renderStrength();
-});
-</script>
+<?php auth_password_policy_validation_script('resetPasswordBtn'); ?>
 <?php
 auth_module_close();
 auth_main_close();

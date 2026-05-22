@@ -1071,21 +1071,16 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
         || $severity !== $oldSeverity
         || $summary !== $oldSummary
     );
+    $opsNote = trim((string) ($input['ops_note'] ?? ''));
     $statusChanged = $status !== $oldStatus;
 
-<<<<<<< HEAD
-    $didChange = $statusChanged || $fieldsChanged || $opsNote !== '';
-    if ($didChange) {
-        $event = $statusChanged
-            ? 'Status: ' . admin_incident_status_label($status)
-            : 'Updated by operations';
-=======
     if (!$statusChanged && !$fieldsChanged && $opsNote === '' && !$hasHistoryEdits && !$decisionAppended) {
         return admin_incident_normalize($found);
     }
 
+    $didChange = $statusChanged || $fieldsChanged || $opsNote !== '' || $hasHistoryEdits || $decisionAppended;
+
     if (!$decisionAppended && ($statusChanged || $fieldsChanged || $opsNote !== '')) {
->>>>>>> 6cf64fa43bc8e995a4414128ad6ed9ca42ec55b8
         $noteParts = [];
         if ($opsNote !== '') {
             $noteParts[] = $opsNote;
@@ -1398,21 +1393,15 @@ function admin_incident_modal_details_html(array $report): string
     }
 
     $incident = trim((string) ($report['incident_type'] ?? ''));
-<<<<<<< HEAD
-    $description = admin_incident_modal_description_text($report);
-    $severity = trim((string) ($report['severity'] ?? 'Medium'));
-    $person = admin_incident_person_from_report($report);
-    if ($person === '') {
-        $person = admin_incident_person_involved_label($report);
-    }
-=======
     $severity = trim((string) ($report['severity'] ?? 'Medium'));
     $person = admin_incident_person_involved_label($report);
+    if ($person === '') {
+        $person = admin_incident_person_from_report($report);
+    }
     $incidentDescription = trim((string) ($report['incident_description'] ?? ''));
     $actionTaken = trim((string) ($report['action_taken'] ?? ''));
     $formName = trim((string) ($report['form_name'] ?? ''));
     $formDate = trim((string) ($report['form_date'] ?? ''));
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
 
     $html = '<div class="reports-detail-sheet" role="group" aria-label="Report summary">'
         . admin_incident_modal_scan_html($report)
@@ -1436,11 +1425,7 @@ function admin_incident_modal_details_html(array $report): string
     $html .= '<section class="reports-detail-sheet__section" aria-label="Classification">'
         . '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">'
         . admin_incident_modal_sheet_field_html('Incident', $incident, 'incident')
-<<<<<<< HEAD
-        . admin_incident_modal_sheet_field_html('Description', $description, 'description')
         . admin_incident_modal_attachments_field_html($report)
-=======
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
         . admin_incident_modal_sheet_field_html('Severity', $severity, 'severity')
         . '</div></section></div>';
 

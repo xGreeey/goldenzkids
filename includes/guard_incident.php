@@ -82,67 +82,16 @@ function guard_incident_scan_url(int $incId): string
  */
 function guard_incident_resolve_scan_absolute_path(PDO $conn, int $incId): ?string
 {
-    global $master_key, $cipher_algo;
-
     if ($incId <= 0) {
         return null;
     }
-
-    require_once __DIR__ . '/guard_dad.php';
 
     $row = db_fetch_one($conn, 'SELECT * FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1', 'i', [$incId]);
     if ($row === null) {
         return null;
     }
 
-    $ivB64 = (string) ($row['iv'] ?? '');
-    $iv = base64_decode($ivB64, true) ?: '';
-    if ($iv === '' || !isset($master_key, $cipher_algo)) {
-        return null;
-    }
-
-    $pathCipher = trim((string) ($row['scan_path_cipher'] ?? ''));
-    if ($pathCipher !== '') {
-        $rel = openssl_decrypt($pathCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
-        if ($rel !== '') {
-            $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
-            if (guard_dad_is_safe_guard_upload_path($abs)) {
-                return realpath($abs) ?: null;
-            }
-        }
-    }
-
-    $dgdId = (int) ($row['dgd_report_number'] ?? 0);
-    if ($dgdId <= 0) {
-        return null;
-    }
-
-    $dgd = db_fetch_one(
-        $conn,
-        'SELECT Template_Path, iv FROM dgd WHERE Report_Number = ? LIMIT 1',
-        'i',
-        [$dgdId]
-    );
-    if ($dgd === null) {
-        return null;
-    }
-
-    $dgdIv = base64_decode((string) ($dgd['iv'] ?? ''), true) ?: '';
-    if ($dgdIv === '') {
-        return null;
-    }
-
-    $rel = openssl_decrypt((string) ($dgd['Template_Path'] ?? ''), (string) $cipher_algo, (string) $master_key, 0, $dgdIv) ?: '';
-    if ($rel === '') {
-        return null;
-    }
-
-    $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
-    if (!guard_dad_is_safe_guard_upload_path($abs)) {
-        return null;
-    }
-
-    return realpath($abs) ?: null;
+    return guard_incident_resolve_scan_path_from_row($conn, $row);
 }
 
 /**
@@ -459,12 +408,6 @@ function guard_incident_map_row_for_admin(array $row): ?array
     $submittedAt = (string) ($row['submitted_at'] ?? '');
     $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
 
-<<<<<<< HEAD
-    $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
-    $media = $conn instanceof PDO
-        ? guard_incident_resolve_submission_media($conn, $row)
-        : ['scan_url' => '', 'attachments' => [], 'has_attachments' => false];
-=======
     $structured = guard_incident_structured_from_row($row);
     $incidentDescription = document_ai_sanitize_incident_handwriting(
         (string) ($row['incident_description'] ?? $structured['incident_description'] ?? '')
@@ -478,12 +421,13 @@ function guard_incident_map_row_for_admin(array $row): ?array
     }
     $formDate = document_ai_sanitize_incident_date((string) ($structured['date'] ?? ''));
 
-    $scanUrl = '';
     $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
-    if ($conn !== null && guard_incident_resolve_scan_absolute_path($conn, $incId) !== null) {
-        $scanUrl = guard_incident_scan_url($incId);
+    $media = $conn instanceof PDO
+        ? guard_incident_resolve_submission_media($conn, $row)
+        : ['scan_url' => '', 'attachments' => [], 'has_attachments' => false];
+    if ($media['scan_url'] === '' && $conn instanceof PDO && guard_incident_resolve_scan_absolute_path($conn, $incId) !== null) {
+        $media['scan_url'] = guard_incident_scan_url($incId);
     }
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
 
     return [
         'id' => 'inc-' . $incId,
@@ -497,21 +441,15 @@ function guard_incident_map_row_for_admin(array $row): ?array
         'head_guard_name' => (string) ($row['head_guard_name'] ?? ''),
         'status' => (string) ($row['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING),
         'summary' => (string) ($row['summary'] ?? ''),
-<<<<<<< HEAD
-        'incident_description' => (string) ($row['incident_description'] ?? ''),
-        'action_taken' => (string) ($row['action_taken'] ?? ''),
-        'person_involved' => admin_incident_person_from_report([
-            'person_involved' => '',
-            'history' => $history,
-        ]),
-=======
         'incident_description' => $incidentDescription,
         'action_taken' => $actionTaken,
         'form_name' => $formName,
         'form_date' => $formDate,
-        'scan_url' => $scanUrl,
-        'has_scan' => $scanUrl !== '',
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
+        'person_involved' => admin_incident_person_from_report([
+            'person_involved' => '',
+            'history' => $history,
+        ]),
+        'has_scan' => $media['scan_url'] !== '',
         'submitted_at' => substr($submittedAt, 0, 10),
         'submitted_display' => $submittedAt !== '' ? date('j M Y, H:i', strtotime($submittedAt) ?: time()) : '',
         'updated_at' => substr($updatedAt, 0, 10),
@@ -524,11 +462,6 @@ function guard_incident_map_row_for_admin(array $row): ?array
     ];
 }
 
-function guard_incident_scan_url(int $incId): string
-{
-    return app_url('admin/api/incident-scan.php') . '?inc=' . $incId;
-}
-
 function guard_incident_evidence_url(int $incId, int $evidenceId): string
 {
     return app_url('admin/api/incident-evidence.php') . '?inc=' . $incId . '&ev=' . $evidenceId;
@@ -537,7 +470,7 @@ function guard_incident_evidence_url(int $incId, int $evidenceId): string
 /**
  * @param array<string, mixed> $row guard_incident_submissions row
  */
-function guard_incident_resolve_scan_absolute_path(PDO $conn, array $row): ?string
+function guard_incident_resolve_scan_path_from_row(PDO $conn, array $row): ?string
 {
     require_once __DIR__ . '/guard_dad.php';
 
@@ -645,7 +578,7 @@ function guard_incident_resolve_submission_media(PDO $conn, array $row): array
     $scanUrl = '';
     $attachments = [];
 
-    if ($incId > 0 && guard_incident_resolve_scan_absolute_path($conn, $row) !== null) {
+    if ($incId > 0 && guard_incident_resolve_scan_path_from_row($conn, $row) !== null) {
         $scanUrl = guard_incident_scan_url($incId);
         $attachments[] = [
             'type' => 'scan',
@@ -663,48 +596,6 @@ function guard_incident_resolve_submission_media(PDO $conn, array $row): array
         'attachments' => $attachments,
         'has_attachments' => $attachments !== [],
     ];
-}
-
-function guard_incident_stream_scan(PDO $conn, int $incId): void
-{
-    require_once __DIR__ . '/guard_dad.php';
-
-    if ($incId <= 0) {
-        http_response_code(400);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Invalid request.';
-        exit;
-    }
-
-    $row = db_fetch_one($conn, 'SELECT * FROM guard_incident_submissions WHERE inc_id = ? LIMIT 1', 'i', [$incId]);
-    if ($row === null) {
-        http_response_code(404);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Scan not found.';
-        exit;
-    }
-
-    $absolutePath = guard_incident_resolve_scan_absolute_path($conn, $row);
-    if ($absolutePath === null) {
-        http_response_code(404);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Scan not found.';
-        exit;
-    }
-
-    $mime = guard_dad_mime_for_path($absolutePath);
-    $fileSize = filesize($absolutePath);
-    if ($fileSize === false) {
-        http_response_code(500);
-        exit;
-    }
-
-    header('Content-Type: ' . $mime);
-    header('Content-Length: ' . (string) $fileSize);
-    header('Cache-Control: private, max-age=300');
-    header('X-Content-Type-Options: nosniff');
-    readfile($absolutePath);
-    exit;
 }
 
 function guard_incident_stream_evidence(PDO $conn, int $incId, int $evidenceId): void
@@ -1011,7 +902,6 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
         return null;
     }
 
-<<<<<<< HEAD
     $ref = (string) ($row['reference_code'] ?? ('inc-' . $incId));
     require_once __DIR__ . '/portal_audit.php';
     portal_audit_log(
@@ -1023,10 +913,7 @@ function guard_incident_admin_update(PDO $conn, int $incId, array $input, string
         auth_user_role()
     );
 
-    return guard_incident_find_by_id($conn, 'inc-' . $incId);
-=======
     $refreshed = guard_incident_find_by_id($conn, 'inc-' . $incId);
 
     return $refreshed !== null ? admin_incident_normalize($refreshed) : null;
->>>>>>> 6cf64fa43bc8e995a4414128ad6ed9ca42ec55b8
 }

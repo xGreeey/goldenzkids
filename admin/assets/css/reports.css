@@ -1763,9 +1763,6 @@ body:not(.light-mode) .reports-empty {
 }
 
 .reports-detail-sheet__grid--incident {
-<<<<<<< HEAD
-    grid-template-columns: minmax(9rem, 0.95fr) minmax(0, 1.35fr) minmax(10rem, 1.15fr) minmax(4.5rem, 0.55fr);
-=======
     grid-template-columns: minmax(10rem, 1.1fr) minmax(4.5rem, 0.65fr);
 }
 
@@ -1884,7 +1881,6 @@ body:not(.light-mode) .reports-empty {
 
 .reports-incident-scan__open a:hover {
     text-decoration: underline;
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
 }
 
 .reports-detail-sheet__field {
@@ -2228,16 +2224,12 @@ body:not(.light-mode) .reports-empty {
         grid-template-columns: 1fr 1fr;
     }
 
-<<<<<<< HEAD
-    .reports-detail-sheet__field--description,
-    .reports-detail-sheet__field--attachments {
-=======
     .reports-incident-as-is {
         grid-template-columns: 1fr 1fr;
     }
 
-    .reports-detail-sheet__field--description {
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
+    .reports-detail-sheet__field--description,
+    .reports-detail-sheet__field--attachments {
         grid-column: 1 / -1;
     }
 }

@@ -184,18 +184,17 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.text();
     }
 
-<<<<<<< HEAD
-    var panelBodyOverlayIds = ['reportModal', 'imageViewer', 'reports-modal-overlay', 'reports-guard-guide-overlay', 'reports-incident-types-overlay', 'reports-image-viewer'];
-=======
     var panelBodyOverlayIds = [
         'reportModal',
         'imageViewer',
         'reports-modal-overlay',
+        'reports-guard-guide-overlay',
+        'reports-incident-types-overlay',
+        'reports-image-viewer',
         'reports-sanctions-overlay',
         'daily-modal-overlay',
         'daily-guide-overlay'
     ];
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
 
     function syncPanelBodyOverlays(doc) {
         panelBodyOverlayIds.forEach(function (id) {

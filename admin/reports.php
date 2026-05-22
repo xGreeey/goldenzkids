@@ -227,13 +227,8 @@ function admin_reports_row_attrs(array $report): string
                                         <?= admin_btn_icon('file-export') ?>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
-<<<<<<< HEAD
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-guard-guide-open" title="Guard guide — workflow and status reference" aria-haspopup="dialog" aria-controls="reports-guard-guide-modal">
-                                        <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
-=======
-                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
                                         <?= admin_btn_icon('book-open') ?>
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
                                         <span class="reports-btn__text">Guard guide</span>
                                     </button>
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-incident-types-open" title="Incident types — severity and filing reference" aria-haspopup="dialog" aria-controls="reports-incident-types-modal">
@@ -502,28 +497,17 @@ function admin_reports_row_attrs(array $report): string
             <footer class="reports-modal__footer">
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
-<<<<<<< HEAD
                         <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?> aria-controls="modal-history-section">
-                            <i class="fa-solid fa-pen-to-square reports-btn__icon" aria-hidden="true"></i>
-                            <span class="reports-btn__text">Update progression</span>
-=======
-                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?>>
                             <?= admin_btn_icon('pen-to-square') ?>
-                            <span class="reports-btn__text">Edit this report</span>
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
+                            <span class="reports-btn__text">Update progression</span>
                         </button>
                     </div>
                 </div>
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
                         <button type="submit" class="reports-btn reports-btn--primary" form="reports-edit-form" id="modal-save-edit">
-<<<<<<< HEAD
-                            <i class="fa-solid fa-floppy-disk reports-btn__icon" aria-hidden="true"></i>
-                            <span class="reports-btn__text" id="modal-save-edit-label">Save progression</span>
-=======
                             <?= admin_btn_icon('floppy-disk') ?>
-                            <span class="reports-btn__text">Save changes</span>
->>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
+                            <span class="reports-btn__text" id="modal-save-edit-label">Save progression</span>
                         </button>
                         <button type="button" class="reports-btn reports-btn--secondary" id="modal-cancel-edit">
                             <span class="reports-btn__text" id="modal-cancel-edit-label">Cancel</span>

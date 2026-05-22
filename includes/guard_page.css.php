@@ -150,28 +150,6 @@ function guard_page_styles(): void
             display: none;
         }
 
-        body.guard-portal .guard-team-panel__lead {
-            margin: 0 0 var(--guard-gap-md);
-        }
-
-        body.guard-portal .guard-team-list {
-            margin: 0 0 var(--guard-gap-md);
-            padding: 0;
-            list-style: none;
-            display: grid;
-            gap: 6px;
-        }
-
-        body.guard-portal .guard-team-list li {
-            font-size: 0.8125rem;
-            line-height: 1.4;
-        }
-
-        body.guard-portal .guard-team-form__select {
-            width: 100%;
-            min-height: 10rem;
-        }
-
         /* Dashboard */
         body.guard-portal .sa-dashboard .page-header {
             margin-bottom: var(--guard-gap-md);

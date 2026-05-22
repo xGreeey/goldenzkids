@@ -16,7 +16,6 @@ function guard_ui_nav_items(): array
         ['id' => 'submit', 'href' => 'submit-report.php', 'label' => 'Submit report', 'icon' => 'plus-circle'],
         ['id' => 'inbox', 'href' => 'inbox.php', 'label' => 'Inbox', 'icon' => 'inbox'],
         ['id' => 'corner', 'href' => 'corner.php', 'label' => 'Guard corner', 'icon' => 'shield'],
-        ['id' => 'team', 'href' => 'my-team.php', 'label' => 'My team', 'icon' => 'users'],
     ];
 }
 

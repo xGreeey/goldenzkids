@@ -13,10 +13,6 @@ const GUARD_DTR_REPORT_TYPE_LEGACY = 'Daily Attendance Document';
 
 const GUARD_DAD_REF_PREFIX = 'DTR';
 const GUARD_DAD_STATUS_PENDING = 'pending';
-/** Canonical guard portal label for DAD / time-record submissions. */
-const GUARD_DTR_REPORT_TYPE = 'Daily Time Record';
-/** Legacy value stored on older dgd rows before rename. */
-const GUARD_DTR_REPORT_TYPE_LEGACY = 'Daily Attendance Document';
 
 function guard_dad_table_exists(PDO $conn): bool
 {
@@ -31,16 +27,12 @@ function guard_dad_table_exists(PDO $conn): bool
 
 function guard_dad_is_report_type(string $reportType): bool
 {
-<<<<<<< HEAD
-    return in_array($reportType, [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY], true);
-=======
     return in_array(trim($reportType), [GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY], true);
 }
 
 function guard_dad_report_type_for_ocr(string $reportType): string
 {
     return guard_dad_is_report_type($reportType) ? GUARD_DTR_REPORT_TYPE : $reportType;
->>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
 }
 
 function guard_dad_has_dual_location_columns(PDO $conn): bool

@@ -630,11 +630,7 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
-<<<<<<< HEAD
         var DTR_TYPE = 'Daily Time Record';
-=======
-        var DAD_TYPE = 'Daily Time Record';
->>>>>>> df08f93e0398c5dd68ac23f7d846e1ea83c07744
         var INCIDENT_TYPE = 'Post incident';
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;

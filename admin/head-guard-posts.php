@@ -337,7 +337,7 @@ $adminNavActive = 'head-guards';
                                 <p class="panel-head__note">
                                     <?= e((string) count($fieldGuards)) ?> field guard<?= count($fieldGuards) === 1 ? '' : 's' ?> in the roster ·
                                     <?= e((string) $unassignedGuardCount) ?> unassigned.
-                                    Head guards can also pick guards from <strong>My team</strong> in the guard portal.
+                                    Assign each head guard’s field guards from this panel.
                                 </p>
                                 <div class="panel-head__table-labels panel-head__table-labels--desktop panel-head__table-labels--4" id="hg-roster-table-labels">
                                     <span>Head guard</span>

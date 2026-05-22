@@ -193,15 +193,15 @@ function guard_incident_fields_from_ocr(array $structured, string $siteName): ar
         $structured = document_ai_enrich_incident_structured($structured);
     }
 
-    $description = trim((string) ($structured['incident_description'] ?? ''));
-    $action = trim((string) ($structured['action_taken'] ?? ''));
-    $name = trim((string) ($structured['name'] ?? ''));
-    $date = trim((string) ($structured['date'] ?? ''));
+    $extract = is_array($structured['extraction'] ?? null)
+        ? $structured['extraction']
+        : document_ai_incident_extraction_json($structured);
 
-    if ($description === '' && $action !== '') {
-        $description = $action;
-        $action = '';
-    }
+    $description = trim((string) ($extract['incident_description'] ?? $structured['incident_description'] ?? ''));
+    $action = trim((string) ($extract['action_taken'] ?? $structured['action_taken'] ?? ''));
+    $name = trim((string) ($extract['name_of_guard'] ?? $structured['name'] ?? ''));
+    $post = trim((string) ($extract['post'] ?? $structured['post'] ?? ''));
+    $date = trim((string) ($structured['date'] ?? ''));
 
     $incidentType = guard_incident_derive_type_label($description);
     $severity = guard_incident_infer_severity($description . ' ' . $action);
@@ -212,6 +212,9 @@ function guard_incident_fields_from_ocr(array $structured, string $siteName): ar
     }
     if ($name !== '') {
         $summaryParts[] = 'Subject: ' . $name;
+    }
+    if ($post !== '') {
+        $summaryParts[] = 'Post (form): ' . $post;
     }
     if ($description !== '') {
         $summaryParts[] = $description;
@@ -413,17 +416,25 @@ function guard_incident_map_row_for_admin(array $row): ?array
     $updatedAt = (string) ($row['updated_at'] ?? $submittedAt);
 
     $structured = guard_incident_structured_from_row($row);
-    $incidentDescription = document_ai_sanitize_incident_handwriting(
-        (string) ($row['incident_description'] ?? $structured['incident_description'] ?? '')
-    );
-    $actionTaken = document_ai_sanitize_incident_handwriting(
-        (string) ($row['action_taken'] ?? $structured['action_taken'] ?? '')
-    );
+    // Prefer stored column text as-is (admin edits); only sanitize OCR fallback.
+    $incidentDescription = trim((string) ($row['incident_description'] ?? ''));
+    if ($incidentDescription === '') {
+        $incidentDescription = document_ai_sanitize_incident_handwriting(
+            (string) ($structured['incident_description'] ?? '')
+        );
+    }
+    $actionTaken = trim((string) ($row['action_taken'] ?? ''));
+    if ($actionTaken === '') {
+        $actionTaken = document_ai_sanitize_incident_handwriting(
+            (string) ($structured['action_taken'] ?? '')
+        );
+    }
     $formName = document_ai_sanitize_incident_name((string) ($structured['name'] ?? ''));
     if ($formName === '') {
         $formName = guard_incident_subject_from_summary((string) ($row['summary'] ?? ''));
     }
     $formDate = document_ai_sanitize_incident_date((string) ($structured['date'] ?? ''));
+    $formPost = document_ai_sanitize_dad_post((string) ($structured['post'] ?? ''));
 
     $conn = isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO ? $GLOBALS['conn'] : null;
     $media = $conn instanceof PDO
@@ -449,6 +460,7 @@ function guard_incident_map_row_for_admin(array $row): ?array
         'action_taken' => $actionTaken,
         'form_name' => $formName,
         'form_date' => $formDate,
+        'form_post' => $formPost,
         'person_involved' => admin_incident_person_from_report([
             'person_involved' => '',
             'history' => $history,

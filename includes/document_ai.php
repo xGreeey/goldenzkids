@@ -70,6 +70,72 @@ function document_ai_mime_for_path(string $path): string
     };
 }
 
+function document_ai_is_incident_report_type(string $reportType): bool
+{
+    return in_array(trim($reportType), ['Incident Report', 'Incident', 'Post incident'], true);
+}
+
+/**
+ * Improve scan contrast for handwriting OCR (grayscale, contrast, sharpen). Returns temp JPEG path or null.
+ */
+function document_ai_preprocess_incident_scan(string $absolutePath): ?string
+{
+    if (!extension_loaded('gd')) {
+        return null;
+    }
+
+    $mime = document_ai_mime_for_path($absolutePath);
+    $image = match ($mime) {
+        'image/png' => @imagecreatefrompng($absolutePath),
+        'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($absolutePath) : false,
+        'image/gif' => @imagecreatefromgif($absolutePath),
+        'image/jpeg' => @imagecreatefromjpeg($absolutePath),
+        default => false,
+    };
+    if ($image === false) {
+        return null;
+    }
+
+    if (function_exists('imagepalettetotruecolor')) {
+        imagepalettetotruecolor($image);
+    }
+    imagealphablending($image, true);
+    imagesavealpha($image, false);
+
+    imagefilter($image, IMG_FILTER_GRAYSCALE);
+    imagefilter($image, IMG_FILTER_CONTRAST, -22);
+    imagefilter($image, IMG_FILTER_BRIGHTNESS, 8);
+
+    $sharpen = [
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0],
+    ];
+    if (function_exists('imageconvolution')) {
+        imageconvolution($image, $sharpen, 1, 0);
+    }
+
+    $temp = tempnam(sys_get_temp_dir(), 'gk_inc_');
+    if ($temp === false) {
+        imagedestroy($image);
+
+        return null;
+    }
+
+    $out = $temp . '.jpg';
+    @unlink($temp);
+    if (!imagejpeg($image, $out, 92)) {
+        imagedestroy($image);
+        @unlink($out);
+
+        return null;
+    }
+
+    imagedestroy($image);
+
+    return is_file($out) ? $out : null;
+}
+
 /**
  * @return array{ok: bool, error?: string, payload?: array<string, mixed>}
  */
@@ -82,26 +148,63 @@ function document_ai_process_report_scan(string $absolutePath, string $reportTyp
         return ['ok' => false, 'error' => 'Report scan file was not found on the server.'];
     }
 
-    $bytes = file_get_contents($absolutePath);
+    if (document_ai_is_dad_report_type($reportType)) {
+        $dadRegionResult = document_ai_process_dad_region_pipeline($absolutePath, $reportType);
+        if ($dadRegionResult['ok']) {
+            return $dadRegionResult;
+        }
+
+        error_log(
+            'DTR region OCR failed, falling back to full-page: '
+            . ($dadRegionResult['error'] ?? 'unknown')
+        );
+    }
+
+    if (document_ai_is_incident_report_type($reportType)) {
+        $regionResult = document_ai_process_incident_region_pipeline($absolutePath, $reportType);
+        if ($regionResult['ok']) {
+            return $regionResult;
+        }
+
+        error_log(
+            'Incident region OCR failed, falling back to full-page: '
+            . ($regionResult['error'] ?? 'unknown')
+        );
+    }
+
+    $scanPath = $absolutePath;
+    $preprocessed = null;
+    if (document_ai_is_incident_report_type($reportType)) {
+        $preprocessed = document_ai_preprocess_incident_scan($absolutePath);
+        if ($preprocessed !== null) {
+            $scanPath = $preprocessed;
+        }
+    }
+
+    $bytes = file_get_contents($scanPath);
     if ($bytes === false || $bytes === '') {
+        if ($preprocessed !== null) {
+            @unlink($preprocessed);
+        }
+
         return ['ok' => false, 'error' => 'Could not read the report scan image.'];
     }
 
     $cfg = document_ai_config();
-    $mimeType = document_ai_mime_for_path($absolutePath);
+    $mimeType = document_ai_mime_for_path($scanPath);
     $restFailure = null;
 
-    if (document_ai_should_use_direct_rest()) {
-        $restResult = document_ai_process_with_rest($bytes, $mimeType, $cfg, $reportType);
-        if ($restResult['ok']) {
-            return $restResult;
+    try {
+        if (document_ai_should_use_direct_rest()) {
+            $restResult = document_ai_process_with_rest($bytes, $mimeType, $cfg, $reportType);
+            if ($restResult['ok']) {
+                return $restResult;
+            }
+
+            $restFailure = $restResult;
+            error_log('Document AI REST failed: ' . ($restResult['error'] ?? 'unknown'));
         }
 
-        $restFailure = $restResult;
-        error_log('Document AI REST failed: ' . ($restResult['error'] ?? 'unknown'));
-    }
-
-    try {
         return document_ai_process_with_client($bytes, $mimeType, $cfg, $reportType);
     } catch (Throwable $e) {
         error_log('Document AI OCR failed: ' . $e->getMessage());
@@ -111,6 +214,10 @@ function document_ai_process_report_scan(string $absolutePath, string $reportTyp
         }
 
         return ['ok' => false, 'error' => document_ai_public_error($e)];
+    } finally {
+        if ($preprocessed !== null) {
+            @unlink($preprocessed);
+        }
     }
 }
 
@@ -564,19 +671,38 @@ function document_ai_incident_tokens_from_lines(array $lines, float $splitX = 0.
  *
  * @param list<array{text: string, x_center: float, y_center: float}> $tokens
  */
-function document_ai_incident_compose_vertical_column_text(array $tokens, float $xMin, float $xMax): string
-{
+function document_ai_incident_compose_vertical_column_text(
+    array $tokens,
+    float $xMin,
+    float $xMax,
+    float $yMin = 0.0,
+    float $yMax = 1.0
+): string {
     $column = [];
     foreach ($tokens as $token) {
         $xc = (float) $token['x_center'];
+        $yc = (float) $token['y_center'];
         if ($xc < $xMin || $xc > $xMax) {
             continue;
         }
-        $text = trim((string) ($token['text'] ?? ''));
-        if ($text === '' || document_ai_incident_is_boilerplate($text)) {
+        if ($yMin > 0 && $yc < $yMin) {
             continue;
         }
-        if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\b/iu', $text)) {
+        if ($yMax < 1.0 && $yc > $yMax) {
+            continue;
+        }
+        $text = trim((string) ($token['text'] ?? ''));
+        if (
+            $text === ''
+            || document_ai_incident_is_boilerplate($text)
+            || document_ai_incident_is_printed_label_text($text)
+        ) {
+            continue;
+        }
+        if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|INCIDENT\s+REPORT)\b/iu', $text)) {
+            continue;
+        }
+        if (preg_match('/^\s*(?:NAME|DATE|POST)(?:\s+OF\s+GUARD)?\s*:+/iu', $text) === 1) {
             continue;
         }
         $column[] = $token;
@@ -621,6 +747,55 @@ function document_ai_incident_compose_vertical_column_text(array $tokens, float 
     }
 
     return document_ai_sanitize_incident_handwriting(implode("\n", $rows));
+}
+
+/**
+ * @param array{incident_description?: string, action_taken?: string, name?: string, post?: string, date?: string} $spatial
+ * @param array<string, mixed> $textParsed
+ * @return array<string, mixed>
+ */
+function document_ai_incident_merge_spatial(array $spatial, array $textParsed): array
+{
+    $incident = document_ai_sanitize_incident_handwriting((string) ($spatial['incident_description'] ?? ''));
+    $textIncident = document_ai_sanitize_incident_handwriting((string) ($textParsed['incident_description'] ?? ''));
+    if ($incident === '') {
+        $incident = $textIncident;
+    }
+
+    $action = document_ai_sanitize_incident_handwriting((string) ($spatial['action_taken'] ?? ''));
+    $textAction = document_ai_sanitize_incident_handwriting((string) ($textParsed['action_taken'] ?? ''));
+    if ($action === '') {
+        $action = $textAction;
+    }
+
+    if ($incident !== '' && $action !== '' && $incident === $action) {
+        $action = $textAction !== '' && $textAction !== $incident ? $textAction : '';
+    }
+
+    $name = document_ai_sanitize_incident_name((string) ($spatial['name'] ?? ''));
+    $textName = document_ai_sanitize_incident_name((string) ($textParsed['name'] ?? ''));
+    if ($name === '' || ($textName !== '' && strlen($textName) > strlen($name))) {
+        $name = $textName;
+    }
+
+    $post = document_ai_sanitize_dad_post((string) ($spatial['post'] ?? ''));
+    $textPost = document_ai_sanitize_dad_post((string) ($textParsed['post'] ?? ''));
+    if ($post === '' || ($textPost !== '' && strlen($textPost) > strlen($post))) {
+        $post = $textPost;
+    }
+
+    $date = document_ai_sanitize_incident_date((string) ($spatial['date'] ?? ''));
+    if ($date === '') {
+        $date = document_ai_sanitize_incident_date((string) ($textParsed['date'] ?? ''));
+    }
+
+    $textParsed['incident_description'] = $incident;
+    $textParsed['action_taken'] = $action;
+    $textParsed['name'] = $name;
+    $textParsed['post'] = $post;
+    $textParsed['date'] = $date;
+
+    return $textParsed;
 }
 
 function document_ai_dad_is_boilerplate(string $text): bool
@@ -687,6 +862,10 @@ function document_ai_sanitize_dad_name(string $name): string
 {
     $name = trim($name);
     if ($name === '') {
+        return '';
+    }
+
+    if (preg_match('/^(?:#?\s*)?\d{1,2}\s*\.?\s*$/u', $name) === 1) {
         return '';
     }
 
@@ -1092,8 +1271,49 @@ function document_ai_dad_merge_spatial(array $spatial, array $textParsed): array
 }
 
 /**
- * @param list<array{name: string, time_in: string, time_out: string}> $rows
- * @return list<array{name: string, time_in: string, time_out: string}>
+ * @param array<string, mixed> $row
+ * @return array{name: string, am_time_in: string, am_time_out: string, pm_time_in: string, pm_time_out: string, time_in: string, time_out: string}
+ */
+function document_ai_dad_normalize_attendance_row(array $row): array
+{
+    $name = document_ai_sanitize_dad_name((string) ($row['name'] ?? ''));
+    $amIn = document_ai_sanitize_dad_time((string) ($row['am_time_in'] ?? ''));
+    $amOut = document_ai_sanitize_dad_time((string) ($row['am_time_out'] ?? ''));
+    $pmIn = document_ai_sanitize_dad_time((string) ($row['pm_time_in'] ?? ''));
+    $pmOut = document_ai_sanitize_dad_time((string) ($row['pm_time_out'] ?? ''));
+    $timeIn = document_ai_sanitize_dad_time((string) ($row['time_in'] ?? ''));
+    $timeOut = document_ai_sanitize_dad_time((string) ($row['time_out'] ?? ''));
+
+    if ($amIn === '' && $timeIn !== '' && !document_ai_dad_is_time_text($name)) {
+        $amIn = $timeIn;
+    }
+    if ($pmOut === '' && $timeOut !== '' && $amOut === '' && $pmIn === '') {
+        $pmOut = $timeOut;
+    } elseif ($amOut === '' && $timeOut !== '' && $pmIn === '' && $pmOut === '') {
+        $amOut = $timeOut;
+    }
+
+    if ($timeIn === '') {
+        $timeIn = $amIn !== '' ? $amIn : $pmIn;
+    }
+    if ($timeOut === '') {
+        $timeOut = $pmOut !== '' ? $pmOut : $amOut;
+    }
+
+    return [
+        'name' => $name,
+        'am_time_in' => $amIn,
+        'am_time_out' => $amOut,
+        'pm_time_in' => $pmIn,
+        'pm_time_out' => $pmOut,
+        'time_in' => $timeIn,
+        'time_out' => $timeOut,
+    ];
+}
+
+/**
+ * @param list<array<string, mixed>> $rows
+ * @return list<array{name: string, am_time_in: string, am_time_out: string, pm_time_in: string, pm_time_out: string, time_in: string, time_out: string}>
  */
 function document_ai_dad_sanitize_rows(array $rows): array
 {
@@ -1102,13 +1322,17 @@ function document_ai_dad_sanitize_rows(array $rows): array
         if (!is_array($row)) {
             continue;
         }
-        $name = document_ai_sanitize_dad_name((string) ($row['name'] ?? ''));
-        $timeIn = document_ai_sanitize_dad_time((string) ($row['time_in'] ?? ''));
-        $timeOut = document_ai_sanitize_dad_time((string) ($row['time_out'] ?? ''));
-        if ($name === '' && $timeIn === '' && $timeOut === '') {
+        $normalized = document_ai_dad_normalize_attendance_row($row);
+        if (
+            $normalized['name'] === ''
+            && $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
             continue;
         }
-        $out[] = ['name' => $name, 'time_in' => $timeIn, 'time_out' => $timeOut];
+        $out[] = $normalized;
     }
 
     return $out;
@@ -1165,20 +1389,24 @@ function document_ai_incident_is_boilerplate(string $text): bool
         return true;
     }
 
+    if (document_ai_incident_is_printed_label_text($text)) {
+        return true;
+    }
+
     $upper = strtoupper(trim($text));
     if ($upper === '') {
         return true;
     }
 
-    $labelOnly = [
-        'INCIDENT REPORT',
-        'INCIDENT DESCRIPTION',
-        'ACTION TAKEN',
-        'NAME',
-        'DATE',
+    $footerLabels = [
+        'CONFIRMATION BY',
+        'HEAD GUARD',
+        'HEADGUARD',
+        'SIGNATURE',
+        'ACKNOWLEDGED BY',
     ];
-    foreach ($labelOnly as $label) {
-        if ($upper === $label || preg_match('/^' . preg_quote($label, '/') . '\s*:?\s*$/u', $upper) === 1) {
+    foreach ($footerLabels as $label) {
+        if (str_contains($upper, $label)) {
             return true;
         }
     }
@@ -1189,6 +1417,170 @@ function document_ai_incident_is_boilerplate(string $text): bool
 
     return preg_match('/\b(?:SECURITY\s+AND\s+INVESTIGATION|GOLDEN\s+Z)\b/iu', $text) === 1
         && !preg_match('/[a-z]{3,}/u', $text);
+}
+
+/**
+ * Printed Oswald / template labels — not handwritten field values.
+ */
+function document_ai_incident_is_printed_label_text(string $text): bool
+{
+    $trimmed = trim($text);
+    if ($trimmed === '') {
+        return true;
+    }
+
+    $upper = strtoupper(trim(preg_replace('/\s+/u', ' ', $trimmed) ?? $trimmed));
+    $labelOnly = [
+        'INCIDENT REPORT',
+        'INCIDENT DESCRIPTION',
+        'ACTION TAKEN',
+        'NAME',
+        'NAME OF GUARD',
+        'DATE',
+        'POST',
+    ];
+    foreach ($labelOnly as $label) {
+        if ($upper === $label || preg_match('/^' . preg_quote($label, '/') . '\s*:?\s*$/u', $upper) === 1) {
+            return true;
+        }
+    }
+
+    return preg_match('/^(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|NAME(?:\s+OF\s+GUARD)?|POST|DATE)\s*:?\s*$/iu', $trimmed) === 1;
+}
+
+function document_ai_incident_strip_label_prefix(string $line, array $labels): string
+{
+    $line = trim($line);
+    foreach ($labels as $label) {
+        $stripped = trim((string) (preg_replace(
+            '/.*\b' . preg_quote($label, '/') . '\s*:?\s*/iu',
+            '',
+            $line,
+            1
+        ) ?? $line));
+        if ($stripped !== $line) {
+            return $stripped;
+        }
+    }
+
+    return $line;
+}
+
+/**
+ * Join OCR line fragments into one readable sentence block (preserves paragraph breaks when intended).
+ *
+ * @param list<string> $lines
+ */
+function document_ai_incident_join_handwriting_lines(array $lines): string
+{
+    $parts = [];
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        $parts[] = $line;
+    }
+
+    if ($parts === []) {
+        return '';
+    }
+
+    $joined = '';
+    foreach ($parts as $i => $part) {
+        if ($joined === '') {
+            $joined = $part;
+            continue;
+        }
+        $prevEndsSentence = preg_match('/[.!?…]["\']?\s*$/u', $joined) === 1;
+        $startsLower = preg_match('/^[a-z(]/u', $part) === 1;
+        if ($prevEndsSentence || (!$startsLower && strlen($part) > 2 && preg_match('/^[A-Z]/u', $part) === 1)) {
+            $joined .= "\n" . $part;
+        } else {
+            $joined .= ' ' . $part;
+        }
+    }
+
+    return trim(preg_replace('/\s{2,}/u', ' ', $joined) ?? $joined);
+}
+
+function document_ai_incident_fix_common_ocr(string $text): string
+{
+    $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    if ($text === '') {
+        return '';
+    }
+
+    $text = (string) (preg_replace('/\b(\w+)\s+\1\b/iu', '$1', $text) ?? $text);
+    $text = (string) (preg_replace('/\s+([,.;:!?])/u', '$1', $text) ?? $text);
+    $text = (string) (preg_replace('/(\d)\s*:\s*(\d{2})\s*(am|pm)\b/iu', '$1:$2 $3', $text) ?? $text);
+    $text = (string) (preg_replace('/\bapproximatly\b/iu', 'approximately', $text) ?? $text);
+    $text = (string) (preg_replace('/\bimmedately\b/iu', 'immediately', $text) ?? $text);
+    $text = (string) (preg_replace('/\boccured\b/iu', 'occurred', $text) ?? $text);
+    $text = (string) (preg_replace('/\bvisiter\b/iu', 'visitor', $text) ?? $text);
+    $text = (string) (preg_replace('/\bentrence\b/iu', 'entrance', $text) ?? $text);
+    $text = (string) (preg_replace('/\bfirs\s*1\b/iu', 'first', $text) ?? $text);
+    $text = (string) (preg_replace('/\bfirs\s*t\b/iu', 'first', $text) ?? $text);
+    $text = (string) (preg_replace('/\bCleanca\b/iu', 'cleaned', $text) ?? $text);
+    $text = (string) (preg_replace('/\bmarke\s+h\b/iu', 'marked', $text) ?? $text);
+    $text = (string) (preg_replace('/\bprovidec\b/iu', 'provided', $text) ?? $text);
+    $text = (string) (preg_replace('/\bmately\b/iu', 'approximately', $text) ?? $text);
+    $text = (string) (preg_replace('/\bimme\b/iu', 'immediately', $text) ?? $text);
+    $text = (string) (preg_replace('/\s*\+\s*/u', ' ', $text) ?? $text);
+    $text = (string) (preg_replace('/\bHEAD\s*GUAR\b/iu', '', $text) ?? $text);
+    $text = (string) (preg_replace('/\bUNA\s+THORIZED\b/iu', 'UNAUTHORIZED', $text) ?? $text);
+    $text = (string) (preg_replace('/\bIAIDENTIFICATION\b/iu', 'IDENTIFICATION', $text) ?? $text);
+    $text = (string) (preg_replace('/\bIA\s+IDENTIFICATION\b/iu', 'IDENTIFICATION', $text) ?? $text);
+    $text = (string) (preg_replace('/\bPROPER\s+I\s+IDENTIFICATION\b/iu', 'PROPER IDENTIFICATION', $text) ?? $text);
+    $text = (string) (preg_replace('/\bPREMISES\b/iu', 'PREMISES', $text) ?? $text);
+
+    if (preg_match('/^\p{Ll}/u', $text)) {
+        $text = mb_strtoupper(mb_substr($text, 0, 1)) . mb_substr($text, 1);
+    }
+
+    if ($text !== '' && !preg_match('/[.!?…]$/u', $text) && mb_strlen($text) > 40) {
+        $text .= '.';
+    }
+
+    return trim($text);
+}
+
+/**
+ * Polish narrative handwriting: sanitize → join lines → light OCR correction.
+ */
+function document_ai_polish_incident_handwriting(string $text): string
+{
+    $text = document_ai_sanitize_incident_handwriting($text);
+    if ($text === '') {
+        return '';
+    }
+
+    $lines = preg_split('/\n+/u', $text) ?: [];
+    $block = document_ai_incident_join_handwriting_lines($lines);
+
+    return document_ai_incident_fix_common_ocr($block);
+}
+
+/**
+ * @return array{name_of_guard: string, post: string, incident_description: string, action_taken: string}
+ */
+function document_ai_incident_extraction_json(array $structured): array
+{
+    $post = document_ai_sanitize_dad_post((string) ($structured['post'] ?? ''));
+    if ($post !== '' && document_ai_incident_is_contaminated_post($post)) {
+        $post = '';
+    }
+
+    return [
+        'name_of_guard' => document_ai_sanitize_incident_name((string) ($structured['name'] ?? '')),
+        'post' => $post,
+        'incident_description' => document_ai_polish_incident_handwriting(
+            (string) ($structured['incident_description'] ?? '')
+        ),
+        'action_taken' => document_ai_polish_incident_handwriting(
+            (string) ($structured['action_taken'] ?? '')
+        ),
+    ];
 }
 
 function document_ai_incident_is_date_text(string $text): bool
@@ -1237,8 +1629,13 @@ function document_ai_incident_field_key(string $label): ?string
     $normalized = trim(preg_replace('/\s+/u', ' ', $normalized));
 
     return match (true) {
-        $normalized === 'NAME' || str_starts_with($normalized, 'NAME ') => 'name',
+        $normalized === 'NAME'
+            || str_starts_with($normalized, 'NAME ')
+            || str_contains($normalized, 'NAME OF GUARD') => 'name',
+        $normalized === 'POST' || str_starts_with($normalized, 'POST ') => 'post',
         $normalized === 'DATE' || str_starts_with($normalized, 'DATE ') => 'date',
+        str_contains($normalized, 'INCIDENT DESCRIPTION') => 'incident_description',
+        str_contains($normalized, 'ACTION TAKEN') => 'action_taken',
         default => null,
     };
 }
@@ -1256,7 +1653,20 @@ function document_ai_incident_looks_like_name(string $name): bool
         return false;
     }
 
-    return preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|ATTENDANCE|DOCUMENT)\b/iu', $name) !== 1;
+    if (preg_match('/\b(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN|ATTENDANCE|DOCUMENT|CONFIRMATION|HEAD\s*GUARD)\b/iu', $name) === 1) {
+        return false;
+    }
+    if (preg_match('/\b(?:ENT\s+DESCRIPTION|OF\s+GUARD|DESCRIPTION|WARNING\s+SIGN)\b/iu', $name) === 1) {
+        return false;
+    }
+    if (preg_match('/\b\d{1,2}\s*:\s*\d{2}\s*(?:am|pm)?\b/iu', $name) === 1) {
+        return false;
+    }
+    if (preg_match('/\b(?:approximately|entrance|cleaned|warning|first\s*aid|provided|floor)\b/iu', $name) === 1) {
+        return false;
+    }
+
+    return true;
 }
 
 function document_ai_sanitize_incident_name(string $name): string
@@ -1266,10 +1676,14 @@ function document_ai_sanitize_incident_name(string $name): string
         return '';
     }
 
-    $name = trim(preg_replace('/^NAME\s*:?\s*/iu', '', $name) ?? $name);
-    $name = trim(preg_replace('/\bDATE\s*:.*$/iu', '', $name) ?? $name);
+    $name = trim(preg_replace('/^NAME(?:\s+OF\s+GUARD)?\s*:?\s*/iu', '', $name) ?? $name);
+    $name = trim(preg_replace('/\b(?:DATE|INCIDENT|ACTION|CONFIRMATION|HEAD\s*GUARD)\b.*$/iu', '', $name) ?? $name);
     $name = trim(preg_replace('/\b(?:PLEASE\s+WRITE|BIG\s+LETTERS|CAPITALIZED|PROCESSED\s+DIGITALLY)\b.*$/iu', '', $name) ?? $name);
     $name = trim(preg_replace('/\s{2,}/u', ' ', $name) ?? $name);
+
+    if (strlen($name) > 80) {
+        return '';
+    }
 
     return document_ai_incident_looks_like_name($name) ? $name : '';
 }
@@ -1282,7 +1696,7 @@ function document_ai_extract_incident_name_from_text(string $text): string
     $text = str_replace(["\r\n", "\r"], "\n", $text);
     $best = '';
 
-    if (preg_match_all('/\bNAME\s*:+\s*([^\n]+)/iu', $text, $inlineMatches)) {
+    if (preg_match_all('/\b(?:NAME(?:\s+OF\s+GUARD)?)\s*:+\s*([^\n]+)/iu', $text, $inlineMatches)) {
         foreach ($inlineMatches[1] as $chunk) {
             $candidate = document_ai_sanitize_incident_name(trim((string) $chunk));
             if ($candidate !== '' && strlen($candidate) > strlen($best)) {
@@ -1331,13 +1745,16 @@ function document_ai_extract_incident_name_from_text(string $text): string
 
 /**
  * @param list<array{label: string, value: string}> $formFields
- * @param array{name?: string, date?: string} $seed
- * @return array{name: string, date: string}
+ * @param array{name?: string, post?: string, date?: string, incident_description?: string, action_taken?: string} $seed
+ * @return array{name: string, post: string, date: string, incident_description: string, action_taken: string}
  */
 function document_ai_incident_merge_form_fields(array $formFields, array $seed): array
 {
     $name = trim((string) ($seed['name'] ?? ''));
+    $post = trim((string) ($seed['post'] ?? ''));
     $date = trim((string) ($seed['date'] ?? ''));
+    $incident = trim((string) ($seed['incident_description'] ?? ''));
+    $action = trim((string) ($seed['action_taken'] ?? ''));
 
     foreach ($formFields as $field) {
         if (!is_array($field)) {
@@ -1353,15 +1770,36 @@ function document_ai_incident_merge_form_fields(array $formFields, array $seed):
             if ($clean !== '' && ($name === '' || strlen($clean) > strlen($name))) {
                 $name = $clean;
             }
+        } elseif ($key === 'post') {
+            $clean = document_ai_sanitize_dad_post($value);
+            if ($clean !== '' && ($post === '' || strlen($clean) > strlen($post))) {
+                $post = $clean;
+            }
         } elseif ($key === 'date') {
             $clean = document_ai_sanitize_incident_date($value);
             if ($clean !== '') {
                 $date = $clean;
             }
+        } elseif ($key === 'incident_description') {
+            $clean = document_ai_sanitize_incident_handwriting($value);
+            if ($clean !== '' && ($incident === '' || strlen($clean) > strlen($incident))) {
+                $incident = $clean;
+            }
+        } elseif ($key === 'action_taken') {
+            $clean = document_ai_sanitize_incident_handwriting($value);
+            if ($clean !== '' && ($action === '' || strlen($clean) > strlen($action))) {
+                $action = $clean;
+            }
         }
     }
 
-    return ['name' => $name, 'date' => $date];
+    return [
+        'name' => $name,
+        'post' => $post,
+        'date' => $date,
+        'incident_description' => $incident,
+        'action_taken' => $action,
+    ];
 }
 
 /**
@@ -1375,12 +1813,71 @@ function document_ai_sanitize_incident_handwriting(string $text): string
 
     foreach ($lines as $line) {
         $line = document_ai_incident_strip_boilerplate_phrases(trim($line));
-        if ($line === '' || document_ai_incident_is_boilerplate($line)) {
+        if ($line === '' || document_ai_incident_is_boilerplate($line) || document_ai_incident_is_printed_label_text($line)) {
+            continue;
+        }
+        if (preg_match('/^\s*(?:NAME|DATE|POST)(?:\s+OF\s+GUARD)?\s*:+/iu', $line) === 1) {
             continue;
         }
         $line = trim(preg_replace('/^(?:INCIDENT\s+DESCRIPTION|ACTION\s+TAKEN)\s*:?\s*/iu', '', $line) ?? $line);
-        if ($line !== '' && !document_ai_incident_is_boilerplate($line)) {
+        if ($line !== '' && !document_ai_incident_is_boilerplate($line) && !document_ai_incident_is_printed_label_text($line)) {
             $kept[] = $line;
+        }
+    }
+
+    return trim(implode("\n", $kept));
+}
+
+/**
+ * @param list<string> $startLabels
+ * @param list<string> $stopLabels
+ */
+function document_ai_incident_extract_lines_for_section(string $text, array $startLabels, array $stopLabels): string
+{
+    $text = str_replace(["\r\n", "\r"], "\n", $text);
+    $lines = preg_split('/\n+/u', $text) ?: [];
+    $started = false;
+    $kept = [];
+
+    foreach ($lines as $line) {
+        $raw = trim($line);
+        if ($raw === '') {
+            continue;
+        }
+
+        $upper = strtoupper($raw);
+        if (!$started) {
+            foreach ($startLabels as $label) {
+                if (!str_contains($upper, strtoupper($label))) {
+                    continue;
+                }
+                $started = true;
+                $remainder = document_ai_incident_strip_label_prefix($raw, $startLabels);
+                $remainder = document_ai_sanitize_incident_handwriting($remainder);
+                if ($remainder !== '') {
+                    $kept[] = $remainder;
+                }
+                continue 2;
+            }
+            continue;
+        }
+
+        foreach ($stopLabels as $stop) {
+            if (str_contains($upper, strtoupper($stop))) {
+                return trim(implode("\n", $kept));
+            }
+        }
+
+        if (document_ai_incident_is_boilerplate($raw) || document_ai_incident_is_printed_label_text($raw)) {
+            continue;
+        }
+        if (preg_match('/^\s*(?:NAME|DATE|POST|INCIDENT\s+REPORT)(?:\s+OF\s+GUARD)?\s*:?/iu', $raw) === 1) {
+            continue;
+        }
+
+        $clean = document_ai_sanitize_incident_handwriting($raw);
+        if ($clean !== '') {
+            $kept[] = $clean;
         }
     }
 
@@ -1390,6 +1887,11 @@ function document_ai_sanitize_incident_handwriting(string $text): string
 /** @param list<string> $startLabels @param list<string> $endLabels */
 function document_ai_incident_section_between(string $text, array $startLabels, array $endLabels): string
 {
+    $lineBased = document_ai_incident_extract_lines_for_section($text, $startLabels, $endLabels);
+    if ($lineBased !== '') {
+        return $lineBased;
+    }
+
     $start = document_ai_label_pos($text, $startLabels);
     $end = document_ai_label_pos($text, $endLabels);
     if ($start === null) {
@@ -1404,6 +1906,15 @@ function document_ai_incident_section_between(string $text, array $startLabels, 
 /** @param list<string> $labels */
 function document_ai_incident_section_after(string $text, array $labels): string
 {
+    $lineBased = document_ai_incident_extract_lines_for_section(
+        $text,
+        $labels,
+        ['NAME', 'DATE', 'POST', 'INCIDENT REPORT', 'CONFIRMATION BY', 'HEAD GUARD']
+    );
+    if ($lineBased !== '') {
+        return $lineBased;
+    }
+
     $pos = document_ai_label_pos($text, $labels);
     if ($pos === null) {
         return '';
@@ -1414,47 +1925,9 @@ function document_ai_incident_section_after(string $text, array $labels): string
 }
 
 /**
- * @param array{incident_description?: string, action_taken?: string, name?: string, date?: string} $spatial
- * @param array<string, mixed> $textParsed
- * @return array<string, mixed>
- */
-function document_ai_incident_merge_spatial(array $spatial, array $textParsed): array
-{
-    $incident = document_ai_sanitize_incident_handwriting((string) ($spatial['incident_description'] ?? ''));
-    $textIncident = document_ai_sanitize_incident_handwriting((string) ($textParsed['incident_description'] ?? ''));
-    if ($incident === '') {
-        $incident = $textIncident;
-    }
-
-    $action = document_ai_sanitize_incident_handwriting((string) ($spatial['action_taken'] ?? ''));
-    $textAction = document_ai_sanitize_incident_handwriting((string) ($textParsed['action_taken'] ?? ''));
-    if ($action === '') {
-        $action = $textAction;
-    }
-
-    $name = document_ai_sanitize_incident_name((string) ($spatial['name'] ?? ''));
-    $textName = document_ai_sanitize_incident_name((string) ($textParsed['name'] ?? ''));
-    if ($name === '' || ($textName !== '' && strlen($textName) > strlen($name))) {
-        $name = $textName;
-    }
-
-    $date = document_ai_sanitize_incident_date((string) ($spatial['date'] ?? ''));
-    if ($date === '') {
-        $date = document_ai_sanitize_incident_date((string) ($textParsed['date'] ?? ''));
-    }
-
-    $textParsed['incident_description'] = $incident;
-    $textParsed['action_taken'] = $action;
-    $textParsed['name'] = $name;
-    $textParsed['date'] = $date;
-
-    return $textParsed;
-}
-
-/**
  * Handwritten fields per column: tokens sorted top-to-bottom within each box (not full-width lines).
  *
- * @return array{incident_description: string, action_taken: string, name: string, date: string}
+ * @return array{incident_description: string, action_taken: string, name: string, post: string, date: string}
  */
 function document_ai_parse_incident_spatial(Document $document, string $rawText): array
 {
@@ -1464,9 +1937,16 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
     $splitX = 0.5;
     $descLabelX = null;
     $actionLabelX = null;
+    $descLabelYMax = null;
+    $actionLabelYMax = null;
     $name = document_ai_extract_incident_name_from_text($rawText);
+    $post = document_ai_extract_dad_post_from_text($rawText);
+    if ($post === '') {
+        $post = document_ai_extract_dad_post_from_lines($lines);
+    }
     $date = '';
     $nameLabelYMax = null;
+    $footerYMin = null;
 
     foreach ($lines as $line) {
         $text = (string) $line['text'];
@@ -1477,6 +1957,9 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
         ) {
             $agencyYMax = max($agencyYMax, (float) $line['y_max']);
         }
+        if (preg_match(document_ai_incident_boilerplate_phrase_pattern(), $text) === 1) {
+            $footerYMin = min($footerYMin ?? 1.0, (float) $line['y_min']);
+        }
     }
 
     foreach ($lines as $line) {
@@ -1485,12 +1968,17 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
         if (str_contains($upper, 'INCIDENT DESCRIPTION')) {
             $descLabelX = (float) $line['x_center'];
             $sectionYMin = min($sectionYMin, (float) $line['y_min']);
+            $descLabelYMax = max($descLabelYMax ?? 0.0, (float) $line['y_max']);
         }
         if (str_contains($upper, 'ACTION TAKEN')) {
             $actionLabelX = (float) $line['x_center'];
             $sectionYMin = min($sectionYMin, (float) $line['y_min']);
+            $actionLabelYMax = max($actionLabelYMax ?? 0.0, (float) $line['y_max']);
         }
-        if (preg_match('/\bNAME\s*:+/iu', $text)) {
+        if (preg_match('/\b(?:NAME|NAME\s+OF\s+GUARD)\s*:+/iu', $text)) {
+            $nameLabelYMax = max($nameLabelYMax ?? 0.0, (float) $line['y_max']);
+        }
+        if (preg_match('/\bDATE\s*:+/iu', $text)) {
             $nameLabelYMax = max($nameLabelYMax ?? 0.0, (float) $line['y_max']);
         }
     }
@@ -1504,6 +1992,9 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
     }
 
     $headerYMax = $sectionYMin < 1.0 ? max($agencyYMax + 0.04, $sectionYMin - 0.02) : 0.58;
+    $descBodyYMin = $descLabelYMax !== null ? $descLabelYMax + 0.012 : 0.0;
+    $actionBodyYMin = $actionLabelYMax !== null ? $actionLabelYMax + 0.012 : $descBodyYMin;
+    $bodyYMax = $footerYMin !== null && $footerYMin < 1.0 ? $footerYMin - 0.01 : 1.0;
 
     foreach ($lines as $line) {
         $text = (string) $line['text'];
@@ -1515,10 +2006,18 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
             continue;
         }
 
-        if (preg_match('/\bNAME\s*:+\s*(.+)$/iu', $text, $m)) {
+        if (preg_match('/\b(?:NAME|NAME\s+OF\s+GUARD)\s*:+\s*(.+)$/iu', $text, $m)) {
             $candidate = document_ai_sanitize_incident_name(trim((string) $m[1]));
             if ($candidate !== '' && strlen($candidate) > strlen($name)) {
                 $name = $candidate;
+            }
+            continue;
+        }
+
+        if (preg_match('/\bPOST\s*:+\s*(.+)$/iu', $text, $m)) {
+            $candidate = document_ai_sanitize_dad_post(trim((string) $m[1]));
+            if ($candidate !== '' && strlen($candidate) > strlen($post)) {
+                $post = $candidate;
             }
             continue;
         }
@@ -1537,7 +2036,7 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
         }
 
         if ($nameLabelYMax !== null && $yc > $nameLabelYMax && $yc < $nameLabelYMax + 0.1) {
-            if (preg_match('/\b(?:NAME|DATE|INCIDENT|ACTION)\b\s*:?/iu', $text)) {
+            if (preg_match('/\b(?:NAME|DATE|POST|INCIDENT|ACTION)\b\s*:?/iu', $text)) {
                 continue;
             }
             $candidate = document_ai_sanitize_incident_name($text);
@@ -1551,32 +2050,55 @@ function document_ai_parse_incident_spatial(Document $document, string $rawText)
     $descXMax = $splitX - 0.015;
     $actionXMin = $splitX + 0.015;
     $actionXMax = 1.0;
-    $bodyYMin = $sectionYMin < 1.0 ? $sectionYMin + 0.02 : ($agencyYMax > 0 ? $agencyYMax + 0.2 : 0.2);
 
     $tokens = document_ai_collect_page_tokens($document, $rawText);
     if ($tokens === []) {
         $tokens = document_ai_incident_tokens_from_lines($lines, $splitX);
     }
 
-    $bodyTokens = [];
+    $descTokens = [];
+    $actionTokens = [];
     foreach ($tokens as $token) {
         $yc = (float) $token['y_center'];
         if ($agencyYMax > 0 && $yc <= $agencyYMax + 0.015) {
             continue;
         }
-        if ($yc < $bodyYMin) {
+        if ($nameLabelYMax !== null && $yc <= $nameLabelYMax + 0.008) {
             continue;
         }
-        $bodyTokens[] = $token;
+        if ($yc > $bodyYMax) {
+            continue;
+        }
+
+        $xc = (float) $token['x_center'];
+        if ($xc <= $splitX - 0.015 && $yc >= $descBodyYMin) {
+            $descTokens[] = $token;
+        }
+        if ($xc >= $splitX + 0.015 && $yc >= $actionBodyYMin) {
+            $actionTokens[] = $token;
+        }
     }
 
-    $incidentDescription = document_ai_incident_compose_vertical_column_text($bodyTokens, $descXMin, $descXMax);
-    $actionTaken = document_ai_incident_compose_vertical_column_text($bodyTokens, $actionXMin, $actionXMax);
+    $incidentDescription = document_ai_incident_compose_vertical_column_text(
+        $descTokens,
+        $descXMin,
+        $descXMax,
+        $descBodyYMin,
+        $bodyYMax
+    );
+    $actionTaken = document_ai_incident_compose_vertical_column_text(
+        $actionTokens,
+        $actionXMin,
+        $actionXMax,
+        $actionBodyYMin,
+        $bodyYMax
+    );
 
     return [
         'incident_description' => $incidentDescription,
         'action_taken' => $actionTaken,
         'name' => $name,
+        'post' => $post,
         'date' => $date,
     ];
 }
@@ -1594,7 +2116,10 @@ function document_ai_enrich_incident_structured(array $structured): array
     $formFields = is_array($structured['form_fields'] ?? null) ? $structured['form_fields'] : [];
     $merged = document_ai_incident_merge_form_fields($formFields, [
         'name' => (string) ($structured['name'] ?? ''),
+        'post' => (string) ($structured['post'] ?? ''),
         'date' => (string) ($structured['date'] ?? ''),
+        'incident_description' => (string) ($structured['incident_description'] ?? ''),
+        'action_taken' => (string) ($structured['action_taken'] ?? ''),
     ]);
 
     $structured['name'] = document_ai_sanitize_incident_name((string) $merged['name']);
@@ -1603,13 +2128,20 @@ function document_ai_enrich_incident_structured(array $structured): array
             (string) ($structured['raw'] ?? '')
         );
     }
+    $structured['post'] = document_ai_sanitize_dad_post((string) $merged['post']);
+    if ($structured['post'] === '') {
+        $structured['post'] = document_ai_sanitize_dad_post(
+            document_ai_extract_dad_post_from_text((string) ($structured['raw'] ?? ''))
+        );
+    }
     $structured['date'] = document_ai_sanitize_incident_date((string) $merged['date']);
-    $structured['incident_description'] = document_ai_sanitize_incident_handwriting(
-        (string) ($structured['incident_description'] ?? '')
+    $structured['incident_description'] = document_ai_polish_incident_handwriting(
+        (string) ($merged['incident_description'] ?? $structured['incident_description'] ?? '')
     );
-    $structured['action_taken'] = document_ai_sanitize_incident_handwriting(
-        (string) ($structured['action_taken'] ?? '')
+    $structured['action_taken'] = document_ai_polish_incident_handwriting(
+        (string) ($merged['action_taken'] ?? $structured['action_taken'] ?? '')
     );
+    $structured['extraction'] = document_ai_incident_extraction_json($structured);
     $structured['display_template'] = 'as_is_two_column';
 
     return $structured;
@@ -1622,6 +2154,7 @@ function document_ai_parse_incident_report(string $text): array
 {
     $text = str_replace(["\r\n", "\r"], "\n", $text);
     $name = document_ai_extract_incident_name_from_text($text);
+    $post = document_ai_extract_dad_post_from_text($text);
     $date = document_ai_sanitize_incident_date(document_ai_match_after_label($text, ['Date:', 'DATE:']));
     if ($date === '' && preg_match_all('/\bDATE\s*:?\s*([^\n]+)/iu', $text, $dateMatches)) {
         foreach ($dateMatches[1] as $rawDate) {
@@ -1643,6 +2176,7 @@ function document_ai_parse_incident_report(string $text): array
     return [
         'template' => 'incident_report',
         'name' => $name,
+        'post' => $post,
         'date' => $date,
         'incident_description' => $incident,
         'action_taken' => $action,
@@ -1797,21 +2331,50 @@ function document_ai_dad_build_display_fields(string $post, array $dates, array 
             continue;
         }
         $rowIndex++;
-        $name = trim((string) ($row['name'] ?? ''));
-        $timeIn = trim((string) ($row['time_in'] ?? ''));
-        $timeOut = trim((string) ($row['time_out'] ?? ''));
-        if ($name === '' && $timeIn === '' && $timeOut === '') {
+        $normalized = document_ai_dad_normalize_attendance_row($row);
+        $name = $normalized['name'];
+        if (
+            $name === ''
+            && $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
             continue;
         }
         $suffix = count($attendanceRows) > 1 ? ' (' . $rowIndex . ')' : '';
         if ($name !== '') {
             $fields[] = ['key' => 'name_' . $rowIndex, 'label' => 'NAME' . $suffix, 'value' => $name];
         }
-        if ($timeIn !== '') {
-            $fields[] = ['key' => 'time_in_' . $rowIndex, 'label' => 'TIME IN' . $suffix, 'value' => $timeIn];
+        foreach (
+            [
+                'am_time_in' => 'AM TIME IN',
+                'am_time_out' => 'AM TIME OUT',
+                'pm_time_in' => 'PM TIME IN',
+                'pm_time_out' => 'PM TIME OUT',
+            ] as $key => $label
+        ) {
+            $value = $normalized[$key];
+            if ($value !== '') {
+                $fields[] = [
+                    'key' => $key . '_' . $rowIndex,
+                    'label' => $label . $suffix,
+                    'value' => $value,
+                ];
+            }
         }
-        if ($timeOut !== '') {
-            $fields[] = ['key' => 'time_out_' . $rowIndex, 'label' => 'TIME OUT' . $suffix, 'value' => $timeOut];
+        if (
+            $normalized['am_time_in'] === ''
+            && $normalized['am_time_out'] === ''
+            && $normalized['pm_time_in'] === ''
+            && $normalized['pm_time_out'] === ''
+        ) {
+            if ($normalized['time_in'] !== '') {
+                $fields[] = ['key' => 'time_in_' . $rowIndex, 'label' => 'TIME IN' . $suffix, 'value' => $normalized['time_in']];
+            }
+            if ($normalized['time_out'] !== '') {
+                $fields[] = ['key' => 'time_out_' . $rowIndex, 'label' => 'TIME OUT' . $suffix, 'value' => $normalized['time_out']];
+            }
         }
     }
 
@@ -2058,19 +2621,25 @@ function document_ai_format_structured(array $structured, string $reportType, st
 
     if (($structured['template'] ?? '') === 'incident_report') {
         $structured = document_ai_enrich_incident_structured($structured);
+        $extract = is_array($structured['extraction'] ?? null)
+            ? $structured['extraction']
+            : document_ai_incident_extraction_json($structured);
         $lines[] = '';
-        if (($structured['name'] ?? '') !== '') {
-            $lines[] = 'Name: ' . $structured['name'];
+        if (($extract['name_of_guard'] ?? '') !== '') {
+            $lines[] = 'Name of guard: ' . $extract['name_of_guard'];
+        }
+        if (($extract['post'] ?? '') !== '') {
+            $lines[] = 'Post: ' . $extract['post'];
         }
         if (($structured['date'] ?? '') !== '') {
             $lines[] = 'Date: ' . $structured['date'];
         }
         $lines[] = '';
         $lines[] = '── Incident description (as written) ──';
-        $lines[] = (string) ($structured['incident_description'] ?? '—');
+        $lines[] = (string) ($extract['incident_description'] ?? $structured['incident_description'] ?? '—');
         $lines[] = '';
         $lines[] = '── Action taken (as written) ──';
-        $lines[] = (string) ($structured['action_taken'] ?? '—');
+        $lines[] = (string) ($extract['action_taken'] ?? $structured['action_taken'] ?? '—');
     } elseif (($structured['template'] ?? '') === 'daily_attendance') {
         return document_ai_format_dad_extract($structured);
     }
@@ -2150,3 +2719,6 @@ function document_ai_encode_stored(array $payload): string
 {
     return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 }
+
+require_once __DIR__ . '/document_ai_incident_regions.php';
+require_once __DIR__ . '/document_ai_dad_regions.php';

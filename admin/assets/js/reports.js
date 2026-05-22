@@ -770,28 +770,66 @@
         );
     }
 
-    function buildIncidentAsIsHtml(incidentDescription, actionTaken) {
+    function buildIncidentAsIsHtml(incidentDescription, actionTaken, editable) {
         const desc = String(incidentDescription ?? '').trim();
         const action = String(actionTaken ?? '').trim();
         const emptyClass = !desc && !action ? ' is-empty' : '';
+        const isEdit = editable === true;
+        const sectionClass =
+            'reports-detail-sheet__section' + (isEdit ? ' reports-report-body-edit' : '');
+        const ariaLabel = isEdit ? 'Handwritten report (edit)' : 'Handwritten report (as scanned)';
 
-        return (
-            '<section id="modal-as-is-view" class="reports-detail-sheet__section" aria-label="Handwritten report (as scanned)">' +
-            '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>' +
+        let html =
+            '<section id="modal-as-is-view" class="' +
+            sectionClass +
+            '" aria-label="' +
+            escapeHtml(ariaLabel) +
+            '">' +
+            '<h4 class="reports-incident-as-is__heading">Form handwriting (as written)</h4>';
+
+        if (isEdit) {
+            html +=
+                '<p class="reports-incident-scan__hint">Compare the uploaded form scan above, then correct any misread text below. Changes are saved with the report and shown in the operation flow.</p>';
+        }
+
+        html +=
             '<div class="reports-incident-as-is' +
+            (isEdit ? ' reports-incident-as-is--editable' : '') +
             emptyClass +
             '">' +
-            '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">' +
-            '<span class="reports-incident-as-is__label">Incident description</span>' +
-            '<div class="reports-incident-as-is__body">' +
-            handwritingHtml(desc) +
-            '</div></div>' +
-            '<div class="reports-incident-as-is__col reports-incident-as-is__col--action">' +
-            '<span class="reports-incident-as-is__label">Action taken</span>' +
-            '<div class="reports-incident-as-is__body">' +
-            handwritingHtml(action) +
-            '</div></div></div></section>'
-        );
+            '<div class="reports-incident-as-is__col reports-incident-as-is__col--description">';
+
+        if (isEdit) {
+            html +=
+                '<label class="reports-incident-as-is__label" for="edit-incident-description">Incident description</label>' +
+                '<textarea id="edit-incident-description" name="incident_description" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="As written on the form…">' +
+                escapeHtml(desc) +
+                '</textarea>';
+        } else {
+            html +=
+                '<span class="reports-incident-as-is__label">Incident description</span>' +
+                '<div class="reports-incident-as-is__body">' +
+                handwritingHtml(desc) +
+                '</div>';
+        }
+
+        html += '</div><div class="reports-incident-as-is__col reports-incident-as-is__col--action">';
+
+        if (isEdit) {
+            html +=
+                '<label class="reports-incident-as-is__label" for="edit-action-taken">Action taken</label>' +
+                '<textarea id="edit-action-taken" name="action_taken" class="reports-op-flow__input reports-op-flow__textarea reports-report-body-edit__input" rows="5" maxlength="8000" placeholder="As written on the form…">' +
+                escapeHtml(action) +
+                '</textarea>';
+        } else {
+            html +=
+                '<span class="reports-incident-as-is__label">Action taken</span>' +
+                '<div class="reports-incident-as-is__body">' +
+                handwritingHtml(action) +
+                '</div>';
+        }
+
+        return html + '</div></div></section>';
     }
 
     function buildModalDetailsHtml(p) {
@@ -805,6 +843,7 @@
 
         const person = String(p.person_involved || p.guard_involved || '').trim();
         const formName = String(p.form_name || '').trim();
+        const formPost = String(p.form_post || '').trim();
         const formDate = String(p.form_date || '').trim();
         let html =
             '<div class="reports-detail-sheet" role="group" aria-label="Report summary">' +
@@ -816,16 +855,21 @@
             sheetField('Guard', person) +
             '</div></section>';
 
-        if (formName || formDate) {
+        if (formName || formPost || formDate) {
             html +=
                 '<section class="reports-detail-sheet__section" aria-label="Form header">' +
                 '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
-                (formName ? sheetField('Subject (form)', formName) : '') +
+                (formName ? sheetField('Name of guard (form)', formName) : '') +
+                (formPost ? sheetField('Post (form)', formPost) : '') +
                 (formDate ? sheetField('Date (form)', formDate) : '') +
                 '</div></section>';
         }
 
-        html += buildIncidentAsIsHtml(p.incident_description, p.action_taken);
+        html += buildIncidentAsIsHtml(
+            p.incident_description,
+            p.action_taken,
+            reportsLive.currentMode === 'edit'
+        );
         html +=
             '<section class="reports-detail-sheet__section" aria-label="Classification">' +
             '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
@@ -996,7 +1040,7 @@
             html += '<p class="reports-op-flow__submission-line">—</p>';
         }
         html +=
-            '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Report text</strong> section above.</p>';
+            '<p class="reports-form-hint reports-op-flow__submission-hint">To correct OCR text, use the <strong>Form handwriting (as written)</strong> section above.</p>';
         return html + '</div>';
     }
 
@@ -1553,15 +1597,6 @@
         if (historyHint) {
             historyHint.hidden = isView;
         }
-        const asIsView = document.getElementById('modal-as-is-view');
-        if (asIsView) {
-            asIsView.hidden = !isView;
-        }
-        const bodyEditWrap = document.getElementById('modal-report-body-edit-wrap');
-        if (bodyEditWrap) {
-            bodyEditWrap.hidden = isView;
-        }
-
         const id = reportsLive.currentIncidentId;
         const payload = id ? resolveIncidentById(id) : null;
         if (payload) {
@@ -1575,7 +1610,7 @@
 
     function scrollModalToEditPanel() {
         const target =
-            document.getElementById('modal-report-body-edit-wrap') ||
+            document.getElementById('modal-as-is-view') ||
             document.getElementById('modal-history-section');
         const scroller = document.querySelector('#reports-modal .reports-modal__body-scroll');
         if (target && scroller) {
@@ -1729,10 +1764,7 @@
         const postUrl = root.dataset.postUrl || window.location.pathname;
         const csrf = root.dataset.csrf || '';
         const label = refLabel || id || 'this report';
-        if (!window.confirm('Archive ' + label + '? The case will be marked Closed.')) {
-            return;
-        }
-
+        const runArchive = () => {
         const fd = new FormData();
         fd.append('action', 'archive_incident');
         fd.append('incident_id', id);
@@ -1778,22 +1810,34 @@
                 }
             })
             .catch(() => {
-                window.alert('Could not archive report. Refresh the page and try again.');
+                if (window.appNotify?.error) {
+                    window.appNotify.error('Could not archive report. Refresh the page and try again.');
+                } else {
+                    window.alert('Could not archive report. Refresh the page and try again.');
+                }
             });
+        };
+        if (typeof window.adminConfirmAction === 'function') {
+            window.adminConfirmAction({
+                type: 'warning',
+                title: 'Archive ' + label + '?',
+                message:
+                    'The case will be marked Closed and removed from open tabs. A copy is saved for the Super Administrator.',
+                confirmLabel: 'Archive',
+                onConfirm: runArchive,
+            });
+            return;
+        }
+        if (window.confirm('Archive ' + label + '? The case will be marked Closed.')) {
+            runArchive();
+        }
     }
 
     function deleteIncident(id, refLabel) {
         const postUrl = root.dataset.postUrl || window.location.pathname;
         const csrf = root.dataset.csrf || '';
         const label = refLabel || id || 'this report';
-        if (
-            !window.confirm(
-                'Delete ' + label + '? This permanently removes the incident from the registry.'
-            )
-        ) {
-            return;
-        }
-
+        const runDelete = () => {
         const fd = new FormData();
         fd.append('action', 'delete_incident');
         fd.append('incident_id', id);
@@ -1825,8 +1869,31 @@
                 }
             })
             .catch(() => {
-                window.alert('Could not delete report. Refresh the page and try again.');
+                if (window.appNotify?.error) {
+                    window.appNotify.error('Could not delete report. Refresh the page and try again.');
+                } else {
+                    window.alert('Could not delete report. Refresh the page and try again.');
+                }
             });
+        };
+        if (typeof window.adminConfirmAction === 'function') {
+            window.adminConfirmAction({
+                type: 'warning',
+                title: 'Delete ' + label + '?',
+                message:
+                    'This removes the incident from your registry. The Super Administrator can restore it from the recovery vault.',
+                confirmLabel: 'Delete',
+                onConfirm: runDelete,
+            });
+            return;
+        }
+        if (
+            window.confirm(
+                'Delete ' + label + '? This removes the incident from your registry.'
+            )
+        ) {
+            runDelete();
+        }
     }
 
     function pushUrl(id, mode) {

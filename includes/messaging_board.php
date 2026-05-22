@@ -51,6 +51,7 @@ $messagingShowDirect = $messagingShowDirect ?? internal_messaging_can_use_direct
 $groupsAvailable = $groupsAvailable ?? (isset($conn) && $conn instanceof PDO && message_groups_table_exists($conn));
 $messagingShowCreatePanel = $messagingShowCreatePanel ?? false;
 $messagingThreadApi = $messagingThreadApi ?? 'messaging-thread.php';
+$messagingPollApi = $messagingPollApi ?? 'messaging-poll.php';
 $messagingActionUrl = $messagingActionUrl ?? 'messaging-action.php';
 
 $messagingPeerLabel = '';
@@ -94,6 +95,8 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
          aria-labelledby="messaging-board-heading"
          data-unread-total="<?= (int) $messagingUnreadTotal ?>"
          data-thread-api="<?= e($messagingThreadApi) ?>"
+         data-poll-api="<?= e($messagingPollApi) ?>"
+         data-poll-ms="1000"
          data-send-direct="<?= e($messagingPostUrl) ?>"
          data-send-group="<?= e($messagingGroupPostUrl) ?>"
          data-base-url="<?= e($messagingReturnUrl) ?>"
@@ -247,12 +250,12 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                     'group-' . $messagingActiveGroupId,
                     true
                 ); ?>
-                <div class="messaging-thread__messages" id="messagingThreadScroll" tabindex="0" aria-live="polite">
+                <div class="messaging-thread__messages" id="messagingThreadScroll" tabindex="0" aria-live="off">
                     <?php if ($messagingGroupThread === []): ?>
                         <p class="messaging-board__placeholder">No messages yet. Send the first message below.</p>
                     <?php else: ?>
                         <?php foreach ($messagingGroupThread as $message): ?>
-                        <div class="messaging-bubble<?= $message['is_mine'] ? ' messaging-bubble--mine' : ' messaging-bubble--theirs' ?>">
+                        <div class="messaging-bubble<?= $message['is_mine'] ? ' messaging-bubble--mine' : ' messaging-bubble--theirs' ?>" data-message-id="<?= (int) $message['message_id'] ?>">
                             <?php if (!$message['is_mine']): ?>
                                 <span class="messaging-bubble__sender"><?= e($message['sender_label']) ?></span>
                             <?php endif; ?>
@@ -267,12 +270,12 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                 <?php messaging_ui_compose_markup($messagingGroupPostUrl, 'group', (string) $messagingActiveGroupId); ?>
             <?php elseif ($messagingMode === 'direct' && $messagingActivePeer !== null && $messagingActivePeer !== ''): ?>
                 <?php messaging_ui_thread_header_markup($messagingPeerLabel, $messagingActivePeer, $messagingActivePeer); ?>
-                <div class="messaging-thread__messages" id="messagingThreadScroll" tabindex="0" aria-live="polite">
+                <div class="messaging-thread__messages" id="messagingThreadScroll" tabindex="0" aria-live="off">
                     <?php if ($messagingThread === []): ?>
                         <p class="messaging-board__placeholder">No messages yet. Send the first message below.</p>
                     <?php else: ?>
                         <?php foreach ($messagingThread as $message): ?>
-                        <div class="messaging-bubble<?= $message['is_mine'] ? ' messaging-bubble--mine' : ' messaging-bubble--theirs' ?>">
+                        <div class="messaging-bubble<?= $message['is_mine'] ? ' messaging-bubble--mine' : ' messaging-bubble--theirs' ?>" data-message-id="<?= (int) $message['message_id'] ?>">
                             <p class="messaging-bubble__text"><?= nl2br(e($message['body_text'])) ?></p>
                             <time class="messaging-bubble__time" datetime="<?= e($message['created_at']) ?>">
                                 <?= e(date('M j, Y g:i A', strtotime($message['created_at']) ?: time())) ?>

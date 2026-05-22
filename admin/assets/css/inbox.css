@@ -32,10 +32,22 @@ body.guard-portal .guard-inbox-page .inbox-messaging-solo {
     overflow: hidden;
 }
 
-.inbox-messaging-solo .messaging-board__thread {
-    flex: 1 1 auto;
+.inbox-messaging-solo .messaging-board__thread,
+.inbox-messaging-solo #messagingThreadPane {
+    flex: 1 1 0;
     min-height: 0;
+    max-height: 100%;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.inbox-messaging-solo .messaging-thread__messages,
+.inbox-messaging-solo #messagingThreadScroll {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow-anchor: none;
 }
 
 .announcement-layout {

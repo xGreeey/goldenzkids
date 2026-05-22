@@ -7,6 +7,8 @@ body.page-incident-reports {
     /* Dark ink for body copy (not gray-blue primary) — status chips stay colorful */
     --report-text: #1a222c;
     --report-text-muted: #4a5f73;
+    --report-surface: #f1f5f9;
+    --report-border: rgba(15, 23, 42, 0.1);
     --report-ongoing: #2563eb;
     --report-ongoing-bg: rgba(37, 99, 235, 0.14);
     --report-ongoing-border: rgba(37, 99, 235, 0.35);
@@ -42,6 +44,8 @@ body.page-incident-reports {
 body.page-incident-reports:not(.light-mode) {
     --report-text: var(--app-ink-on-dark);
     --report-text-muted: var(--app-ink-muted-on-dark);
+    --report-surface: rgba(255, 255, 255, 0.06);
+    --report-border: rgba(255, 255, 255, 0.12);
 }
 
 body.page-incident-reports:has(.app-shell) .page-title {
@@ -1798,7 +1802,7 @@ body:not(.light-mode) .reports-empty {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted, #5c6470);
+    color: var(--report-text-muted);
 }
 
 .reports-incident-as-is {
@@ -1810,7 +1814,7 @@ body:not(.light-mode) .reports-empty {
 }
 
 .reports-incident-as-is.is-empty .reports-incident-as-is__body {
-    color: var(--text-muted, #8a9199);
+    color: var(--report-text-muted);
     font-style: italic;
 }
 
@@ -1820,9 +1824,13 @@ body:not(.light-mode) .reports-empty {
     gap: 8px;
     min-width: 0;
     padding: 12px 14px;
-    border: 1px solid var(--border-subtle, #e2e6eb);
-    border-radius: 8px;
-    background: var(--surface-raised, #fafbfc);
+    border: 1px solid var(--app-input-border, var(--app-border));
+    border-radius: var(--radius-sm, 8px);
+    background-color: var(--app-input-bg, #fff);
+    transition:
+        background-color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease);
 }
 
 .reports-incident-as-is__label {
@@ -1830,7 +1838,7 @@ body:not(.light-mode) .reports-empty {
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--text-muted, #5c6470);
+    color: var(--report-text-muted);
 }
 
 .reports-incident-as-is__body {
@@ -1838,19 +1846,51 @@ body:not(.light-mode) .reports-empty {
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
-    color: var(--text-primary, #1a1d21);
+    color: var(--report-text);
 }
 
 .reports-report-body-edit {
     margin-bottom: 1.25rem;
 }
 
+.reports-report-body-edit .reports-incident-scan__hint {
+    margin: 0 0 12px;
+}
+
 .reports-incident-as-is--editable .reports-report-body-edit__input {
+    box-sizing: border-box;
     width: 100%;
     min-height: 7rem;
+    margin: 0;
+    padding: 9px 12px;
+    font-family: inherit;
     font-size: 0.9375rem;
     line-height: 1.55;
     resize: vertical;
+    color: var(--app-input-text, var(--report-text));
+    background-color: var(--app-input-bg, #fff);
+    border: 1px solid var(--app-input-border, var(--app-border));
+    border-radius: var(--radius-sm, 8px);
+    color-scheme: light;
+    transition:
+        background-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease);
+}
+
+.reports-incident-as-is--editable .reports-report-body-edit__input::placeholder {
+    color: var(--report-text-muted);
+    opacity: 1;
+}
+
+.reports-incident-as-is--editable .reports-report-body-edit__input:focus {
+    outline: 2px solid var(--app-accent-soft);
+    outline-offset: 1px;
+    border-color: var(--app-accent-text);
+}
+
+body:not(.light-mode) .reports-incident-as-is--editable .reports-report-body-edit__input {
+    color-scheme: dark;
 }
 
 .reports-op-flow__submission-hint {
@@ -5208,71 +5248,102 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 
 /* DTR modal — step 1 split (sheet image left, OCR right) */
 .reports-dad-step1 {
-    margin-bottom: 1.25rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--report-border);
 }
 
 .reports-dad-step1__label {
-    margin: 0 0 0.65rem;
-    font-size: 0.75rem;
+    margin: 0 0 8px;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
+}
+
+.reports-dad-step1__sheet-only {
+    display: block;
+    max-width: 100%;
+}
+
+.reports-dad-step1__sheet-only .reports-dad-media__link {
+    display: block;
+    max-width: 100%;
+}
+
+.reports-dad-step1__sheet-only .reports-dad-media__scan {
+    display: block;
+    width: 100%;
+    max-height: min(70vh, 520px);
+    object-fit: contain;
 }
 
 .reports-dad-step1__split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1rem;
+    gap: 10px;
     align-items: stretch;
-    min-height: 220px;
+    min-height: 0;
 }
 
 .reports-dad-step1__col {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 6px;
     min-width: 0;
-    padding: 0.65rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+    padding: 10px 12px;
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
     border-radius: 8px;
 }
 
 .reports-dad-step1__col-title {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 6px;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
+}
+
+.reports-dad-step1__col-title .admin-ui-icon,
+.reports-dad-step1__col-title i {
+    color: var(--app-accent-text, #9a8200);
+    opacity: 0.95;
+}
+
+.reports-dad-media__hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--report-text-muted);
 }
 
 .reports-dad-step1__col--sheet .reports-dad-media__link {
     flex: 1 1 auto;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    min-height: 180px;
-    padding: 0.35rem;
-    background: var(--app-card-bg, #fff);
+    align-items: center;
+    min-height: 120px;
+    padding: 6px;
+    background: var(--app-card-bg);
     border-radius: 6px;
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.08));
+    border: 1px solid var(--report-border);
 }
 
 .reports-dad-step1__ocr-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    max-height: min(280px, 42vh);
 }
 
 .reports-dad-step1__col--ocr {
-    max-height: min(520px, 70vh);
+    max-height: min(360px, 48vh);
 }
 
 @media (max-width: 900px) {
@@ -5285,12 +5356,12 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 .reports-dad-ocr-form {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 8px;
     margin: 0;
-    padding: 1rem 1.1rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.12));
-    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--app-card-bg);
+    border: 1px solid var(--report-border);
+    border-radius: 6px;
 }
 
 .reports-dad-ocr-form__row {
@@ -5309,10 +5380,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-ocr-form__value {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.35;
-    color: var(--report-text, #0f172a);
+    color: var(--report-text);
     word-break: break-word;
 }
 
@@ -5354,10 +5425,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-step1__footer {
-    margin-top: 1rem;
-    padding: 1rem 1.1rem;
-    background: var(--report-surface, #f8fafc);
-    border: 1px solid var(--report-border, rgba(15, 23, 42, 0.1));
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--report-surface);
+    border: 1px solid var(--report-border);
     border-radius: 8px;
 }
 
@@ -5366,10 +5437,10 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-ocr-export__hint {
-    margin: 0 0 0.75rem;
-    font-size: 0.8125rem;
+    margin: 0 0 8px;
+    font-size: 0.75rem;
     line-height: 1.45;
-    color: var(--report-text-muted, #64748b);
+    color: var(--report-text-muted);
 }
 
 .reports-dad-ocr-export__actions {
@@ -5421,7 +5492,59 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 }
 
 .reports-dad-step1__col--sheet .reports-dad-media__scan {
-    max-height: min(480px, 65vh);
+    max-height: min(240px, 38vh);
+}
+
+/* DTR step 1 — dark mode (nested surfaces must not use light fallbacks) */
+body.page-incident-reports:not(.light-mode) .reports-dad-step1 {
+    border-bottom-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col,
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer {
+    background: var(--report-surface);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col-title,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form__label,
+body.page-incident-reports:not(.light-mode) .reports-dad-media__hint,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-export__hint,
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-status {
+    color: var(--report-text-muted);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form__value {
+    color: var(--report-text);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-form {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__col--sheet .reports-dad-media__link {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: var(--report-border);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--app-border);
+    color: var(--report-text);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary:hover,
+body.page-incident-reports:not(.light-mode) .reports-dad-step1__footer .reports-btn--secondary:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--app-accent, #ffdd00);
+    color: var(--app-ink-on-dark);
+}
+
+body.page-incident-reports:not(.light-mode) .reports-dad-ocr-run.reports-btn--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--app-border);
+    color: var(--report-text);
 }
 
 .reports-dad-media__ocr {
@@ -5787,8 +5910,35 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
     max-width: 36rem;
 }
 
-.reports-war-panel .reports-field--assignment select {
+/* Post / head guard — native select must be restyled for light/dark (system UI ignores theme tokens). */
+.reports-war-panel .reports-toolbar select {
     width: 100%;
+    padding-right: 2.25rem;
+    color: var(--app-input-text, var(--report-text));
+    background-color: var(--app-input-bg, #fff);
+    border-color: var(--app-input-border, var(--app-border));
+    color-scheme: light;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--reports-select-chevron);
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    transition:
+        background-color var(--transition, 0.22s ease),
+        color var(--transition, 0.22s ease),
+        border-color var(--transition, 0.22s ease),
+        box-shadow 0.15s ease;
+}
+
+.reports-war-panel .reports-toolbar select:invalid {
+    color: var(--report-text-muted);
+}
+
+.reports-war-panel .reports-toolbar select option {
+    font-weight: 500;
+    background-color: var(--app-input-bg, #fff);
+    color: var(--app-input-text, var(--report-text));
 }
 
 .reports-war-panel .reports-toolbar-actions {
@@ -6013,12 +6163,14 @@ body.page-incident-reports.page-dtr .reports-toolbar select {
 body.page-activity-registry {
     --report-text: #1a222c;
     --report-text-muted: #4a5f73;
+    --reports-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     overflow-x: clip;
 }
 
 body.page-activity-registry:not(.light-mode) {
     --report-text: var(--app-ink-on-dark);
     --report-text-muted: var(--app-ink-muted-on-dark);
+    --reports-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 body.page-activity-registry .app-shell {
@@ -6146,11 +6298,25 @@ body.page-activity-registry:not(.light-mode) .reports-toolbar label {
     color: var(--report-text-muted);
 }
 
-body.page-activity-registry:not(.light-mode) .reports-toolbar input,
-body.page-activity-registry:not(.light-mode) .reports-toolbar select {
+body.page-activity-registry:not(.light-mode) .reports-toolbar input {
     background: var(--app-input-bg);
     color: var(--app-input-text);
     border-color: var(--app-input-border);
+}
+
+body.page-activity-registry:not(.light-mode) .reports-toolbar select {
+    background-color: var(--app-input-bg);
+    color: var(--app-input-text);
+    border-color: var(--app-input-border);
+}
+
+body.page-activity-registry:not(.light-mode) .reports-war-panel .reports-toolbar select {
+    color-scheme: dark;
+}
+
+body.page-activity-registry:not(.light-mode) .reports-war-panel .reports-toolbar select option {
+    background-color: var(--app-card-bg);
+    color: var(--app-input-text);
 }
 
 body.page-activity-registry:not(.light-mode) .reports-toolbar input::placeholder {

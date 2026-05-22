@@ -876,10 +876,7 @@
             const postUrl = window.location.pathname;
             const csrf = root.dataset.csrf || '';
             const label = refLabel || id || 'this report';
-            if (!window.confirm('Archive ' + label + '? It will move to the Archived tab.')) {
-                return;
-            }
-
+            const runArchive = () => {
             const fd = new FormData();
             fd.append('action', 'archive_activity');
             fd.append('activity_id', id);
@@ -922,22 +919,34 @@
                     }
                 })
                 .catch(() => {
-                    window.alert('Could not archive report. Refresh the page and try again.');
+                    if (window.appNotify?.error) {
+                        window.appNotify.error('Could not archive report. Refresh the page and try again.');
+                    } else {
+                        window.alert('Could not archive report. Refresh the page and try again.');
+                    }
                 });
+            };
+            if (typeof window.adminConfirmAction === 'function') {
+                window.adminConfirmAction({
+                    type: 'warning',
+                    title: 'Archive ' + label + '?',
+                    message:
+                        'It will move to the Archived tab. A copy is saved for the Super Administrator.',
+                    confirmLabel: 'Archive',
+                    onConfirm: runArchive,
+                });
+                return;
+            }
+            if (window.confirm('Archive ' + label + '? It will move to the Archived tab.')) {
+                runArchive();
+            }
         }
 
         function deleteWeeklyRecord(id, refLabel) {
             const deleteUrl = root.dataset.deleteUrl || window.location.pathname;
             const csrf = root.dataset.csrf || '';
             const label = refLabel || id || 'this summary';
-            if (
-                !window.confirm(
-                    'Delete ' + label + '? This removes the weekly summary from the registry and cannot be undone.'
-                )
-            ) {
-                return;
-            }
-
+            const runDelete = () => {
             const fd = new FormData();
             fd.append('action', 'delete_weekly');
             fd.append('weekly_id', id);
@@ -974,8 +983,31 @@
                     }
                 })
                 .catch(() => {
-                    window.alert('Could not delete summary. Check your connection and try again.');
+                    if (window.appNotify?.error) {
+                        window.appNotify.error('Could not delete summary. Check your connection and try again.');
+                    } else {
+                        window.alert('Could not delete summary. Check your connection and try again.');
+                    }
                 });
+            };
+            if (typeof window.adminConfirmAction === 'function') {
+                window.adminConfirmAction({
+                    type: 'warning',
+                    title: 'Delete ' + label + '?',
+                    message:
+                        'This removes the weekly summary from your registry. The Super Administrator can restore it from the recovery vault.',
+                    confirmLabel: 'Delete',
+                    onConfirm: runDelete,
+                });
+                return;
+            }
+            if (
+                window.confirm(
+                    'Delete ' + label + '? This removes the weekly summary from your registry.'
+                )
+            ) {
+                runDelete();
+            }
         }
 
         root.addEventListener(

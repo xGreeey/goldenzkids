@@ -724,7 +724,7 @@ function guard_hub_scripts(): void
         }
 
         function usesOcrPreview() {
-            return isDadMode() || isIncidentMode();
+            return isIncidentMode();
         }
 
         function escapeOcrHtml(value) {
@@ -744,15 +744,22 @@ function guard_hub_scripts(): void
                 }
                 if (ocrAsIs) {
                     ocrAsIs.hidden = false;
-                    var desc = escapeOcrHtml(structured.incident_description || '').replace(/\n/g, '<br>');
-                    var action = escapeOcrHtml(structured.action_taken || '').replace(/\n/g, '<br>');
                     var meta = '';
-                    if (structured.name) {
-                        meta += '<p class="form-hint" style="margin:0 0 8px;">Subject: ' + escapeOcrHtml(structured.name) + '</p>';
+                    var extract = structured.extraction && typeof structured.extraction === 'object'
+                        ? structured.extraction
+                        : {};
+                    var guardName = extract.name_of_guard || structured.name || '';
+                    if (guardName) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Name of guard: ' + escapeOcrHtml(guardName) + '</p>';
+                    }
+                    if (data.assigned_post) {
+                        meta += '<p class="form-hint" style="margin:0 0 8px;">Duty post: ' + escapeOcrHtml(data.assigned_post) + '</p>';
                     }
                     if (structured.date) {
                         meta += '<p class="form-hint" style="margin:0 0 8px;">Date: ' + escapeOcrHtml(structured.date) + '</p>';
                     }
+                    var desc = escapeOcrHtml(extract.incident_description || structured.incident_description || '').replace(/\n/g, '<br>');
+                    var action = escapeOcrHtml(extract.action_taken || structured.action_taken || '').replace(/\n/g, '<br>');
                     ocrAsIs.innerHTML =
                         meta +
                         '<div class="guard-ocr-preview__col"><span class="guard-ocr-preview__col-label">Incident description</span>' +
@@ -783,21 +790,24 @@ function guard_hub_scripts(): void
             if (step2Title) step2Title.textContent = dad ? 'Step 2 — Site photos & location' : 'Step 2 — Insert evidences';
             if (step2Hint) {
                 step2Hint.textContent = dad
-                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DTR).'
+                    ? 'Take each on-site photo with your camera. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DTR).'
                     : incident
-                      ? 'Allow location when prompted. GPS is stamped when you open this step and again per photo when possible.'
-                      : 'Photos are tagged with device date/time and GPS when available.';
+                      ? 'Take each evidence photo with your camera. Allow location when prompted; GPS is stamped when you open this step and again per photo when possible.'
+                      : 'Take each photo with your camera. Images are tagged with device date/time and GPS when available.';
             }
             if (step1Next) {
                 step1Next.innerHTML = (dad ? 'Continue to site photos' : 'Continue to evidences')
                     + ' <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
             }
+            if (ocrPreview) {
+                ocrPreview.hidden = !isIncidentMode();
+            }
             if (submitSubtitle) {
                 submitSubtitle.textContent = dad
-                    ? 'Daily attendance: GPS is stamped when you upload the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
+                    ? 'Daily Time Record: take a photo of the filled sheet (step 1) and on-site photos with your camera (step 2). GPS is stamped at each step.'
                     : incident
-                      ? 'Incident report: upload the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
-                      : 'Upload your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
+                      ? 'Incident report: photograph the filled form with your camera. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
+                      : 'Photograph your filled report with the camera, add on-site evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
             }
             if (!usesOcrPreview() && ocrPreview) {
                 ocrPreview.hidden = true;
@@ -820,9 +830,9 @@ function guard_hub_scripts(): void
             }
             if (hint && !isDailyActivityMode()) {
                 if (!show) {
-                    hint.textContent = 'Select a report type, then upload your filled form.';
+                    hint.textContent = 'Select a report type, then take a photo of your filled form.';
                 } else if (!hasCapture) {
-                    hint.textContent = 'Tap Upload report to add your filled form.';
+                    hint.textContent = 'Tap Take photo of report to open your camera.';
                 }
             }
         }
@@ -1575,7 +1585,17 @@ function guard_hub_scripts(): void
             }
         }
 
+        function enforceCameraOnlyFileInput(input) {
+            if (!input) {
+                return;
+            }
+            input.setAttribute('accept', 'image/*');
+            input.setAttribute('capture', 'environment');
+            input.removeAttribute('multiple');
+        }
+
         var uploadReport = qs('[data-guard-report-upload]', form);
+        enforceCameraOnlyFileInput(uploadReport);
         if (uploadReport) {
             uploadReport.addEventListener('change', function () {
                 var f = uploadReport.files && uploadReport.files[0];
@@ -1589,13 +1609,17 @@ function guard_hub_scripts(): void
                 }
                 if (hint) {
                     hint.textContent = isDadMode()
-                        ? 'Sheet uploaded. Reading handwriting…'
-                        : 'Report uploaded. Continue to evidences.';
+                        ? 'Sheet captured. Stamping sheet location…'
+                        : 'Report captured. Continue to evidences.';
                 }
                 syncScannerActionsUi();
-                runOcrPreview();
+                if (isIncidentMode()) {
+                    runOcrPreview();
+                }
                 syncDadSheetPreview();
-                if (isDadMode()) stampLocation('sheet');
+                if (isDadMode()) {
+                    stampLocation('sheet');
+                }
             });
         }
 
@@ -1619,6 +1643,7 @@ function guard_hub_scripts(): void
         }
 
         var evidenceInput = qs('[data-guard-evidence-input]', form);
+        enforceCameraOnlyFileInput(evidenceInput);
         var evidenceGrid = qs('[data-guard-evidence-grid]', form);
 
         function renderEvidence() {
@@ -1803,7 +1828,7 @@ function guard_hub_scripts(): void
                         return;
                     }
                     if (!reportFile) {
-                        window.guardShowToast('Upload your filled report first.', 'error');
+                        window.guardShowToast('Take a photo of your filled report first.', 'error');
                         return;
                     }
                     if (isDadMode() && ocrBusy) {
@@ -1849,7 +1874,7 @@ function guard_hub_scripts(): void
             }
             if (isDadMode()) {
                 if (!sheetLocationFix) {
-                    window.guardShowToast('Sheet location (step 1) is required. Capture or upload the attendance sheet again.', 'error');
+                    window.guardShowToast('Sheet location (step 1) is required. Take a photo of the attendance sheet again.', 'error');
                     goStep(1);
                     return;
                 }

@@ -189,11 +189,38 @@ function guard_dad_locations_section_html(array $record): string
 }
 
 /**
+ * Default registry fields when DTR is submitted without OCR (photo + GPS only).
+ *
+ * @return array{issue:string,time_record:string,recorded:string,guard_name:string,guard_id:string,summary:string,shift_date:string,shift_display:string,post_name:string}
+ */
+function guard_dad_default_submission_fields(string $postName): array
+{
+    $shiftDate = date('Y-m-d');
+    $shiftDisplay = date('j M Y') . ' — Day shift';
+
+    return [
+        'issue' => 'roster_review',
+        'time_record' => 'See uploaded attendance sheet',
+        'recorded' => 'missing',
+        'guard_name' => '',
+        'guard_id' => '',
+        'summary' => 'Daily attendance sheet submitted from the field.',
+        'shift_date' => $shiftDate,
+        'shift_display' => $shiftDisplay,
+        'post_name' => $postName,
+    ];
+}
+
+/**
  * @param array<string, mixed> $structured
- * @return array{issue:string,time_record:string,recorded:string,guard_name:string,guard_id:string,summary:string,shift_date:string,shift_display:string}
+ * @return array{issue:string,time_record:string,recorded:string,guard_name:string,guard_id:string,summary:string,shift_date:string,shift_display:string,post_name:string}
  */
 function guard_dad_fields_from_ocr(array $structured, string $postName): array
 {
+    if ($structured === []) {
+        return guard_dad_default_submission_fields($postName);
+    }
+
     $issue = 'roster_mismatch';
     $timeRecord = '';
     $recorded = 'missing';
@@ -206,10 +233,27 @@ function guard_dad_fields_from_ocr(array $structured, string $postName): array
     if (is_array($rows) && $rows !== []) {
         $first = $rows[0];
         if (is_array($first)) {
-            $guardName = trim((string) ($first['name'] ?? ''));
-            $tin = trim((string) ($first['time_in'] ?? ''));
-            $tout = trim((string) ($first['time_out'] ?? ''));
-            if ($tin === '' && $tout !== '') {
+            $normalized = document_ai_dad_normalize_attendance_row($first);
+            $guardName = $normalized['name'];
+            $punches = [];
+            foreach (
+                [
+                    'AM in' => $normalized['am_time_in'],
+                    'AM out' => $normalized['am_time_out'],
+                    'PM in' => $normalized['pm_time_in'],
+                    'PM out' => $normalized['pm_time_out'],
+                ] as $label => $value
+            ) {
+                if ($value !== '') {
+                    $punches[] = $label . ' ' . $value;
+                }
+            }
+            $tin = $normalized['time_in'];
+            $tout = $normalized['time_out'];
+            if ($punches !== []) {
+                $timeRecord = implode('; ', $punches);
+                $recorded = 'present';
+            } elseif ($tin === '' && $tout !== '') {
                 $issue = 'missing_time_in';
                 $timeRecord = 'No time-in; time-out ' . $tout;
             } elseif ($tout === '' && $tin !== '') {
@@ -336,8 +380,7 @@ function guard_dad_create_submission(
         return ['ok' => false, 'error' => 'DTR registry is not available. Run database migrations.'];
     }
 
-    $structured = is_array($payload['structured'] ?? null) ? $payload['structured'] : [];
-    $fields = guard_dad_fields_from_ocr($structured, $postName);
+    $fields = guard_dad_default_submission_fields($postName);
 
     $sheet = guard_dad_parse_location_payload($payload, 'sheet');
     $evidence = guard_dad_parse_location_payload($payload, 'evidence');
@@ -1169,49 +1212,18 @@ function guard_dad_ocr_structured_html(array $structured, string $formatted, str
 function guard_dad_submission_media_html(array $record): string
 {
     $scanUrl = (string) ($record['scan_url'] ?? '');
-    $dadId = (int) ($record['dad_id'] ?? 0);
-    if ($scanUrl === '' && $dadId <= 0) {
+    if ($scanUrl === '') {
         return '';
     }
 
-    $formatted = trim((string) ($record['ocr_formatted'] ?? ''));
-    $raw = trim((string) ($record['ocr_raw'] ?? ''));
-    $structured = is_array($record['ocr_structured'] ?? null) ? $record['ocr_structured'] : [];
-    $hasOcr = guard_dad_has_ocr_export($record);
-    $ocrBody = guard_dad_ocr_structured_html($structured, $formatted, $raw, $record);
-
-    $html = '<div class="reports-dad-step1" data-dad-step1' . ($dadId > 0 ? ' data-dad-id="' . $dadId . '"' : '') . '>';
+    $html = '<div class="reports-dad-step1" data-dad-step1>';
     $html .= '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
-    $html .= '<div class="reports-dad-step1__split">';
-    $html .= '<div class="reports-dad-step1__col reports-dad-step1__col--sheet">';
-    $html .= '<h4 class="reports-dad-step1__col-title">' . admin_ui_icon('image', 14) . ' Sheet image</h4>';
-    if ($scanUrl !== '') {
-        $html .= '<a href="' . e($scanUrl) . '" target="_blank" rel="noopener noreferrer" class="reports-dad-media__link">';
-        $html .= '<img class="reports-dad-media__scan" src="' . e($scanUrl) . '" alt="Uploaded attendance sheet">';
-        $html .= '</a>';
-    } else {
-        $html .= '<p class="reports-dad-media__hint">No scan image on file.</p>';
-    }
-    $html .= '</div>';
-    $html .= '<div class="reports-dad-step1__col reports-dad-step1__col--ocr">';
-    $html .= '<h4 class="reports-dad-step1__col-title">' . admin_ui_icon('wand-magic-sparkles', 14) . ' Extracted text</h4>';
-    $html .= '<div class="reports-dad-step1__ocr-body" data-dad-ocr-panel>';
-    if ($hasOcr) {
-        $html .= $ocrBody;
-    } else {
-        $html .= '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
-        $html .= '<p class="reports-dad-media__hint">Document AI reads NAME, TIME IN, and TIME OUT from the sheet.</p>';
-        if ($dadId > 0 && $scanUrl !== '') {
-            $html .= '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
-        }
-        $html .= '<p class="reports-dad-ocr-status" data-dad-ocr-status hidden></p>';
-        $html .= '</div>';
-    }
-    $html .= '</div></div></div>';
-    if ($hasOcr) {
-        $html .= guard_dad_step1_export_footer_html($record);
-    }
-    $html .= '</div>';
+    $html .= '<div class="reports-dad-step1__sheet-only">';
+    $html .= '<a href="' . e($scanUrl) . '" target="_blank" rel="noopener noreferrer" class="reports-dad-media__link">';
+    $html .= '<img class="reports-dad-media__scan" src="' . e($scanUrl) . '" alt="Uploaded attendance sheet">';
+    $html .= '</a>';
+    $html .= '<p class="reports-dad-media__hint">Review the uploaded sheet photo. Times and names are not extracted automatically.</p>';
+    $html .= '</div></div>';
 
     return $html;
 }

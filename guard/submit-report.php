@@ -24,7 +24,7 @@ $guardNavActive = 'submit';
 guard_layout_head('Submit report');
 ?>
         <div class="guard-section-stack guard-submit-page">
-        <p class="visually-hidden" data-guard-submit-subtitle>Upload your filled report, add evidence photos, then submit. Document AI reads handwritten text on the attendance sheet; evidence is location-stamped.</p>
+        <p class="visually-hidden" data-guard-submit-subtitle>Capture your filled report with the camera, add on-site evidence photos, then submit. Document AI reads handwritten text; photos are location-stamped.</p>
 
         <section class="guard-card guard-submit-card<?= $showHistory ? ' is-history-open' : '' ?>" data-guard-submit-card>
             <div class="guard-card__head">
@@ -118,13 +118,13 @@ guard_layout_head('Submit report');
                     </div>
                     <div data-guard-scan-flow>
                     <div class="guard-scanner" data-guard-scanner>
-                        <img class="guard-scanner__preview" data-guard-scanner-preview alt="Uploaded report">
-                        <p class="guard-scanner__hint" data-guard-scanner-hint>Select a report type, then upload your filled form.</p>
+                        <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
+                        <p class="guard-scanner__hint" data-guard-scanner-hint>Select a report type, then take a photo of your filled form.</p>
                     </div>
                     <div class="guard-scanner__actions guard-scanner__actions--upload-only" data-guard-scanner-actions hidden>
                         <label class="btn-primary guard-scanner__upload-btn">
-                            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload report
-                            <input type="file" class="visually-hidden" data-guard-report-upload accept="image/*">
+                            <i class="fa-solid fa-camera" aria-hidden="true"></i> Take photo of report
+                            <input type="file" class="visually-hidden" data-guard-report-upload accept="image/*" capture="environment">
                         </label>
                         <button type="button" class="btn-ghost" data-guard-scan-retake hidden>
                             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Retake
@@ -162,10 +162,10 @@ guard_layout_head('Submit report');
                     <input type="hidden" name="evidence_longitude" data-guard-evidence-lng-input value="">
                     <input type="hidden" name="evidence_accuracy_m" data-guard-evidence-acc-input value="">
                     <input type="hidden" name="evidence_location_label" data-guard-evidence-location-label-input value="">
-                    <p class="form-hint" data-guard-step2-hint style="margin-bottom:8px;">Photos are tagged with device date/time and GPS when available.</p>
+                    <p class="form-hint" data-guard-step2-hint style="margin-bottom:8px;">Use your camera for each photo. Images are tagged with device date/time and GPS when available.</p>
                     <label class="btn-ghost" style="display:inline-flex;cursor:pointer;">
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i> Add photos
-                        <input type="file" class="visually-hidden" data-guard-evidence-input accept="image/*" multiple capture="environment">
+                        <i class="fa-solid fa-camera" aria-hidden="true"></i> Take photo
+                        <input type="file" class="visually-hidden" data-guard-evidence-input accept="image/*" capture="environment">
                     </label>
                     <div class="guard-evidence-grid" data-guard-evidence-grid></div>
                     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">

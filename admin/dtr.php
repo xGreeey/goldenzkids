@@ -68,38 +68,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         redirect_with_alert(ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' deleted.', admin_attendance_page_path());
-    }
-    if ($action === 'archive_attendance') {
-        $id = trim((string) ($_POST['record_id'] ?? ''));
-        $archived = admin_attendance_archive($id, $actorId);
-        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
-
-        if ($archived === null) {
-            if ($wantsJson) {
-                header('Content-Type: application/json; charset=utf-8');
-                http_response_code(404);
-                echo json_encode(['ok' => false, 'error' => ADMIN_ATTENDANCE_REF_CODE . ' record not found.']);
-                exit;
-            }
-            redirect_with_alert(ADMIN_ATTENDANCE_REF_CODE . ' record not found.', admin_attendance_page_path());
-        }
-
-        $ref = (string) ($archived['ref'] ?? $id);
-        $statusLabel = admin_attendance_status_label((string) ($archived['status'] ?? ADMIN_INCIDENT_STATUS_ACCOMPLISHED));
-        if ($wantsJson) {
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode([
-                'ok' => true,
-                'message' => ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' archived (' . $statusLabel . ').',
-                'record' => $archived,
-            ]);
-            exit;
-        }
-
-        redirect_with_alert(
-            ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' archived (' . $statusLabel . ').',
-            admin_attendance_page_path() . '?record=' . rawurlencode($id) . '&mode=view'
-        );
+    }
+    if ($action === 'archive_attendance') {
+        $id = trim((string) ($_POST['record_id'] ?? ''));
+        $archived = admin_attendance_archive($id, $actorId);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+        if ($archived === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => ADMIN_ATTENDANCE_REF_CODE . ' record not found.']);
+                exit;
+            }
+            redirect_with_alert(ADMIN_ATTENDANCE_REF_CODE . ' record not found.', admin_attendance_page_path());
+        }
+
+        $ref = (string) ($archived['ref'] ?? $id);
+        $statusLabel = admin_attendance_status_label((string) ($archived['status'] ?? ADMIN_INCIDENT_STATUS_ACCOMPLISHED));
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'message' => ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' archived (' . $statusLabel . ').',
+                'record' => $archived,
+            ]);
+            exit;
+        }
+
+        redirect_with_alert(
+            ADMIN_ATTENDANCE_REF_CODE . ' ' . $ref . ' archived (' . $statusLabel . ').',
+            admin_attendance_page_path() . '?record=' . rawurlencode($id) . '&mode=view'
+        );
     }
 }
 
@@ -193,9 +193,7 @@ function admin_daily_detail_row_attrs(array $record): string
              class="reports-module"
              data-registry-kind="dtr"
              data-csrf="<?= e_attr(csrf_token()) ?>"
-             data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>"
-             data-ocr-url="<?= e_attr(app_url('admin/api/dad-ocr.php')) ?>"
-             data-ocr-export-url="<?= e_attr(app_url('admin/api/dad-ocr-export.php')) ?>">
+             data-delete-url="<?= e_attr(admin_attendance_page_path()) ?>">
                 <section class="kpi-grid" aria-label="<?= e(ADMIN_ATTENDANCE_REF_CODE) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All <?= e(ADMIN_ATTENDANCE_REF_CODE) ?> records in the registry">
                     <div class="kpi-stat">
@@ -396,20 +394,20 @@ function admin_daily_detail_row_attrs(array $record): string
                                                     aria-label="Edit <?= e((string) $record['ref']) ?>">
                                                 <?= admin_incident_action_icon('edit') ?>
                                             </button>
-                                            <?php
-                                            $dtrStatusSlug = admin_attendance_status_normalize((string) $record['status']);
-                                            $dtrStatusClosed = (admin_attendance_status_definitions()[$dtrStatusSlug]['closed'] ?? false) === true;
-                                            if (!$dtrStatusClosed):
-                                            ?>
-                                            <button type="button"
-                                                    class="reports-action-btn reports-action-btn--archive"
-                                                    data-action="archive"
-                                                    data-record-id="<?= e((string) $record['id']) ?>"
-                                                    data-record-ref="<?= e((string) $record['ref']) ?>"
-                                                    title="Archive (close case)"
-                                                    aria-label="Archive <?= e((string) $record['ref']) ?>">
-                                                <?= admin_incident_action_icon('archive') ?>
-                                            </button>
+                                            <?php
+                                            $dtrStatusSlug = admin_attendance_status_normalize((string) $record['status']);
+                                            $dtrStatusClosed = (admin_attendance_status_definitions()[$dtrStatusSlug]['closed'] ?? false) === true;
+                                            if (!$dtrStatusClosed):
+                                            ?>
+                                            <button type="button"
+                                                    class="reports-action-btn reports-action-btn--archive"
+                                                    data-action="archive"
+                                                    data-record-id="<?= e((string) $record['id']) ?>"
+                                                    data-record-ref="<?= e((string) $record['ref']) ?>"
+                                                    title="Archive (close case)"
+                                                    aria-label="Archive <?= e((string) $record['ref']) ?>">
+                                                <?= admin_incident_action_icon('archive') ?>
+                                            </button>
                                             <?php endif; ?>
                                             <button type="button"
                                                     class="reports-action-btn reports-action-btn--danger"

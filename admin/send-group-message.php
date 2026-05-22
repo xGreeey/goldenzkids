@@ -30,7 +30,8 @@ if ($body === '' || $groupId < 1) {
     redirect_with_alert('Please enter a message before sending.', $redirect);
 }
 
-if (!group_messaging_send($conn, $groupId, $senderId, $body)) {
+$messageId = group_messaging_send($conn, $groupId, $senderId, $body);
+if ($messageId < 1) {
     if (messaging_ajax_wants_json()) {
         messaging_ajax_json(['ok' => false, 'error' => 'Message could not be sent.']);
     }
@@ -40,13 +41,7 @@ if (!group_messaging_send($conn, $groupId, $senderId, $body)) {
 if (messaging_ajax_wants_json()) {
     messaging_ajax_json([
         'ok' => true,
-        'message' => [
-            'body_text' => $body,
-            'is_mine' => true,
-            'sender_label' => '',
-            'created_at' => date('Y-m-d H:i:s'),
-            'time_label' => messaging_ajax_format_time(date('Y-m-d H:i:s')),
-        ],
+        'message' => messaging_ajax_build_sent_message($body, $messageId),
     ]);
 }
 

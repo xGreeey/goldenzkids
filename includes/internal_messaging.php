@@ -151,6 +151,54 @@ function internal_messaging_fetch_thread(PDO $conn, string $viewerId, string $pe
     return $messages;
 }
 
+/**
+ * @return list<array{message_id:int,sender_company_id:string,recipient_company_id:string,body_text:string,is_mine:bool,created_at:string}>
+ */
+function internal_messaging_fetch_thread_since(
+    PDO $conn,
+    string $viewerId,
+    string $peerId,
+    int $afterMessageId,
+    int $limit = 100
+): array {
+    if (!internal_messages_table_exists($conn) || $viewerId === '' || $peerId === '' || $afterMessageId < 1) {
+        return [];
+    }
+
+    $limit = max(1, min(200, $limit));
+    $sql = "SELECT message_id, sender_company_id, recipient_company_id, body_text, created_at
+            FROM internal_messages
+            WHERE message_id > ?
+              AND ((sender_company_id = ? AND recipient_company_id = ?)
+                OR (sender_company_id = ? AND recipient_company_id = ?))
+            ORDER BY created_at ASC
+            LIMIT {$limit}";
+
+    $stmt = db_query($conn, $sql, 'issss', [$afterMessageId, $viewerId, $peerId, $peerId, $viewerId]);
+    if ($stmt === false) {
+        return [];
+    }
+
+    $messages = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $senderId = (string) $row['sender_company_id'];
+        $messages[] = [
+            'message_id' => (int) $row['message_id'],
+            'sender_company_id' => $senderId,
+            'recipient_company_id' => (string) $row['recipient_company_id'],
+            'body_text' => (string) $row['body_text'],
+            'is_mine' => $senderId === $viewerId,
+            'created_at' => (string) $row['created_at'],
+        ];
+    }
+
+    if ($messages !== []) {
+        internal_messaging_mark_thread_read($conn, $viewerId, $peerId);
+    }
+
+    return $messages;
+}
+
 function internal_messaging_mark_thread_read(PDO $conn, string $viewerId, string $peerId): void
 {
     if (!internal_messages_table_exists($conn) || $viewerId === '' || $peerId === '') {
@@ -220,25 +268,26 @@ function internal_messaging_validate_peer_for_viewer(PDO $conn, string $peerId, 
     return in_array($peerRole, internal_messaging_allowed_peer_roles($viewerRole), true);
 }
 
-function internal_messaging_send(PDO $conn, string $senderId, int $senderRole, string $recipientId, string $body): bool
+/** @return int New message_id, or 0 on failure. */
+function internal_messaging_send(PDO $conn, string $senderId, int $senderRole, string $recipientId, string $body): int
 {
     if (!internal_messages_table_exists($conn)) {
-        return false;
+        return 0;
     }
 
     $body = xss_sanitize_plaintext(trim($body), 8000);
     if ($senderId === '' || $recipientId === '' || $body === '') {
-        return false;
+        return 0;
     }
 
     $senderRole = auth_normalize_role($senderRole);
     $recipientRole = internal_messaging_user_role($conn, $recipientId);
     if ($recipientRole === null) {
-        return false;
+        return 0;
     }
 
     if (!internal_messaging_roles_may_chat($senderRole, $recipientRole)) {
-        return false;
+        return 0;
     }
 
     $ok = db_execute(
@@ -249,7 +298,12 @@ function internal_messaging_send(PDO $conn, string $senderId, int $senderRole, s
         [$senderId, $recipientId, $body]
     );
 
-    if ($ok) {
+    if (!$ok) {
+        return 0;
+    }
+
+    $messageId = db_last_insert_id($conn);
+    if ($messageId > 0) {
         require_once __DIR__ . '/portal_audit.php';
         $preview = strlen($body) > 80 ? substr($body, 0, 77) . '…' : $body;
         portal_audit_log(
@@ -262,7 +316,7 @@ function internal_messaging_send(PDO $conn, string $senderId, int $senderRole, s
         );
     }
 
-    return $ok;
+    return $messageId > 0 ? $messageId : 0;
 }
 
 function internal_messaging_can_use_direct(int $viewerRole): bool

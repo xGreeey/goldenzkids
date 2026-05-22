@@ -4,6 +4,7 @@ declare(strict_types=1);
 if (!function_exists('message_groups_table_exists')) {
     require_once __DIR__ . '/group_messaging.php';
 }
+require_once __DIR__ . '/messaging_labels.php';
 require_once __DIR__ . '/messaging_unread.php';
 require_once __DIR__ . '/messaging_board_ui.php';
 
@@ -61,7 +62,9 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
         }
     }
     if ($messagingPeerLabel === '') {
-        $messagingPeerLabel = $messagingActivePeer;
+        $messagingPeerLabel = isset($conn) && $conn instanceof PDO
+            ? messaging_resolve_user_label($conn, $messagingActivePeer)
+            : $messagingActivePeer;
     }
 }
 

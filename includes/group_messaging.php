@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/messaging_labels.php';
+
 function message_groups_table_exists(PDO $conn): bool
 {
     static $cached = null;
@@ -40,15 +42,13 @@ function group_messaging_list_head_guard_options(PDO $conn): array
     $hgJoin = callout_head_guards_table_exists($conn)
         ? 'LEFT JOIN callout_head_guards hg ON hg.company_id = u.Company_ID AND hg.is_active = 1'
         : '';
-    $hgLabel = callout_head_guards_table_exists($conn)
+    $hgPrefix = callout_head_guards_table_exists($conn)
         ? "NULLIF(TRIM(hg.display_name), ''),"
         : '';
+    $labelSql = messaging_sql_label_with_prefix($conn, $hgPrefix, 'u', 'g');
 
     $sql = "SELECT u.Company_ID AS company_id,
-                   COALESCE({$hgLabel}
-                            NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
-                            NULLIF(TRIM(u.Email), ''),
-                            u.Company_ID) AS label,
+                   {$labelSql} AS label,
                    hg.head_guard_id
             FROM users u
             LEFT JOIN guards g ON g.Company_ID = u.Company_ID
@@ -266,14 +266,12 @@ function group_messaging_get_group_meta(PDO $conn, int $groupId, string $viewerI
     $hgJoin = callout_head_guards_table_exists($conn)
         ? 'LEFT JOIN callout_head_guards hg ON hg.company_id = m.company_id AND hg.is_active = 1'
         : '';
-    $hgLabel = callout_head_guards_table_exists($conn)
+    $hgPrefix = callout_head_guards_table_exists($conn)
         ? "NULLIF(TRIM(hg.display_name), ''),"
         : '';
+    $memberLabelSql = messaging_sql_label_with_prefix($conn, $hgPrefix, 'u', 'g');
     $memberSql = "SELECT m.company_id,
-                         COALESCE({$hgLabel}
-                                  NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
-                                  u.Email,
-                                  m.company_id) AS label
+                         {$memberLabelSql} AS label
                   FROM message_group_members m
                   INNER JOIN users u ON u.Company_ID = m.company_id
                   LEFT JOIN guards g ON g.Company_ID = m.company_id
@@ -463,14 +461,12 @@ function group_messaging_fetch_messages(PDO $conn, int $groupId, string $viewerI
     $hgJoin = callout_head_guards_table_exists($conn)
         ? 'LEFT JOIN callout_head_guards hg ON hg.company_id = msg.sender_company_id AND hg.is_active = 1'
         : '';
-    $hgLabel = callout_head_guards_table_exists($conn)
+    $hgPrefix = callout_head_guards_table_exists($conn)
         ? "NULLIF(TRIM(hg.display_name), ''),"
         : '';
+    $senderLabelSql = messaging_sql_label_with_prefix($conn, $hgPrefix, 'u', 'g');
     $sql = "SELECT msg.message_id, msg.sender_company_id, msg.body_text, msg.created_at,
-                   COALESCE({$hgLabel}
-                            NULLIF(TRIM(CONCAT(g.Last_Name, ', ', g.First_Name)), ','),
-                            u.Email,
-                            msg.sender_company_id) AS sender_label
+                   {$senderLabelSql} AS sender_label
             FROM message_group_messages msg
             INNER JOIN users u ON u.Company_ID = msg.sender_company_id
             LEFT JOIN guards g ON g.Company_ID = msg.sender_company_id

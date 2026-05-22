@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-/** 0 = security guard (field portal) */
+/** 0 = head guard (field portal) */
 const AUTH_ROLE_GUARD = 0;
+/** Alias for {@see AUTH_ROLE_GUARD} — head guard portal accounts. */
+const AUTH_ROLE_HEADGUARD = AUTH_ROLE_GUARD;
 /** 1 = admin (operations dashboard) */
 const AUTH_ROLE_ADMIN = 1;
 /** 2 = superadmin (full admin access) */
@@ -107,6 +109,10 @@ function auth_resolve_role_at_login(PDO $conn, array $user): int
         return AUTH_ROLE_SUPERADMIN;
     }
 
+    if ($stored === AUTH_ROLE_ADMIN) {
+        return AUTH_ROLE_ADMIN;
+    }
+
     if ($stored === AUTH_ROLE_GUARD || auth_guard_roster_has($conn, $companyId)) {
         return AUTH_ROLE_GUARD;
     }
@@ -128,7 +134,7 @@ function auth_role_name(int $role): string
 {
     return match (auth_normalize_role($role)) {
         AUTH_ROLE_SUPERADMIN => 'Super Administrator',
-        AUTH_ROLE_GUARD => 'Security Guard',
+        AUTH_ROLE_GUARD => 'Head Guard',
         default => 'Administrator',
     };
 }
@@ -214,7 +220,8 @@ function auth_permissions_for_role(int $role): array
         'admin.dashboard.view',
         'admin.inbox.manage',
         'admin.reports.view',
-        'admin.duty.view',
+        'admin.duty.view', // Daily Attendance Detail (DAD) registry
+        'admin.dad.view',
         'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
@@ -347,13 +354,14 @@ function auth_session_release_lock(): void
     }
 }
 
-function auth_login_session(array $user, array $permissions): void
+/**
+ * @param array{company_id:string,role:int,role_name?:string,password_changed_at?:?string} $user
+ * @param list<string> $permissions
+ */
+function auth_update_session_access(array $user, array $permissions): void
 {
-    regenerate_session();
-
     $role = auth_normalize_role($user['role']);
 
-    $_SESSION['company_id'] = $user['company_id'];
     $_SESSION['role'] = $role;
     $_SESSION['role_name'] = $user['role_name'] ?? auth_role_name($role);
     $_SESSION['permissions'] = $permissions;
@@ -366,6 +374,38 @@ function auth_login_session(array $user, array $permissions): void
         AUTH_ROLE_GUARD => 'GUARD',
         default => 'ADMIN',
     };
+}
+
+function auth_login_session(array $user, array $permissions): void
+{
+    regenerate_session();
+
+    $_SESSION['company_id'] = $user['company_id'];
+    auth_update_session_access($user, $permissions);
+}
+
+/**
+ * Keep session role/permissions aligned with the database (role changes, new permission slugs).
+ */
+function auth_sync_session_access(mysqli $conn): void
+{
+    if (!auth_is_logged_in()) {
+        return;
+    }
+
+    $companyId = (string) $_SESSION['company_id'];
+    $user = auth_find_user_by_company_id($conn, $companyId);
+    if ($user === null) {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+        header('Location: ' . app_url('index.php'));
+        exit();
+    }
+
+    $user['role'] = auth_resolve_role_at_login($conn, $user);
+    auth_update_session_access($user, auth_permissions_for_role((int) $user['role']));
 }
 
 function auth_login_redirect_url(int $role): string
@@ -430,7 +470,16 @@ function auth_user_can(string $permissionSlug): bool
         return false;
     }
 
-    return in_array($permissionSlug, $perms, true);
+    if (in_array($permissionSlug, $perms, true)) {
+        return true;
+    }
+
+    // Daily Attendance Detail (DAD) — alias for sessions granted before admin.dad.view
+    if ($permissionSlug === 'admin.dad.view' && in_array('admin.duty.view', $perms, true)) {
+        return true;
+    }
+
+    return false;
 }
 
 function auth_role_is(int ...$roles): bool
@@ -487,6 +536,11 @@ function auth_enforce_area_access(): void
 {
     if (!isset($_SESSION['company_id'])) {
         return;
+    }
+
+    global $conn;
+    if (isset($conn) && $conn instanceof mysqli) {
+        auth_sync_session_access($conn);
     }
 
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));

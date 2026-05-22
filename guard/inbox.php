@@ -2,152 +2,96 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
-require_once __DIR__ . '/../includes/guard_layout.php';
-require_once __DIR__ . '/../includes/guard_portal.php';
+require_once APP_ROOT . '/includes/guard_layout.php';
+require_once APP_ROOT . '/includes/internal_messaging.php';
+require_once APP_ROOT . '/includes/group_messaging.php';
 
 auth_require_permission('guard.inbox.view');
 
-$companyId = (string) $_SESSION['company_id'];
-$error = null;
-$inboxTab = trim((string) ($_GET['tab'] ?? 'memos'));
-if (!in_array($inboxTab, ['memos', 'reports'], true)) {
-    $inboxTab = 'memos';
-}
+$company_id = (string) $_SESSION['company_id'];
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['mark_read'])) {
-    csrf_verify();
+$messagingAvailable = false;
+$messagingViewerId = $company_id;
+$messagingContacts = [];
+$messagingActivePeer = null;
+$messagingThread = [];
+$messagingPostUrl = 'send-internal-message.php';
+$messagingReturnUrl = 'inbox.php';
+$messagingMode = 'direct';
+$messagingGroups = [];
+$messagingActiveGroupId = null;
+$messagingGroupThread = [];
+$messagingGroupMeta = null;
+$messagingCanCreateGroups = false;
+$messagingHeadGuardOptions = [];
+$messagingGroupPostUrl = 'send-group-message.php';
+$messagingCreateGroupUrl = '';
+$messagingThreadApi = 'messaging-thread.php';
+$messagingActionUrl = 'messaging-action.php';
+$groupsAvailable = false;
+$messagingShowDirect = true;
+$messagingShowCreatePanel = false;
 
-    $memoId = (int) ($_POST['memo_id'] ?? 0);
-    if ($memoId > 0) {
-        $ok = db_execute(
-            $conn,
-            'UPDATE memo_recipients SET is_read = 1, read_at = NOW()
-             WHERE Memo_ID = ? AND Company_ID = ?',
-            'is',
-            [$memoId, $companyId]
-        );
-        if ($ok) {
-            header('Location: inbox.php?tab=memos');
-            exit;
+try {
+    $messagingAvailable = internal_messages_table_exists($conn);
+    $messagingContacts = internal_messaging_list_contacts($conn, auth_user_role());
+    $messagingActivePeer = isset($_GET['peer']) ? trim((string) $_GET['peer']) : null;
+    if ($messagingActivePeer !== null && $messagingActivePeer !== ''
+        && !internal_messaging_validate_peer_for_viewer($conn, $messagingActivePeer, auth_user_role())) {
+        $messagingActivePeer = null;
+    }
+
+    $groupsAvailable = message_groups_table_exists($conn);
+    if ($groupsAvailable) {
+        $messagingGroups = group_messaging_list_groups_for_user($conn, $messagingViewerId);
+
+        $groupParam = isset($_GET['group']) ? (int) $_GET['group'] : 0;
+        if ($groupParam > 0 && group_messaging_user_in_group($conn, $groupParam, $messagingViewerId)) {
+            $messagingMode = 'group';
+            $messagingActiveGroupId = $groupParam;
+            $messagingActivePeer = null;
+            $messagingGroupMeta = group_messaging_get_group_meta($conn, $groupParam, $messagingViewerId);
+            $messagingGroupThread = group_messaging_fetch_messages($conn, $groupParam, $messagingViewerId);
         }
-        $error = 'Could not update memo status.';
     }
+
+    if ($messagingMode === 'direct') {
+        if ($messagingAvailable && $messagingActivePeer !== null && $messagingActivePeer !== '') {
+            $messagingThread = internal_messaging_fetch_thread($conn, $messagingViewerId, $messagingActivePeer);
+        }
+    }
+} catch (Throwable $e) {
+    error_log('guard/inbox messaging: ' . $e->getMessage());
 }
 
-$memos = [];
-$memoSql = 'SELECT m.Memo_ID, m.Category, m.Body_Text, m.Distribution_Protocol, m.created_at,
-                   mr.is_read, mr.read_at
-            FROM memo_recipients mr
-            INNER JOIN memos m ON m.Memo_ID = mr.Memo_ID
-            WHERE mr.Company_ID = ?
-            ORDER BY mr.is_read ASC, m.created_at DESC';
-$memoResult = db_query($conn, $memoSql, 's', [$companyId]);
-if ($memoResult) {
-    while ($r = $memoResult->fetch(PDO::FETCH_ASSOC)) {
-        $memos[] = $r;
-    }
-}
-
-$reports = guard_portal_user_reports($conn, $companyId);
+require_once APP_ROOT . '/includes/messaging_unread.php';
+$guardInboxPageUnread = messaging_unread_total($conn, $company_id, auth_user_role());
 
 $guardNavActive = 'inbox';
 guard_layout_head('Inbox');
 ?>
         <div class="guard-section-stack">
         <header class="page-header">
-            <h1 class="page-title">Inbox</h1>
-            <p class="page-subtitle">Secured memos and submitted report tracking synced with admin review status.</p>
+            <h1 class="page-title">
+                Inbox
+                <?php if ($guardInboxPageUnread > 0): ?>
+                    <span class="page-title__badge" aria-label="<?= (int) $guardInboxPageUnread ?> new messages"><?= (int) $guardInboxPageUnread ?></span>
+                <?php endif; ?>
+            </h1>
+            <p class="page-subtitle">
+                <?php if ($guardInboxPageUnread > 0): ?>
+                    <span class="inbox-new-messages-hint">
+                        <i class="fa-solid fa-circle" aria-hidden="true"></i>
+                        <?= $guardInboxPageUnread === 1 ? '1 new message waiting' : (int) $guardInboxPageUnread . ' new messages waiting' ?>
+                    </span>
+                    —
+                <?php endif; ?>
+                Staff messaging board for direct and group conversations.
+            </p>
         </header>
 
-        <?php if ($error !== null): ?>
-            <div class="alert alert--error" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> <?= e($error) ?></div>
-        <?php endif; ?>
-
-        <div class="guard-hub-tabs" data-guard-hub-tabs role="tablist" aria-label="Inbox sections">
-            <button type="button" class="guard-hub-tabs__btn<?= $inboxTab === 'memos' ? ' is-active' : '' ?>" data-guard-hub-tab="memos" role="tab" aria-selected="<?= $inboxTab === 'memos' ? 'true' : 'false' ?>">
-                <i class="fa-solid fa-envelope" aria-hidden="true"></i> Memos
-            </button>
-            <button type="button" class="guard-hub-tabs__btn<?= $inboxTab === 'reports' ? ' is-active' : '' ?>" data-guard-hub-tab="reports" role="tab">
-                <i class="fa-solid fa-file-lines" aria-hidden="true"></i> Reports
-            </button>
-        </div>
-
-        <div class="guard-hub-panels">
-        <section class="guard-hub-panel<?= $inboxTab === 'memos' ? ' is-active' : '' ?>" data-guard-hub-panel="memos" role="tabpanel">
-            <section class="guard-card" aria-labelledby="guard-inbox-memos-heading">
-                <div class="guard-card__head">
-                    <span class="guard-card__icon" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
-                    <h2 id="guard-inbox-memos-heading" class="panel-title">Memos</h2>
-                </div>
-                <?php if ($memos === []): ?>
-                    <p class="empty-state"><i class="fa-solid fa-inbox" aria-hidden="true"></i>No memos have been sent to you yet.</p>
-                <?php else: ?>
-                    <ul class="guard-memo-list">
-                        <?php foreach ($memos as $memo): ?>
-                            <?php
-                            $isRead = (int) ($memo['is_read'] ?? 0) === 1;
-                            $memoId = (int) ($memo['Memo_ID'] ?? 0);
-                            ?>
-                            <li class="guard-memo-list__item<?= $isRead ? ' is-read' : ' is-unread' ?>">
-                                <div class="guard-memo-list__head">
-                                    <span class="badge <?= $isRead ? 'badge--admin' : 'badge--guard' ?>">
-                                        <?= e((string) ($memo['Category'] ?? 'MEMO')) ?>
-                                    </span>
-                                    <time class="guard-memo-list__time mono" datetime="<?= e((string) ($memo['created_at'] ?? '')) ?>">
-                                        <?= e((string) ($memo['created_at'] ?? '')) ?>
-                                    </time>
-                                </div>
-                                <p class="guard-memo-list__body"><?= nl2br(e((string) ($memo['Body_Text'] ?? ''))) ?></p>
-                                <?php if (!$isRead && $memoId > 0): ?>
-                                    <form method="POST" class="guard-memo-list__action">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="mark_read" value="1">
-                                        <input type="hidden" name="memo_id" value="<?= $memoId ?>">
-                                        <button type="submit" class="btn-primary">
-                                            <i class="fa-solid fa-check" aria-hidden="true"></i>
-                                            Mark as read
-                                        </button>
-                                    </form>
-                                <?php endif; ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-            </section>
-        </section>
-
-        <section class="guard-hub-panel<?= $inboxTab === 'reports' ? ' is-active' : '' ?>" data-guard-hub-panel="reports" role="tabpanel">
-            <section class="guard-card" aria-labelledby="guard-inbox-reports-heading">
-                <div class="guard-card__head">
-                    <span class="guard-card__icon" aria-hidden="true"><i class="fa-solid fa-clipboard-list"></i></span>
-                    <h2 id="guard-inbox-reports-heading" class="panel-title">Report tracking</h2>
-                    <a href="submit-report.php" class="btn-primary">
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i> New report
-                    </a>
-                </div>
-                <p class="form-hint">
-                    <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
-                    Status matches the admin dashboard. Refresh to see updates.
-                </p>
-                <?php if ($reports === []): ?>
-                    <p class="empty-state"><i class="fa-solid fa-folder-open" aria-hidden="true"></i>No reports submitted yet.</p>
-                <?php else: ?>
-                    <ul class="guard-report-list">
-                        <?php foreach ($reports as $report): ?>
-                            <?php $status = (string) ($report['Status'] ?? 'Pending'); ?>
-                            <li class="guard-report-list__item">
-                                <span class="guard-badge <?= e(guard_portal_status_badge_class($status)) ?>"><?= e($status) ?></span>
-                                <time class="guard-report-list__date"><?= e((string) ($report['Time_of_Report'] ?? '—')) ?></time>
-                                <span class="guard-report-list__meta">
-                                    <?= e((string) ($report['establishment_label'] ?? '—')) ?>
-                                    · <?= e((string) ($report['Template'] ?? 'Report')) ?>
-                                </span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-            </section>
-        </section>
+        <div class="inbox-messaging-solo">
+            <?php require __DIR__ . '/../includes/messaging_board.php'; ?>
         </div>
         </div>
 <?php

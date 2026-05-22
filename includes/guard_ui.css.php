@@ -10,6 +10,12 @@ function guard_ui_styles(): void
     $loaded = true;
     ?>
         /* Guard enterprise UI — mobile 390px, desktop max 440px centered canvas */
+        html:has(body.guard-portal),
+        body.guard-portal {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body.guard-portal {
             --guard-ui-primary: #0f172a;
             --guard-ui-secondary: #475569;
@@ -39,7 +45,9 @@ function guard_ui_styles(): void
             max-width: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            min-height: 100dvh;
+            height: 100dvh;
+            max-height: 100dvh;
+            min-height: 0;
             background: var(--guard-ui-gradient);
             box-sizing: border-box;
             overflow: hidden;
@@ -47,11 +55,11 @@ function guard_ui_styles(): void
             color: var(--guard-ui-primary);
         }
 
-        /* Sticky enterprise header */
+        /* Fixed header — only .guard-app__scroll scrolls */
         body.guard-portal .guard-app__topbar {
-            position: sticky;
-            top: 0;
+            position: relative;
             z-index: 50;
+            flex: 0 0 auto;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -119,7 +127,7 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__main {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             display: flex;
             flex-direction: column;
             min-height: 0;
@@ -132,10 +140,13 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__scroll {
-            flex: 1 1 auto;
+            flex: 1 1 0;
+            width: 100%;
             min-height: 0;
+            height: 100%;
             overflow-x: hidden;
             overflow-y: auto;
+            overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
             padding: var(--guard-ui-pad);
             padding-bottom: max(var(--guard-ui-pad), env(safe-area-inset-bottom, 0px));
@@ -291,21 +302,28 @@ function guard_ui_styles(): void
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            min-height: 32px;
-            border-radius: 6px;
-            background: var(--guard-drawer-cream);
-            color: var(--guard-drawer-ink);
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            background: transparent;
+            color: var(--guard-drawer-muted);
             flex-shrink: 0;
         }
 
         body.guard-portal .guard-app__drawer-link-icon .guard-ui-svg {
+            color: currentColor;
+        }
+
+        body.guard-portal .guard-app__drawer-link.is-active .guard-app__drawer-link-icon {
             color: var(--guard-drawer-ink);
         }
 
         @media (hover: hover) {
+            body.guard-portal .guard-app__drawer-link:hover .guard-app__drawer-link-icon {
+                color: var(--guard-drawer-ink);
+            }
+
             body.guard-portal .guard-app__drawer-link:hover {
                 color: var(--guard-drawer-ink);
                 background: var(--guard-drawer-hover);
@@ -319,14 +337,14 @@ function guard_ui_styles(): void
 
         body.guard-portal .guard-app__drawer-footer {
             flex-shrink: 0;
-            padding: 10px 14px max(12px, env(safe-area-inset-bottom, 0px));
+            padding: 8px 14px max(10px, env(safe-area-inset-bottom, 0px));
             border-top: 1px solid var(--guard-drawer-border);
             background: inherit;
             color: var(--guard-drawer-ink);
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__profile {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__profile-name {
@@ -347,12 +365,18 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__settings {
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0;
             border-top-color: var(--guard-drawer-border);
-            padding-top: 10px;
+            padding-top: 8px;
+            margin: 0;
         }
 
-        body.guard-portal .guard-app__drawer-footer .guard-app__settings-label {
-            color: var(--guard-drawer-soft);
+        body.guard-portal .guard-app__drawer-footer .guard-app__settings-tools {
+            gap: 6px;
+            flex-wrap: nowrap;
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__icon-btn {
@@ -363,6 +387,13 @@ function guard_ui_styles(): void
             border-color: var(--guard-drawer-border);
             background: var(--guard-drawer-cream);
             color: var(--guard-drawer-ink);
+        }
+
+        body.guard-portal .guard-app__drawer-footer .guard-app__logout-btn {
+            width: auto;
+            min-width: auto;
+            padding: 0 12px 0 10px;
+            gap: 8px;
         }
 
         body.guard-portal .guard-app__drawer-footer .guard-app__icon-btn .guard-ui-svg {
@@ -476,18 +507,6 @@ function guard_ui_styles(): void
             line-height: 1.1;
             color: var(--guard-ui-primary);
             letter-spacing: -0.02em;
-        }
-
-        body.guard-portal .guard-ui-metric-card__value--text {
-            font-size: 1.25rem;
-            word-break: break-word;
-        }
-
-        body.guard-portal .guard-ui-metric-card__hint {
-            margin: 0;
-            font-size: 0.625rem;
-            color: var(--guard-ui-faint);
-            line-height: 1.3;
         }
 
         /* Quick action command grid */
@@ -645,6 +664,7 @@ function guard_ui_styles(): void
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            gap: 0;
             border-radius: 8px;
             border: 1px solid var(--guard-ui-border);
             background: var(--guard-ui-surface);
@@ -667,7 +687,23 @@ function guard_ui_styles(): void
 
         body.guard-portal .guard-app__logout-form {
             margin: 0;
-            display: inline;
+            display: inline-flex;
+        }
+
+        body.guard-portal .guard-app__logout-btn {
+            width: auto;
+            min-width: auto;
+            padding: 0 12px 0 10px;
+            gap: 8px;
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        body.guard-portal .guard-app__logout-btn-label {
+            color: inherit;
         }
 
         body.guard-portal .guard-app__theme-toggle {
@@ -735,7 +771,7 @@ function guard_ui_styles(): void
         }
 
         body.guard-portal .guard-app__scroll .form-field input:not([type="checkbox"]):not([type="radio"]),
-        body.guard-portal .guard-app__scroll .form-field select,
+        body.guard-portal .guard-app__scroll .form-field select:not(.guard-select__native),
         body.guard-portal .guard-app__scroll .form-field textarea {
             min-height: 36px;
             padding: 7px 10px;

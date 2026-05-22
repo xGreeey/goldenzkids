@@ -56,22 +56,20 @@ function guard_ui_profile_block_markup(string $modifier = ''): void
     <?php
 }
 
-function guard_ui_settings_row_markup(string $themeToggleId): void
+function guard_ui_settings_row_markup(string $themeToggleId, string $navActive = ''): void
 {
     ?>
     <div class="guard-app__settings">
-        <span class="guard-app__settings-label">Settings</span>
-        <div class="guard-app__settings-tools" role="toolbar" aria-label="Settings shortcuts">
-            <a href="submit-report.php" class="guard-app__icon-btn" aria-label="Submit report">
-                <?= guard_ui_icon('clipboard-list', 20) ?>
-            </a>
-            <a href="inbox.php" class="guard-app__icon-btn" aria-label="Inbox and tracking">
+        <div class="guard-app__settings-tools" role="toolbar" aria-label="Account settings, sign out, and appearance">
+            <a href="settings.php" class="guard-app__icon-btn<?= $navActive === 'settings' ? ' is-active' : '' ?>" aria-label="Account settings"<?= $navActive === 'settings' ? ' aria-current="page"' : '' ?>>
                 <?= guard_ui_icon('gear', 20) ?>
+                <span class="guard-app__logout-btn-label">Settings</span>
             </a>
             <form method="POST" action="../auth/logout-guard.php" class="guard-app__logout-form">
                 <?= csrf_field() ?>
-                <button type="submit" class="guard-app__icon-btn" aria-label="Sign out">
+                <button type="submit" class="guard-app__icon-btn guard-app__logout-btn" aria-label="Sign out">
                     <?= guard_ui_icon('logout', 20) ?>
+                    <span class="guard-app__logout-btn-label">Logout</span>
                 </button>
             </form>
             <div class="guard-app__theme-toggle">
@@ -88,6 +86,8 @@ function guard_ui_settings_row_markup(string $themeToggleId): void
 
 function guard_ui_drawer_markup(string $navActive): void
 {
+    global $guardInboxUnread;
+    $guardInboxUnread = (int) ($guardInboxUnread ?? 0);
     ?>
     <div class="guard-app__drawer" id="guardAppDrawer" aria-hidden="true">
         <div class="guard-app__drawer-backdrop" data-guard-drawer-close tabindex="-1" aria-hidden="true"></div>
@@ -104,15 +104,19 @@ function guard_ui_drawer_markup(string $navActive): void
                         href="<?= e($item['href']) ?>"
                         class="guard-app__drawer-link<?= $navActive === $item['id'] ? ' is-active' : '' ?>"
                         <?= $navActive === $item['id'] ? ' aria-current="page"' : '' ?>
+                        <?= $item['id'] === 'inbox' ? ' data-guard-inbox-nav' : '' ?>
                     >
                         <span class="guard-app__drawer-link-icon"><?= guard_ui_icon($item['icon'], 20) ?></span>
                         <?= e($item['label']) ?>
+                        <?php if ($item['id'] === 'inbox' && $guardInboxUnread > 0): ?>
+                            <span class="guard-app__drawer-link__badge" data-guard-inbox-badge aria-label="<?= $guardInboxUnread ?> unread messages"><?= $guardInboxUnread ?></span>
+                        <?php endif; ?>
                     </a>
                 <?php endforeach; ?>
             </nav>
             <footer class="guard-app__drawer-footer">
                 <?php guard_ui_profile_block_markup('guard-app__profile--drawer'); ?>
-                <?php guard_ui_settings_row_markup('guardAppDrawerThemeToggle'); ?>
+                <?php guard_ui_settings_row_markup('guardAppDrawerThemeToggle', $navActive); ?>
             </footer>
         </aside>
     </div>

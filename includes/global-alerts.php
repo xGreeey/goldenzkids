@@ -5,7 +5,7 @@
         right: -110%;
         background: var(--bg-surface, #f9fafb);
         border-left: 4px solid var(--brand-accent, #a89b7a);
-        color: var(--text-primary, #003049);
+        color: var(--text-primary, #4a6274);
         padding: 16px;
         border-radius: 4px;
         box-shadow: -5px 10px 30px rgba(0,0,0,0.8);

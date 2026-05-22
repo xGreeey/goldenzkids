@@ -2,7 +2,21 @@
 declare(strict_types=1);
 
 $guardNavActive = $guardNavActive ?? 'dashboard';
-$adminProfile = admin_sidebar_profile();
+$guardProfile = admin_sidebar_profile();
+$guardInboxUnread = 0;
+
+if (isset($conn) && $conn instanceof PDO) {
+    try {
+        require_once __DIR__ . '/messaging_unread.php';
+        $guardInboxUnread = messaging_unread_total(
+            $conn,
+            (string) ($_SESSION['company_id'] ?? ''),
+            auth_user_role()
+        );
+    } catch (Throwable $e) {
+        error_log('guard_sidebar messaging unread: ' . $e->getMessage());
+    }
+}
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -18,9 +32,12 @@ $adminProfile = admin_sidebar_profile();
             <i class="fa-solid fa-camera" aria-hidden="true"></i>
             Submit report
         </a>
-        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Memos and report tracking') ?>>
+        <a href="inbox.php" class="sidebar-link<?= $guardNavActive === 'inbox' ? ' active' : '' ?>"<?= $guardNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging') ?> data-guard-inbox-nav>
             <i class="fa-solid fa-inbox" aria-hidden="true"></i>
             Inbox
+            <?php if ($guardInboxUnread > 0): ?>
+                <span class="sidebar-link__badge" data-guard-inbox-badge aria-label="<?= (int) $guardInboxUnread ?> unread messages"><?= (int) $guardInboxUnread ?></span>
+            <?php endif; ?>
         </a>
         <a href="corner.php" class="sidebar-link<?= $guardNavActive === 'corner' ? ' active' : '' ?>"<?= $guardNavActive === 'corner' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Guard corner') ?>>
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
@@ -30,9 +47,9 @@ $adminProfile = admin_sidebar_profile();
 
     <div class="sidebar-footer">
         <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
+            <span class="sidebar-footer-name" title="<?= e($guardProfile['email']) ?>"><?= e($guardProfile['name']) ?></span>
             <div class="sidebar-footer-meta">
-                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
+                <span class="sidebar-footer-role"><?= e($guardProfile['role']) ?></span>
             </div>
         </div>
 
@@ -40,10 +57,7 @@ $adminProfile = admin_sidebar_profile();
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>
                 <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
-                    <a href="submit-report.php" class="sidebar-footer-icon" aria-label="Submit report"<?= ui_tooltip('Submit report', 'bottom') ?>>
-                        <?= admin_sidebar_icon('audit') ?>
-                    </a>
-                    <a href="inbox.php" class="sidebar-footer-icon" aria-label="Inbox"<?= ui_tooltip('Inbox', 'bottom') ?>>
+                    <a href="settings.php" class="sidebar-footer-icon<?= $guardNavActive === 'settings' ? ' active' : '' ?>" aria-label="Account settings"<?= $guardNavActive === 'settings' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Account settings', 'bottom') ?>>
                         <?= admin_sidebar_icon('settings') ?>
                     </a>
                     <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">
@@ -54,16 +68,26 @@ $adminProfile = admin_sidebar_profile();
                     </form>
                 </div>
             </div>
-            <div class="sidebar-footer-theme">
-                <?= theme_toggle_markup([
-                    'id' => 'sidebarThemeToggle',
-                    'mode' => 'light-class',
-                    'title' => 'Toggle light or dark appearance',
-                    'tipPosition' => 'bottom',
-                ]) ?>
+            <div class="sidebar-footer-settings-row sidebar-footer-theme-row">
+                <span class="sidebar-footer-label" id="sidebarThemeLabel">Theme</span>
+                <div class="sidebar-footer-theme">
+                    <?= theme_toggle_markup([
+                        'id' => 'sidebarThemeToggle',
+                        'mode' => 'light-class',
+                        'title' => 'Toggle light or dark appearance',
+                        'tipPosition' => 'bottom',
+                        'showInactiveIcons' => 'next',
+                    ]) ?>
+                </div>
             </div>
         </div>
     </div>
 </aside>
+<?php
+if (!function_exists('theme_sidebar_boot_script')) {
+    require_once __DIR__ . '/theme.php';
+}
+theme_sidebar_boot_script('light-class');
+?>
 
 <div class="app-shell">

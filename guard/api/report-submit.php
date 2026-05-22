@@ -5,6 +5,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../config/app.php';
 require_once __DIR__ . '/../../includes/guard_portal.php';
+require_once __DIR__ . '/../../includes/document_ai.php';
+require_once __DIR__ . '/../../includes/guard_dad.php';
+require_once __DIR__ . '/../../includes/guard_incident.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -28,7 +31,12 @@ try {
 
 $companyId = (string) ($_SESSION['company_id'] ?? '');
 $establishment = guard_portal_assigned_post($conn, $companyId);
-$templateName = trim((string) ($_POST['template_name'] ?? 'Guard report'));
+$reportType = trim((string) ($_POST['report_type'] ?? $_POST['template_name'] ?? ''));
+if (!in_array($reportType, guard_portal_report_types(), true)) {
+    echo json_encode(['ok' => false, 'error' => 'Please select a valid report type.']);
+    exit;
+}
+$templateName = $reportType;
 
 if ($establishment === '') {
     echo json_encode(['ok' => false, 'error' => 'No post is assigned to your guard profile. Contact your administrator.']);
@@ -48,7 +56,15 @@ if ($encEst === null) {
     exit;
 }
 
+$ivB64 = $encEst['iv'];
+$ivBinary = base64_decode($ivB64, true);
+if ($ivBinary === false || $ivBinary === '') {
+    echo json_encode(['ok' => false, 'error' => 'Could not secure report data.']);
+    exit;
+}
+
 $uploadRoot = APP_ROOT . '/uploads/guard/' . preg_replace('/[^A-Za-z0-9_-]/', '', $companyId);
+$uploadsRelativePrefix = 'uploads/guard/' . basename($uploadRoot);
 if (!is_dir($uploadRoot) && !mkdir($uploadRoot, 0755, true) && !is_dir($uploadRoot)) {
     echo json_encode(['ok' => false, 'error' => 'Upload directory unavailable.']);
     exit;
@@ -65,15 +81,33 @@ if (!move_uploaded_file((string) $scan['tmp_name'], $scanPath)) {
     exit;
 }
 
-$pathEnc = guard_portal_encrypt('uploads/guard/' . basename($uploadRoot) . '/' . $scanName, (string) $master_key, (string) $cipher_algo);
-if ($pathEnc === null) {
+$relativeScanPath = $uploadsRelativePrefix . '/' . $scanName;
+$pathCipher = guard_portal_encrypt($relativeScanPath, (string) $master_key, (string) $cipher_algo, $ivBinary);
+if ($pathCipher === null) {
     @unlink($scanPath);
     echo json_encode(['ok' => false, 'error' => 'Could not secure file path.']);
     exit;
 }
 
+$aiStored = '';
+if (document_ai_is_configured()) {
+    $ocr = document_ai_process_report_scan($scanPath, $reportType);
+    if ($ocr['ok'] && isset($ocr['payload']) && is_array($ocr['payload'])) {
+        try {
+            $aiStored = document_ai_encode_stored($ocr['payload']);
+        } catch (JsonException $e) {
+            $aiStored = (string) ($ocr['payload']['formatted'] ?? '');
+        }
+    } else {
+        error_log('Guard report OCR skipped: ' . ($ocr['error'] ?? 'unknown'));
+    }
+}
+
+$aiCipher = $aiStored !== ''
+    ? (openssl_encrypt($aiStored, (string) $cipher_algo, (string) $master_key, 0, $ivBinary) ?: '')
+    : '';
+
 $time = date('Y-m-d H:i:s');
-$iv = $encEst['iv'];
 
 $ok = db_execute(
     $conn,
@@ -83,22 +117,22 @@ $ok = db_execute(
     [
         $companyId,
         $encEst['cipher'],
-        $pathEnc['cipher'],
+        $pathCipher['cipher'],
         $templateName,
         $time,
-        '',
-        $iv,
+        $aiCipher,
+        $ivB64,
         'Pending',
     ]
 );
 
 if (!$ok) {
     @unlink($scanPath);
-    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $conn->error]);
+    echo json_encode(['ok' => false, 'error' => 'Could not save report. Please try again.']);
     exit;
 }
 
-$reportNumber = (int) $conn->insert_id;
+$reportNumber = db_last_insert_id($conn);
 
 if (db_table_exists($conn, 'guard_duty_status')) {
     db_execute(
@@ -110,46 +144,114 @@ if (db_table_exists($conn, 'guard_duty_status')) {
     );
 }
 
-if (db_table_exists($conn, 'guard_report_evidence') && isset($_FILES['evidence'])) {
-    $evFiles = $_FILES['evidence'];
-    $names = is_array($evFiles['name']) ? $evFiles['name'] : [$evFiles['name']];
-    $tmps = is_array($evFiles['tmp_name']) ? $evFiles['tmp_name'] : [$evFiles['tmp_name']];
-    $errs = is_array($evFiles['error']) ? $evFiles['error'] : [$evFiles['error']];
-    $metas = $_POST['evidence_meta'] ?? [];
-    if (!is_array($metas)) {
-        $metas = [$metas];
+$evidenceMeta = $_POST['evidence_meta'] ?? [];
+if (!is_array($evidenceMeta)) {
+    $evidenceMeta = $evidenceMeta !== '' ? [$evidenceMeta] : [];
+}
+
+$evidenceSaved = guard_portal_store_report_evidence(
+    $conn,
+    $reportNumber,
+    $companyId,
+    $uploadRoot,
+    $uploadsRelativePrefix,
+    $ivB64,
+    (string) $master_key,
+    (string) $cipher_algo,
+    $evidenceMeta
+);
+
+$dadReference = null;
+if (guard_dad_is_report_type($templateName)) {
+    $structured = [];
+    if ($aiStored !== '') {
+        $decoded = document_ai_decode_stored($aiStored);
+        $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
     }
 
-    foreach ($names as $i => $origName) {
-        if (($errs[$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            continue;
-        }
-        $eext = pathinfo((string) $origName, PATHINFO_EXTENSION);
-        $eext = $eext !== '' ? '.' . preg_replace('/[^A-Za-z0-9]/', '', $eext) : '.jpg';
-        $evFile = 'evidence_' . $reportNumber . '_' . $i . $eext;
-        $dest = $uploadRoot . '/' . $evFile;
-        if (!move_uploaded_file((string) $tmps[$i], $dest)) {
-            continue;
-        }
-        $meta = (string) ($metas[$i] ?? '');
-        $lat = null;
-        $lng = null;
-        if (preg_match('/GPS\s+(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/', $meta, $m)) {
-            $lat = (float) $m[1];
-            $lng = (float) $m[2];
-        }
-        db_execute(
-            $conn,
-            'INSERT INTO guard_report_evidence (report_number, company_id, file_name, gps_lat, gps_lng, captured_at)
-             VALUES (?, ?, ?, ?, ?, ?)',
-            'sisdds',
-            [$reportNumber, $companyId, $evFile, $lat, $lng, date('Y-m-d H:i:s')]
-        );
+    $dadResult = guard_dad_create_submission(
+        $conn,
+        $companyId,
+        $establishment,
+        $reportNumber,
+        $ivB64,
+        $pathCipher['cipher'],
+        $aiCipher !== '' ? $aiCipher : null,
+        [
+            'structured' => $structured,
+            'sheet_latitude' => $_POST['sheet_latitude'] ?? null,
+            'sheet_longitude' => $_POST['sheet_longitude'] ?? null,
+            'sheet_accuracy_m' => $_POST['sheet_accuracy_m'] ?? null,
+            'sheet_location_label' => (string) ($_POST['sheet_location_label'] ?? ''),
+            'evidence_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'evidence_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'evidence_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'evidence_location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+            'submit_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'submit_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'submit_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+        ]
+    );
+
+    if (!$dadResult['ok']) {
+        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DAD record.')]);
+        exit;
     }
+    $dadReference = (string) ($dadResult['reference'] ?? '');
+}
+
+$incReference = null;
+if (guard_incident_is_report_type($templateName)) {
+    $structured = [];
+    if ($aiStored !== '') {
+        $decoded = document_ai_decode_stored($aiStored);
+        $structured = is_array($decoded['structured'] ?? null) ? $decoded['structured'] : [];
+    }
+
+    $incResult = guard_incident_create_submission(
+        $conn,
+        $companyId,
+        $establishment,
+        $reportNumber,
+        $ivB64,
+        $pathCipher['cipher'],
+        $aiCipher !== '' ? $aiCipher : null,
+        [
+            'structured' => $structured,
+            'submit_latitude' => $_POST['evidence_latitude'] ?? $_POST['submit_latitude'] ?? null,
+            'submit_longitude' => $_POST['evidence_longitude'] ?? $_POST['submit_longitude'] ?? null,
+            'submit_accuracy_m' => $_POST['evidence_accuracy_m'] ?? $_POST['submit_accuracy_m'] ?? null,
+            'location_label' => (string) ($_POST['evidence_location_label'] ?? $_POST['location_label'] ?? ''),
+        ]
+    );
+
+    if (!$incResult['ok']) {
+        echo json_encode(['ok' => false, 'error' => (string) ($incResult['error'] ?? 'Could not register incident report.')]);
+        exit;
+    }
+    $incReference = (string) ($incResult['reference'] ?? '');
+}
+
+$message = guard_dad_is_report_type($templateName)
+    ? 'Daily attendance document submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
+    : (guard_incident_is_report_type($templateName)
+        ? 'Post incident submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
+        : 'Report submitted. Status: Pending review.');
+if ($aiStored !== '') {
+    $message .= ' Form text extracted via Document AI.';
+}
+if ($evidenceSaved > 0) {
+    $message .= ' ' . $evidenceSaved . ' evidence photo(s) saved (encrypted).';
 }
 
 echo json_encode([
     'ok' => true,
-    'message' => 'Report submitted. Status: Pending review.',
+    'message' => $message,
     'report_number' => $reportNumber,
+    'evidence_saved' => $evidenceSaved,
+    'ocr_applied' => $aiStored !== '',
+    'dad_reference' => $dadReference,
+    'incident_reference' => $incReference,
+    'redirect' => guard_dad_is_report_type($templateName) ? 'submit-report.php?view=history' : null,
 ]);

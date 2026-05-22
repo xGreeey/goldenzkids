@@ -32,13 +32,17 @@ function guard_hub_styles(): void
             padding: 12px 14px;
         }
 
-        /* Page shell */
+        /* Page shell — keep scroll on canvas only (do not override overflow-y) */
         body.guard-portal .guard-app__scroll {
             display: flex;
             flex-direction: column;
             gap: var(--guard-gap-md, 12px);
             min-width: 0;
+            min-height: 0;
+            flex: 1 1 0;
             overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         body.guard-portal .guard-app__scroll .page-header {
@@ -147,6 +151,42 @@ function guard_hub_styles(): void
         }
 
         body.guard-portal .guard-corner-page .empty-state i {
+            display: none;
+        }
+
+        /* Inbox / hub stack — compact headers and empty states without icons */
+        body.guard-portal .guard-section-stack .guard-card__icon {
+            display: none;
+        }
+
+        body.guard-portal .guard-section-stack .guard-card__head {
+            margin: -2px 0 10px;
+            padding-bottom: 8px;
+        }
+
+        body.guard-portal .guard-section-stack .empty-state {
+            display: block;
+            text-align: left;
+            padding: 12px 14px;
+        }
+
+        body.guard-portal .guard-section-stack .empty-state i {
+            display: none;
+        }
+
+        body.guard-portal .guard-submit-card .guard-card__head .guard-report-history-toggle {
+            flex-shrink: 0;
+            min-height: 36px;
+            padding: 6px 12px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-report-history__hint {
+            margin: 0 0 10px;
+        }
+
+        body.guard-portal .guard-submit-card.is-history-open .guard-wizard {
             display: none;
         }
 
@@ -405,32 +445,319 @@ function guard_hub_styles(): void
             margin: 0 0 10px;
         }
 
+        body.guard-portal .guard-app__scroll .guard-wizard__report-type {
+            margin: 0 0 12px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-wizard__review-type {
+            margin: 0 0 10px;
+        }
+
+        body.guard-portal .guard-ocr-preview {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background: rgba(15, 23, 42, 0.04);
+        }
+
+        body.guard-portal .guard-ocr-preview__title {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-ocr-preview__text {
+            margin: 0;
+            max-height: 180px;
+            overflow: auto;
+            font-size: 0.75rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        body.guard-portal .guard-ocr-preview__as-is {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        body.guard-portal .guard-ocr-preview__col {
+            min-width: 0;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            background: #fff;
+        }
+
+        body.guard-portal .guard-ocr-preview__col-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: rgba(15, 23, 42, 0.55);
+        }
+
+        body.guard-portal .guard-ocr-preview__col-body {
+            font-size: 0.75rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 140px;
+            overflow: auto;
+        }
+
+        @media (max-width: 520px) {
+            body.guard-portal .guard-ocr-preview__as-is {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        body.guard-portal .guard-dad-sheet-preview {
+            margin-bottom: 12px;
+        }
+
+        body.guard-portal .guard-dad-sheet-preview__label {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-dad-sheet-preview img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            background: #fff;
+        }
+
+        body.guard-portal .guard-location-stamp {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px dashed rgba(37, 99, 235, 0.45);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp--sheet {
+            border-color: rgba(5, 150, 105, 0.45);
+            background: rgba(5, 150, 105, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp--evidence {
+            border-color: rgba(37, 99, 235, 0.45);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-location-stamp__title {
+            margin: 0 0 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        body.guard-portal .guard-location-stamp__coords {
+            margin: 4px 0 0;
+            font-size: 0.75rem;
+        }
+
+        body.guard-portal .guard-location-stamp__address {
+            margin: 6px 0 0;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select {
+            position: relative;
+            width: 100%;
+        }
+
+        /* Report type — neutral only (no brand/accent tints on field or options) */
+        body.guard-portal .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal .guard-app__scroll .guard-select__native {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 40px 10px 14px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            line-height: 1.3;
+            color: #111827;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            box-shadow: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            accent-color: #6b7280;
+            color-scheme: light;
+            transition: border-color 0.15s ease;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px 18px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:hover {
+            border-color: #d1d5db;
+            background-color: #ffffff;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:focus,
+        body.guard-portal.superadmin-portal .form-field .guard-select__native:focus {
+            outline: none;
+            border-color: #9ca3af;
+            box-shadow: none;
+            background-color: #ffffff;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:invalid {
+            color: #111827;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native option,
+        body.guard-portal .guard-app__scroll .guard-select__native optgroup {
+            background-color: #ffffff;
+            color: #111827;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native {
+            color: #111827;
+            background-color: #ffffff;
+            border-color: #d1d5db;
+            color-scheme: light;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:hover,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:focus,
+        body.guard-portal.superadmin-portal:not(.light-mode) .form-field .guard-select__native:focus {
+            background-color: #ffffff;
+            border-color: #9ca3af;
+            box-shadow: none;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native option,
+        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native optgroup {
+            background-color: #ffffff;
+            color: #111827;
+        }
+
         body.guard-portal .guard-app__scroll .guard-scanner {
             position: relative;
             width: 100%;
-            border-radius: 10px;
+            max-width: min(360px, 100%);
+            margin-left: auto;
+            margin-right: auto;
+            aspect-ratio: 3 / 4;
             overflow: hidden;
-            background: #0f172a;
-            aspect-ratio: 4 / 3;
-            max-height: min(240px, 42vh);
+            background: #000;
+            line-height: 0;
+            border-radius: 10px;
             border: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner:not(.is-live):not(.has-capture) {
+            display: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            inset: 0;
             z-index: 0;
             display: block;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            max-width: none;
-            transform: translate(-50%, -50%);
-            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            object-fit: contain;
             object-position: center center;
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-app__scroll .guard-wizard__pane .guard-scanner.has-capture {
+                width: calc(100% + (2 * var(--guard-ui-pad, 16px)));
+                max-width: none;
+                margin-left: calc(-1 * var(--guard-ui-pad, 16px));
+                margin-right: calc(-1 * var(--guard-ui-pad, 16px));
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+                min-height: min(52dvh, 520px);
+                max-height: min(72dvh, calc(100dvh - 220px));
+                aspect-ratio: 9 / 16;
+            }
+        }
+
+        /* Smart scan — maximized portrait camera (viewport overlay) */
+        body.guard-portal.guard-scan-fullscreen {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            width: 100dvw;
+            height: 100%;
+            height: 100dvh;
+            max-width: none;
+            max-height: none;
+            min-height: 0;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            z-index: 10050;
+            aspect-ratio: auto;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__video {
+            object-fit: cover;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__torch {
+            top: max(12px, env(safe-area-inset-top, 0px));
+            right: max(12px, env(safe-area-inset-right, 0px));
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__hint {
+            padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+            font-size: 0.8125rem;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10051;
+            margin: 0;
+            padding: 14px var(--guard-ui-pad, 16px);
+            padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 28%, rgba(0, 0, 0, 0.82) 100%);
+            gap: 10px;
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-primary,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-ghost,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions label.btn-ghost {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active > .btn-primary[data-wizard-next],
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__pane-title,
+        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__report-type {
+            visibility: hidden;
+            pointer-events: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
@@ -446,18 +773,68 @@ function guard_hub_styles(): void
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__frame {
-            position: absolute;
-            inset: 12% 8%;
-            z-index: 1;
-            border: 2px solid rgba(255, 255, 255, 0.85);
-            border-radius: 8px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+            display: none;
             pointer-events: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner.is-capturing .guard-scanner__frame {
-            border-color: #f2efe4;
+            display: block;
+            position: absolute;
+            inset: 8%;
+            z-index: 1;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: none;
             animation: guardScanPulse 0.8s ease infinite;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__torch {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 3;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.55);
+            color: #ffffff;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__torch[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on {
+            background: #fbbf24;
+            color: #0f172a;
+        }
+
+        @media (hover: hover) {
+            body.guard-portal .guard-app__scroll .guard-scanner__torch:hover {
+                background: rgba(15, 23, 42, 0.75);
+            }
+
+            body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on:hover {
+                background: #f59e0b;
+            }
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__torch:active {
+            transform: scale(0.94);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__torch {
+            display: none !important;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__hint {

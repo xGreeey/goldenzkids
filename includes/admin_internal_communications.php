@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/admin_ui_icons.php';
+
 /**
  * Secured memo compose (company-wide or targeted guard memos).
  *
@@ -10,7 +12,7 @@ declare(strict_types=1);
 <section class="panel panel--compose panel--inbox" aria-labelledby="compose-heading">
     <div class="panel-head">
         <h2 id="compose-heading" class="panel-title">
-            <i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i>
+            <?= admin_ui_icon('envelope-open-text', 18) ?>
             Internal communications
         </h2>
     </div>
@@ -22,12 +24,12 @@ declare(strict_types=1);
             <span class="form-section-label">Delivery scope<span class="required-mark">*</span></span>
             <div class="delivery-options" role="group" aria-label="Delivery scope">
                 <button type="button" class="delivery-btn active" id="btnBroadcast" data-protocol="broadcast"<?= ui_tooltip('Send to all personnel on roster') ?>>
-                    <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
+                    <?= admin_ui_icon('bullhorn', 18) ?>
                     <span class="delivery-btn-title">Company-wide</span>
                     <span class="delivery-btn-desc">Send to all personnel on roster</span>
                 </button>
                 <button type="button" class="delivery-btn" id="btnTargeted" data-protocol="targeted"<?= ui_tooltip('Send to one selected employee') ?>>
-                    <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
+                    <?= admin_ui_icon('user-pen', 18) ?>
                     <span class="delivery-btn-title">Individual recipient</span>
                     <span class="delivery-btn-desc">Directed memo, including notice to explain</span>
                 </button>
@@ -76,7 +78,7 @@ declare(strict_types=1);
                 </div>
 
                 <button type="submit" name="generate_memo" class="btn-primary"<?= ui_tooltip('Encrypt and publish secured memo') ?>>
-                    <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <?= admin_ui_icon('lock', 16) ?>
                     Publish secured memo
                 </button>
             </div>

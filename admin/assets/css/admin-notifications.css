@@ -1,0 +1,285 @@
+.admin-app__topbar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0 max(clamp(16px, 3vw, 32px), env(safe-area-inset-right, 0px))
+        0 max(clamp(16px, 3vw, 32px), env(safe-area-inset-left, 0px));
+    background: color-mix(in srgb, var(--app-canvas-bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--app-border);
+}
+
+body:not(.light-mode) .admin-app__topbar {
+    background: color-mix(in srgb, var(--app-sidebar-dark) 75%, transparent);
+    border-bottom-color: var(--app-border-on-dark);
+}
+
+.admin-app__topbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 56px;
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+.admin-app__topbar-title {
+    margin: 0;
+    font-size: var(--font-body-size-sm);
+    font-weight: 600;
+    color: var(--app-ink-muted);
+    letter-spacing: 0.02em;
+}
+
+body:not(.light-mode) .admin-app__topbar-title {
+    color: var(--app-ink-muted-on-dark);
+}
+
+@media (max-width: 640px) {
+    .admin-app__topbar-title {
+        display: none;
+    }
+}
+
+.admin-notifications {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.admin-notifications__trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-md);
+    background: var(--app-card-bg);
+    color: var(--app-ink-deep);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.admin-notifications__trigger:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.admin-notifications__trigger[aria-expanded="true"] {
+    background: var(--accent-blue-soft);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+body:not(.light-mode) .admin-notifications__trigger {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--app-border-on-dark);
+    color: var(--app-ink-on-dark);
+}
+
+.admin-notifications__trigger .fa-bell {
+    font-size: 1.125rem;
+}
+
+.admin-notifications__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.125rem;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--app-card-bg);
+}
+
+.admin-notifications__badge.is-hidden,
+.admin-notifications__badge[hidden] {
+    display: none !important;
+}
+
+.admin-notifications__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(360px, calc(100vw - 24px));
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-md);
+    background: var(--app-card-bg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+body:not(.light-mode) .admin-notifications__panel {
+    background: var(--app-card-bg);
+    border-color: var(--app-border-on-dark);
+}
+
+.admin-notifications__panel[hidden] {
+    display: none !important;
+}
+
+.admin-notifications__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--app-border);
+}
+
+body:not(.light-mode) .admin-notifications__head {
+    border-bottom-color: var(--app-border-on-dark);
+}
+
+.admin-notifications__title {
+    margin: 0;
+    font-size: var(--font-body-size-sm);
+    font-weight: 700;
+    color: var(--app-ink-deep);
+}
+
+body:not(.light-mode) .admin-notifications__title {
+    color: var(--app-ink-on-dark);
+}
+
+.admin-notifications__count {
+    font-size: var(--font-body-size-xs);
+    font-weight: 700;
+    color: var(--danger);
+}
+
+.admin-notifications__list-wrap {
+    max-height: 400px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-notifications__list {
+    list-style: none;
+    margin: 0;
+    padding: 6px 0;
+}
+
+.admin-notifications__empty {
+    padding: 28px 16px;
+    text-align: center;
+    font-size: var(--font-body-size-sm);
+    color: var(--app-ink-muted);
+}
+
+.admin-notifications__item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 10px;
+    align-items: start;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid color-mix(in srgb, var(--app-border) 55%, transparent);
+    transition: background 0.12s ease;
+}
+
+.admin-notifications__item:last-child {
+    border-bottom: none;
+}
+
+.admin-notifications__item:hover {
+    background: var(--accent-blue-soft);
+}
+
+body:not(.light-mode) .admin-notifications__item:hover {
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.admin-notifications__item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent-blue-soft);
+    color: var(--accent-blue);
+    font-size: 0.9rem;
+}
+
+.admin-notifications__item-icon .admin-ui-icon {
+    display: block;
+}
+
+.admin-notifications__item-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-notifications__item-title {
+    font-size: var(--font-body-size-sm);
+    font-weight: 700;
+    color: var(--app-ink-deep);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body:not(.light-mode) .admin-notifications__item-title {
+    color: var(--app-ink-on-dark);
+}
+
+.admin-notifications__item-text {
+    font-size: var(--font-body-size-xs);
+    color: var(--app-ink-muted);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+body:not(.light-mode) .admin-notifications__item-text {
+    color: var(--app-ink-muted-on-dark);
+}
+
+.admin-notifications__item-time {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--app-ink-muted);
+    white-space: nowrap;
+}
+
+.admin-notifications__foot {
+    padding: 10px 14px;
+    border-top: 1px solid var(--app-border);
+    text-align: center;
+}
+
+body:not(.light-mode) .admin-notifications__foot {
+    border-top-color: var(--app-border-on-dark);
+}
+
+.admin-notifications__foot-link {
+    font-size: var(--font-body-size-xs);
+    font-weight: 700;
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.admin-notifications__foot-link:hover {
+    text-decoration: underline;
+}

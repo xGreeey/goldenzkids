@@ -154,6 +154,159 @@ function admin_shell_styles(): void
             --shadow-lg: 0 16px 36px rgba(var(--color-primary-rgb), 0.1);
         }
 
+        body:not(.light-mode) {
+            --bg-app: var(--app-canvas-bg);
+            --bg-surface: var(--app-sidebar-surface);
+            --bg-panel: var(--app-card-bg);
+            --bg-elevated: rgba(255, 255, 255, 0.08);
+            --bg-muted: var(--app-accent-soft);
+            --border: var(--app-border);
+            --border-strong: var(--app-border-strong);
+            --text-primary: var(--app-ink);
+            --text-on-panel: var(--app-ink);
+            --text-secondary: var(--app-ink-muted);
+            --text-tertiary: var(--app-ink-soft);
+            --brand-accent: var(--app-accent);
+            --brand-accent-text: var(--app-accent);
+            --accent-blue: var(--app-accent-text);
+            --accent-blue-soft: var(--app-accent-soft);
+            --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.28);
+            --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.35);
+        }
+
+        /*
+         * Admin chrome only (.app-sidebar + .app-shell canvas).
+         * Neutral system blue-grays — does not override in-page panels (reports, etc.).
+         */
+        body:has(.app-shell) {
+            --admin-chrome-rgb: 96, 108, 120;
+            --admin-chrome-accent: #6b7c8f;
+            --admin-chrome-ink: #3a424a;
+            --admin-chrome-ink-muted: #6b7680;
+            --admin-chrome-ink-on-dark: #f3f5f7;
+            --admin-chrome-ink-muted-on-dark: #b8c2cc;
+            --admin-shell-bg-light: #f0f2f5;
+            --admin-shell-bg-dark: #171a1f;
+            --admin-sidebar-bg-light: #f8f9fa;
+            --admin-sidebar-bg-dark: #252a31;
+            --admin-sidebar-border-light: #e4e7eb;
+            --admin-sidebar-border-dark: rgba(255, 255, 255, 0.08);
+        }
+
+        body.light-mode:has(.app-shell) {
+            background: var(--admin-shell-bg-light);
+            color: var(--admin-chrome-ink);
+        }
+
+        body:not(.light-mode):has(.app-shell) {
+            background: var(--admin-shell-bg-dark);
+            color: var(--admin-chrome-ink-on-dark);
+        }
+
+        body:has(.app-shell)::before {
+            background:
+                radial-gradient(ellipse 72% 48% at 100% 0%, rgba(var(--admin-chrome-rgb), 0.04), transparent 58%),
+                radial-gradient(ellipse 58% 42% at 0% 100%, rgba(var(--admin-chrome-rgb), 0.03), transparent 52%);
+        }
+
+        body.light-mode:has(.app-shell) .app-sidebar {
+            background: var(--admin-sidebar-bg-light);
+            border-right-color: var(--admin-sidebar-border-light);
+            box-shadow: 1px 0 0 var(--admin-sidebar-border-light);
+        }
+
+        body:not(.light-mode):has(.app-shell) .app-sidebar {
+            background: linear-gradient(180deg, #2a2f36 0%, var(--admin-sidebar-bg-dark) 100%);
+            border-right-color: var(--admin-sidebar-border-dark);
+            box-shadow: none;
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-brand,
+        body.light-mode:has(.app-shell) .sidebar-footer {
+            border-color: var(--admin-sidebar-border-light);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-brand,
+        body:not(.light-mode):has(.app-shell) .sidebar-footer {
+            border-color: var(--admin-sidebar-border-dark);
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-link {
+            color: var(--admin-chrome-ink-muted);
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-link:hover {
+            color: var(--admin-chrome-ink);
+            background: rgba(var(--admin-chrome-rgb), 0.08);
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-link.active {
+            color: var(--admin-chrome-ink);
+            background: rgba(var(--admin-chrome-rgb), 0.1);
+            box-shadow: inset 3px 0 0 0 var(--admin-chrome-accent);
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-link.active i,
+        body.light-mode:has(.app-shell) .sidebar-link.active .admin-ui-icon {
+            color: var(--admin-chrome-accent);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-link {
+            color: var(--admin-chrome-ink-muted-on-dark);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-link:hover {
+            color: var(--admin-chrome-ink-on-dark);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-link.active {
+            color: var(--admin-chrome-ink-on-dark);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: inset 3px 0 0 0 #8a9aad;
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-link.active i,
+        body:not(.light-mode):has(.app-shell) .sidebar-link.active .admin-ui-icon {
+            color: #c5d0da;
+        }
+
+        body:has(.app-shell) .sidebar-footer-label {
+            color: var(--admin-chrome-ink-muted);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-footer-label {
+            color: var(--admin-chrome-ink-muted-on-dark);
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-footer-icon {
+            color: var(--admin-chrome-ink);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-footer-icon {
+            color: var(--admin-chrome-ink-on-dark);
+        }
+
+        body:has(.app-shell) .page-title {
+            color: var(--admin-chrome-ink);
+        }
+
+        body:not(.light-mode):has(.app-shell) .page-title {
+            color: var(--admin-chrome-ink-on-dark);
+        }
+
+        body:has(.app-shell) .page-subtitle {
+            color: var(--admin-chrome-ink-muted);
+        }
+
+        body:not(.light-mode):has(.app-shell) .page-subtitle {
+            color: var(--admin-chrome-ink-muted-on-dark);
+        }
+
+        body:has(.app-shell) .sidebar-link:focus-visible {
+            outline-color: var(--admin-chrome-accent);
+        }
+
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         html {
@@ -174,7 +327,7 @@ function admin_shell_styles(): void
             text-rendering: optimizeLegibility;
         }
 
-        body.light-mode {
+        body.light-mode:not(:has(.app-shell)) {
             background: var(--app-canvas-bg);
             color: var(--app-ink);
         }
@@ -185,16 +338,16 @@ function admin_shell_styles(): void
             top: 0; right: 0; bottom: 0;
             left: var(--sidebar-w);
             background:
-                radial-gradient(ellipse 72% 48% at 100% 0%, rgba(var(--color-primary-rgb), 0.06), transparent 58%),
-                radial-gradient(ellipse 58% 42% at 0% 100%, rgba(var(--color-primary-rgb), 0.05), transparent 52%);
+                radial-gradient(ellipse 72% 48% at 100% 0%, rgba(var(--color-primary-rgb), 0.04), transparent 58%),
+                radial-gradient(ellipse 58% 42% at 0% 100%, rgba(var(--color-primary-rgb), 0.03), transparent 52%);
             pointer-events: none;
             z-index: 0;
         }
 
-        body.light-mode::before {
+        body.light-mode:not(:has(.app-shell))::before {
             background:
-                radial-gradient(ellipse 72% 48% at 100% 0%, rgba(var(--color-primary-rgb), 0.05), transparent 58%),
-                radial-gradient(ellipse 58% 42% at 0% 100%, rgba(var(--color-primary-rgb), 0.04), transparent 52%);
+                radial-gradient(ellipse 72% 48% at 100% 0%, rgba(var(--color-primary-rgb), 0.035), transparent 58%),
+                radial-gradient(ellipse 58% 42% at 0% 100%, rgba(var(--color-primary-rgb), 0.025), transparent 52%);
         }
 
         .app-sidebar {
@@ -209,13 +362,22 @@ function admin_shell_styles(): void
             flex-direction: column;
             background: var(--app-sidebar-surface);
             border-right: 1px solid var(--app-border-on-dark);
-            box-shadow: 2px 0 14px rgba(0, 0, 0, 0.12);
+            box-shadow: 1px 0 0 rgba(0, 0, 0, 0.06);
             transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+        }
+
+        body:not(.light-mode) .app-sidebar {
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--app-sidebar-dark) 96%, #ffffff) 0%,
+                var(--app-sidebar-dark) 100%
+            );
         }
 
         body.light-mode .app-sidebar {
             border-right-color: var(--app-border);
-            box-shadow: 1px 0 0 rgba(var(--color-primary-rgb), 0.06);
+            box-shadow: 1px 0 0 rgba(var(--color-primary-rgb), 0.08);
+            background: var(--app-sidebar-light);
         }
 
         .sidebar-brand {
@@ -283,12 +445,32 @@ function admin_shell_styles(): void
                 box-shadow 0.08s ease;
         }
 
-        .sidebar-link i {
+        .sidebar-link i,
+        .sidebar-link__icon {
+            flex-shrink: 0;
             width: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             font-size: 1rem;
             opacity: 1;
             color: inherit;
+        }
+
+        .sidebar-link__icon .admin-ui-icon {
+            display: block;
+        }
+
+        .admin-ui-icon {
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .kpi-icon .admin-ui-icon,
+        .reports-btn__icon .admin-ui-icon,
+        .reports-empty__icon .admin-ui-icon {
+            display: block;
         }
 
         .sidebar-link:hover {
@@ -299,7 +481,7 @@ function admin_shell_styles(): void
         .sidebar-link.active {
             color: var(--app-ink-on-dark);
             font-weight: 700;
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.1);
             box-shadow: inset 3px 0 0 0 var(--brand-accent);
         }
 
@@ -322,10 +504,10 @@ function admin_shell_styles(): void
         }
 
         body.light-mode .sidebar-link.active {
-            color: var(--app-ink);
+            color: var(--app-ink-deep);
             font-weight: 700;
-            background: var(--brand-accent-soft);
-            box-shadow: inset 3px 0 0 0 var(--brand-accent);
+            background: rgba(var(--color-primary-rgb), 0.08);
+            box-shadow: inset 3px 0 0 0 var(--color-primary);
         }
 
         body.light-mode .sidebar-link.active i {
@@ -351,80 +533,11 @@ function admin_shell_styles(): void
             border-top-color: var(--app-border);
         }
 
-        .sidebar-footer-user {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            min-width: 0;
-            padding: 0 4px 2px;
-        }
-
-        .sidebar-footer-name {
-            display: block;
-            font-family: var(--font-body-family);
-            font-size: 1rem;
-            font-weight: 700;
-            line-height: 1.25;
-            letter-spacing: -0.01em;
-            color: var(--app-ink-on-dark);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        body.light-mode .sidebar-footer-name {
-            color: var(--app-ink-deep);
-        }
-
-        .sidebar-footer-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-        }
-
-        .sidebar-footer-role {
-            display: block;
-            font-family: var(--font-body-family);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            line-height: 1.3;
-            color: var(--app-ink-muted-on-dark);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        body.light-mode .sidebar-footer-role {
-            color: var(--app-ink-muted);
-        }
-
-        .sidebar-footer-email {
-            display: block;
-            font-family: var(--font-body-family);
-            font-size: 0.75rem;
-            font-weight: 400;
-            line-height: 1.35;
-            color: var(--app-ink-soft-on-dark);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        body.light-mode .sidebar-footer-email {
-            color: var(--app-ink-soft);
-        }
-
         .sidebar-footer-settings {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding-top: 10px;
-            border-top: 1px solid var(--app-border-on-dark);
-        }
-
-        body.light-mode .sidebar-footer-settings {
-            border-top-color: var(--app-border);
+            min-width: 0;
         }
 
         .sidebar-footer-settings-row {
@@ -525,12 +638,16 @@ function admin_shell_styles(): void
             padding: 0;
         }
 
+        .sidebar-footer-theme-row {
+            align-items: center;
+        }
+
         .sidebar-footer-theme {
             display: flex;
-            justify-content: center;
+            flex: 0 0 auto;
+            justify-content: flex-end;
             align-items: center;
-            width: 100%;
-            padding: 2px 0 0;
+            margin-left: auto;
         }
 
         .sidebar-footer-theme .theme-switch {
@@ -551,6 +668,50 @@ function admin_shell_styles(): void
 
         .sidebar-footer-theme .theme-switch[aria-checked="true"] .theme-switch__thumb {
             transform: translateX(24px);
+        }
+
+        /* Theme switch — visible on light sidebar surface */
+        body.light-mode .app-sidebar .sidebar-footer-theme .theme-switch__track {
+            background: color-mix(in srgb, var(--app-ink) 6%, #ffffff);
+            border-color: var(--app-border-strong);
+            box-shadow:
+                inset 0 2px 4px rgba(var(--color-primary-rgb), 0.1),
+                0 1px 2px rgba(var(--color-primary-rgb), 0.06);
+        }
+
+        body.light-mode .app-sidebar .sidebar-footer-theme .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__thumb {
+            background: var(--color-primary);
+        }
+
+        body.light-mode .app-sidebar .sidebar-footer-theme .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__thumb-icon {
+            color: var(--color-secondary);
+        }
+
+        body.light-mode .app-sidebar .sidebar-footer-theme .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__icon--moon {
+            color: rgba(var(--color-primary-rgb), 0.42);
+        }
+
+        /* Theme switch — visible on dark sidebar surface */
+        body:not(.light-mode) .app-sidebar .sidebar-footer-theme .theme-switch__track {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.22);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        body:not(.light-mode) .app-sidebar .sidebar-footer-theme .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__thumb {
+            background: var(--color-secondary);
+        }
+
+        body:not(.light-mode) .app-sidebar .sidebar-footer-theme .theme-switch--show-next:not([aria-checked="true"]) .theme-switch__thumb-icon {
+            color: var(--color-primary);
+        }
+
+        body:not(.light-mode) .app-sidebar .sidebar-footer-theme .theme-switch--show-next[aria-checked="true"] .theme-switch__thumb {
+            background: #0f172a;
+        }
+
+        body:not(.light-mode) .app-sidebar .sidebar-footer-theme .theme-switch--show-next[aria-checked="true"] .theme-switch__thumb-icon {
+            color: var(--color-secondary);
         }
 
         .mobile-topbar {
@@ -593,6 +754,34 @@ function admin_shell_styles(): void
             align-items: flex-start;
             gap: clamp(8px, 1.25vw, 14px);
             margin-bottom: clamp(24px, 3.5vw, 36px);
+        }
+
+        .page-header--inline {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: clamp(12px, 2vw, 28px);
+        }
+
+        .page-header--inline .page-title {
+            flex: 0 0 auto;
+        }
+
+        .page-header--inline .page-subtitle {
+            flex: 1 1 16rem;
+            max-width: none;
+            margin: 0;
+        }
+
+        @media (max-width: 720px) {
+            .page-header--inline {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .page-header--inline .page-subtitle {
+                flex: 1 1 auto;
+            }
         }
 
         .page-title {
@@ -659,7 +848,7 @@ function admin_panel_asset_styles(): void
     $loaded = true;
 
     $cssDir = dirname(__DIR__) . '/admin/assets/css';
-    foreach (['messaging-board.css', 'inbox.css'] as $file) {
+    foreach (['messaging-board.css', 'inbox.css', 'reports.css', 'admin-notifications.css'] as $file) {
         $path = $cssDir . '/' . $file;
         if (is_readable($path)) {
             readfile($path);
@@ -675,6 +864,7 @@ function admin_shell_scripts(): void
     }
     $loaded = true;
     ?>
+<script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
 <script>
 (function () {
     document.addEventListener(
@@ -715,6 +905,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (function_exists('app_url')) {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
+        echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
+        echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';
     }
 }

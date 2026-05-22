@@ -28,13 +28,14 @@ require_once __DIR__ . '/guard_hub.js.php';
 
  */
 
-function guard_layout_head(string $documentTitle, ?string $navActive = null): void
+function guard_layout_head(string $documentTitle, ?string $navActive = null, bool $profileSettingsPage = false): void
 
 {
 
     global $guardNavActive;
 
     $navActive = $navActive ?? ($guardNavActive ?? 'dashboard');
+    $guardNavActive = $navActive;
 
     ?>
 
@@ -65,6 +66,10 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null): vo
 <?php guard_ui_styles(); ?>
 
 <?php guard_hub_styles(); ?>
+<?php if ($profileSettingsPage) {
+    require_once __DIR__ . '/admin_profile.php';
+    admin_profile_page_styles();
+} ?>
 
     </style>
 

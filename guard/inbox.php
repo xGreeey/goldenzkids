@@ -67,8 +67,7 @@ try {
 require_once APP_ROOT . '/includes/messaging_unread.php';
 $guardInboxPageUnread = messaging_unread_total($conn, $company_id, auth_user_role());
 
-$messagingSidebarTitle = 'Inbox';
-$messagingSidebarSubtitle = 'Staff messaging board for direct and group conversations.';
+$messagingHideSidebarHead = true;
 
 $guardNavActive = 'inbox';
 guard_layout_head('Inbox');

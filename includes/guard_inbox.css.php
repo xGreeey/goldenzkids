@@ -68,6 +68,15 @@ function guard_inbox_styles(): void
             overflow: hidden;
         }
 
+        body.guard-portal .guard-inbox-page .messaging-board--split .messaging-board__unread-banner {
+            margin-top: 0;
+            border-top: none;
+        }
+
+        body.guard-portal .guard-inbox-page .messaging-board--split .messaging-board__unread-banner:not(.is-hidden) {
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
         body.guard-portal .guard-inbox-page .messaging-board__contacts-scroll {
             flex: 1 1 auto;
             min-height: 0;

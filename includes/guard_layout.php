@@ -50,6 +50,7 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null, boo
     <?= mobile_meta_tags() ?>
 
     <title><?= e(app_agency_name()) ?> | <?= e($documentTitle) ?></title>
+    <meta name="guard-page-title" content="<?= e($documentTitle) ?>">
 
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
 
@@ -85,7 +86,7 @@ function guard_layout_head(string $documentTitle, ?string $navActive = null, boo
 
     require __DIR__ . '/guard_sidebar.php';
 
-    guard_ui_topbar_markup();
+    guard_ui_topbar_markup($documentTitle);
 
     echo '<main class="app-main guard-app__main" id="main-content">';
 

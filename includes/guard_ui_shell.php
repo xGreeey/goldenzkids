@@ -19,11 +19,10 @@ function guard_ui_nav_items(): array
     ];
 }
 
-function guard_ui_topbar_markup(): void
+function guard_ui_topbar_markup(string $pageTitle): void
 {
     ?>
     <header class="guard-app__topbar" aria-label="Application header">
-        <p class="guard-app__brand"><?= e(guard_ui_brand_label()) ?></p>
         <button
             type="button"
             class="guard-app__menu-btn"
@@ -34,6 +33,7 @@ function guard_ui_topbar_markup(): void
         >
             <?= guard_ui_icon('menu', 22) ?>
         </button>
+        <p class="guard-app__topbar-title" id="guardAppTopbarTitle"><?= e($pageTitle) ?></p>
     </header>
     <?php
 }

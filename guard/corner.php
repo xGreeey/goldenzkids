@@ -59,20 +59,9 @@ guard_layout_head('Guard Corner');
         </section>
 
         <section class="guard-hub-panel<?= $hubTab === 'social' ? ' is-active' : '' ?>" data-guard-hub-panel="social" role="tabpanel">
-            <div class="guard-card">
-                <div class="guard-card__head">
-                    <h2 class="panel-title">Industry feeds</h2>
-                </div>
-                <p class="form-hint">Open official Facebook pages in a new tab (lightweight cards).</p>
-                <div class="guard-social-grid">
-                    <?php foreach ($socialFeeds as $feed): ?>
-                        <a href="<?= e($feed['url']) ?>" class="guard-social-card" target="_blank" rel="noopener noreferrer">
-                            <i class="fa-brands <?= e($feed['icon']) ?>" aria-hidden="true"></i>
-                            <span><?= e($feed['label']) ?></span>
-                            <small class="form-hint">Facebook</small>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
+            <div class="guard-card guard-card--live-feeds">
+                <?php guard_portal_social_feeds_markup($socialFeeds); ?>
+                <p class="guard-live-feeds__refresh" data-guard-live-feeds-refresh aria-live="polite"></p>
             </div>
         </section>
 

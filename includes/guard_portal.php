@@ -454,19 +454,95 @@ function guard_portal_policy_sections(): array
     ];
 }
 
-/** @return list<array{label:string,url:string,icon:string}> */
+/** @return list<array{title:string,subtitle:string,url:string,page_url:string,icon:string}> */
 function guard_portal_social_feeds(): array
 {
     return [
         [
-            'label' => 'PADPAO',
-            'url' => 'https://www.facebook.com/search/top?q=PADPAO',
+            'title' => 'PADPAO Live Feed',
+            'subtitle' => 'PADPAO INC SINCE 1958',
+            'url' => 'https://www.facebook.com/PADPAOINCSINCE1958',
+            'page_url' => 'https://www.facebook.com/PADPAOINCSINCE1958',
             'icon' => 'fa-facebook',
         ],
         [
-            'label' => 'SOSIA',
-            'url' => 'https://www.facebook.com/search/top?q=SOSIA',
+            'title' => 'SOSIA Live Feed',
+            'subtitle' => 'CSG SOSIA PNP',
+            'url' => 'https://www.facebook.com/csg.sosia.pnp',
+            'page_url' => 'https://www.facebook.com/csg.sosia.pnp',
             'icon' => 'fa-facebook',
         ],
     ];
+}
+
+function guard_portal_facebook_page_plugin_url(string $pageUrl, int $width, int $height): string
+{
+    $query = http_build_query([
+        'href' => $pageUrl,
+        'tabs' => 'timeline',
+        'width' => (string) max(280, min($width, 500)),
+        'height' => (string) max(400, min($height, 700)),
+        'small_header' => 'true',
+        'adapt_container_width' => 'true',
+        'hide_cover' => 'true',
+        'show_facepile' => 'false',
+    ], '', '&', PHP_QUERY_RFC3986);
+
+    return 'https://www.facebook.com/plugins/page.php?' . $query;
+}
+
+/** Visible post viewport height (Facebook chrome cropped above). */
+function guard_portal_social_feed_iframe_height(): int
+{
+    return 400;
+}
+
+function guard_portal_social_feeds_markup(array $feeds): void
+{
+    $iframeHeight = guard_portal_social_feed_iframe_height();
+    ?>
+    <div class="guard-live-feeds" data-guard-live-feeds>
+        <?php foreach ($feeds as $feed): ?>
+            <article class="guard-live-feed" data-guard-live-feed data-page-url="<?= e((string) $feed['page_url']) ?>">
+                <header class="guard-live-feed__head">
+                    <h3 class="guard-live-feed__title"><?= e((string) $feed['title']) ?></h3>
+                    <a
+                        href="<?= e((string) $feed['url']) ?>"
+                        class="guard-live-feed__open"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >Facebook</a>
+                </header>
+                <div
+                    class="guard-live-feed__scroll"
+                    data-guard-live-feed-scroll
+                    data-guard-live-feed-viewport-h="<?= (int) $iframeHeight ?>"
+                >
+                    <p class="guard-live-feed__status" data-guard-live-feed-loading aria-live="polite">
+                        <span class="guard-live-feed__pulse" aria-hidden="true"></span>
+                        Loading posts…
+                    </p>
+                    <div class="guard-live-feed__fallback" data-guard-live-feed-fallback hidden>
+                        <p>Timeline could not load here (login, blocker, or network).</p>
+                        <a href="<?= e((string) $feed['url']) ?>" target="_blank" rel="noopener noreferrer">View posts on Facebook</a>
+                    </div>
+                    <div class="guard-live-feed__viewport" data-guard-live-feed-viewport>
+                        <iframe
+                            class="guard-live-feed__frame"
+                            data-guard-live-feed-frame
+                            title="<?= e((string) $feed['title']) ?> posts"
+                            width="500"
+                            height="<?= (int) $iframeHeight ?>"
+                            style="border:none;overflow:hidden"
+                            scrolling="no"
+                            frameborder="0"
+                            allowfullscreen="true"
+                            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                        ></iframe>
+                    </div>
+                </div>
+            </article>
+        <?php endforeach; ?>
+    </div>
+    <?php
 }

@@ -135,19 +135,8 @@ function guard_hub_styles(): void
             border-bottom-color: var(--guard-card-border);
         }
 
-        body.guard-portal .guard-corner-page .guard-social-card i {
-            color: #1877f2;
-            font-size: 1.25rem;
-        }
-
-        body.guard-portal .guard-corner-page .guard-social-card span {
+        body.guard-portal .guard-corner-page .guard-live-feed__title {
             color: var(--guard-ui-primary, #0f172a);
-            font-weight: 600;
-            font-size: 0.8125rem;
-        }
-
-        body.guard-portal .guard-corner-page .guard-social-card small.form-hint {
-            color: var(--guard-ui-subtle, #64748b);
         }
 
         body.guard-portal .guard-corner-page .empty-state i {
@@ -961,36 +950,232 @@ function guard_hub_styles(): void
             color: var(--guard-ui-secondary, #475569);
         }
 
-        body.guard-portal .guard-app__scroll .guard-social-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 8px;
+        /* Feeds tab — page scroll (guard-app__scroll), not the feeds list wrapper */
+        body.guard-portal .guard-app__scroll:has([data-guard-hub-panel="social"].is-active) {
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
-        body.guard-portal .guard-app__scroll .guard-social-card {
+        /* Inactive hub panels must stay hidden (social panel had display:flex without .is-active) */
+        body.guard-portal .guard-corner-page .guard-hub-panel:not(.is-active):not(.is-leaving) {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+
+        body.guard-portal .guard-card--live-feeds {
+            display: block;
+            overflow: visible;
+            margin-bottom: 0;
+            padding: 8px 10px 10px;
+            border: none;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        body.guard-portal .guard-card--live-feeds > .guard-live-feeds__refresh {
+            flex-shrink: 0;
+        }
+
+        @media (hover: hover) {
+            body.guard-portal .guard-card--live-feeds:hover {
+                box-shadow: none;
+                transform: none;
+            }
+        }
+
+        body.guard-portal .guard-live-feeds {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            overflow: visible;
+        }
+
+        @media (min-width: 720px) {
+            body.guard-portal .guard-live-feeds {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        body.guard-portal .guard-live-feeds__refresh {
+            flex-shrink: 0;
+            margin: 4px 0 0;
+            padding: 0;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--guard-ui-subtle, #64748b);
+            text-align: center;
+        }
+
+        body.guard-portal .guard-live-feed {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--guard-ui-surface, #ffffff);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed {
+            background: var(--guard-ui-surface, #1e293b);
+            border-color: var(--guard-ui-border, #334155);
+        }
+
+        body.guard-portal .guard-live-feed__head {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__head {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        body.guard-portal .guard-live-feed__title {
+            margin: 0;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-live-feed__open {
+            flex-shrink: 0;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #1877f2;
+            text-decoration: none;
+        }
+
+        body.guard-portal .guard-live-feed__scroll {
+            position: relative;
+            flex-shrink: 0;
+            height: 400px;
+            min-height: 400px;
+            max-height: 400px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        @media (max-width: 639px) {
+            body.guard-portal .guard-live-feed__scroll {
+                height: 360px;
+                min-height: 360px;
+                max-height: 360px;
+            }
+        }
+
+        body.guard-portal .guard-live-feed__viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            clip-path: inset(0 0 0 0);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__scroll {
+            background: #0f172a;
+        }
+
+        body.guard-portal .guard-live-feed__status {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 0;
+            padding: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--guard-ui-subtle, #64748b);
+            background: rgba(248, 250, 252, 0.92);
+            text-align: center;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-live-feed__status {
+            background: rgba(15, 23, 42, 0.92);
+            color: var(--guard-ui-subtle, #94a3b8);
+        }
+
+        body.guard-portal .guard-live-feed__status.is-hidden {
+            display: none;
+        }
+
+        body.guard-portal .guard-live-feed__pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: guard-live-feed-pulse 1.6s ease-out infinite;
+        }
+
+        @keyframes guard-live-feed-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        body.guard-portal .guard-live-feed__fallback {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
-            padding: 12px 10px;
-            text-decoration: none;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            text-align: center;
+            font-size: 0.75rem;
             color: var(--guard-ui-primary, #0f172a);
-            border-radius: 10px;
-            background: var(--sa-input-bg, #f8fafc);
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            box-shadow: none;
-            transition: border-color 0.15s ease, transform 0.12s ease;
+            background: var(--guard-ui-surface, #ffffff);
         }
 
-        body.guard-portal .guard-app__scroll .guard-social-card:hover {
-            transform: translateY(-1px);
-            border-color: #cbd5e1;
-            background: var(--guard-ui-cream, #f2efe4);
+        body.guard-portal .guard-live-feed__fallback[hidden] {
+            display: none !important;
         }
 
-        body.guard-portal .guard-app__scroll .guard-social-card i {
-            font-size: 1.375rem;
+        body.guard-portal .guard-live-feed__fallback a {
+            font-weight: 600;
             color: #1877f2;
+        }
+
+        body.guard-portal .guard-live-feed__frame {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 100%;
+            border: 0;
+            margin-top: calc(-1 * var(--guard-live-feed-crop, 88px));
+        }
+
+        body.guard-portal .guard-live-feed__frame.is-hidden {
+            visibility: hidden;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin-top: 0 !important;
         }
 
         body.guard-portal .guard-app__scroll .guard-accordion {

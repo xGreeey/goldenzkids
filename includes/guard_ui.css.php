@@ -1372,6 +1372,16 @@ function guard_ui_styles(): void
             margin-top: 0;
         }
 
+        body.guard-portal .guard-app__scroll .guard-feed__item--unread {
+            border-color: color-mix(in srgb, var(--guard-ui-primary) 45%, var(--guard-ui-border));
+            background: color-mix(in srgb, var(--guard-ui-primary) 6%, transparent);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-feed__title .guard-badge {
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+
         @media (hover: hover) {
             body.guard-portal .guard-app__scroll .guard-feed__item:hover {
                 border-color: #cbd5e1;

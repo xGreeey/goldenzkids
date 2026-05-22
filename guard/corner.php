@@ -7,7 +7,8 @@ require_once __DIR__ . '/../includes/guard_portal.php';
 
 auth_require_permission('guard.corner.view');
 
-$announcements = guard_portal_announcements($conn);
+$companyId = (string) ($_SESSION['company_id'] ?? '');
+$announcements = guard_portal_announcements($conn, $companyId);
 $policies = guard_portal_policy_sections();
 $socialFeeds = guard_portal_social_feeds();
 
@@ -34,27 +35,41 @@ guard_layout_head('Guard Corner');
         <section class="guard-hub-panel<?= $hubTab === 'announce' ? ' is-active' : '' ?>" data-guard-hub-panel="announce" role="tabpanel">
             <div class="guard-card">
                 <div class="guard-card__head">
-                    <h2 class="panel-title">Messaging board</h2>
+                    <h2 class="panel-title">Announcement</h2>
                 </div>
-                <?php if ($announcements === []): ?>
-                    <p class="empty-state">No announcements yet.</p>
-                <?php else: ?>
-                    <div class="guard-feed">
-                        <?php foreach ($announcements as $item): ?>
-                            <article class="guard-feed__item">
-                                <div class="guard-feed__head">
-                                    <div>
-                                        <h3 class="guard-feed__title"><?= e((string) ($item['title'] ?? '')) ?></h3>
-                                        <time class="guard-feed__time" datetime="<?= e((string) ($item['created_at'] ?? '')) ?>">
-                                            <?= e((string) ($item['created_at'] ?? '')) ?>
-                                        </time>
+                <div class="guard-corner-reminder">
+                    <p class="guard-corner-reminder__heading"><strong>DDO Expiry Reminder</strong></p>
+                    <p class="guard-corner-reminder__text">If your Daily Duty Order (DDO) is nearing its expiration, please ensure necessary actions are taken before the expiration date.</p>
+                </div>
+                <div class="guard-corner-memos">
+                    <h3 class="guard-corner-memos__title">Published memo</h3>
+                    <?php if ($announcements === []): ?>
+                        <p class="empty-state">No published memos yet. Admin memos sent from the portal will appear here.</p>
+                    <?php else: ?>
+                        <div class="guard-feed">
+                            <?php foreach ($announcements as $item):
+                                $isUnread = empty($item['is_read']);
+                                ?>
+                                <article class="guard-feed__item<?= $isUnread ? ' guard-feed__item--unread' : '' ?>">
+                                    <div class="guard-feed__head">
+                                        <div>
+                                            <h4 class="guard-feed__title">
+                                                <?= e((string) ($item['title'] ?? '')) ?>
+                                                <?php if ($isUnread): ?>
+                                                    <span class="guard-badge guard-badge--pending">New</span>
+                                                <?php endif; ?>
+                                            </h4>
+                                            <time class="guard-feed__time" datetime="<?= e((string) ($item['created_at'] ?? '')) ?>">
+                                                <?= e((string) ($item['created_display'] ?? $item['created_at'] ?? '')) ?>
+                                            </time>
+                                        </div>
                                     </div>
-                                </div>
-                                <p class="guard-feed__body"><?= nl2br(e((string) ($item['body'] ?? ''))) ?></p>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                                    <p class="guard-feed__body"><?= nl2br(e((string) ($item['body'] ?? ''))) ?></p>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </section>
 
@@ -72,22 +87,23 @@ guard_layout_head('Guard Corner');
                 </div>
                 <ul class="guard-policy-list">
                     <?php foreach ($policies as $policy): ?>
-                        <?php $sourceId = 'guard-policy-source-' . $policy['slug']; ?>
+                        <?php
+                        $sourceId = 'guard-policy-source-' . $policy['slug'];
+                        $rawId = $sourceId . '-raw';
+                        ?>
                         <li class="guard-policy-list__item">
                             <button
                                 type="button"
                                 class="guard-policy-list__trigger"
                                 data-policy-trigger
                                 data-policy-title="<?= e($policy['title']) ?>"
-                                data-policy-source="<?= e($sourceId) ?>"
+                                data-policy-source="<?= e($rawId) ?>"
                                 aria-haspopup="dialog"
                             >
                                 <span class="guard-policy-list__label"><?= e($policy['title']) ?></span>
                                 <i class="fa-solid fa-expand guard-policy-list__icon" aria-hidden="true"></i>
                             </button>
-                            <div id="<?= e($sourceId) ?>" class="guard-policy-list__source" hidden>
-                                <?= guard_portal_policy_body_html($policy['body']) ?>
-                            </div>
+                            <textarea id="<?= e($rawId) ?>" class="guard-policy-list__raw" hidden readonly><?= e(trim($policy['body'])) ?></textarea>
                         </li>
                     <?php endforeach; ?>
                 </ul>

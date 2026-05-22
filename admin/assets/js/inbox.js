@@ -383,7 +383,7 @@
             var contentVal = content ? content.value.trim() : '';
 
             if (!distVal) {
-                errors.push('Delivery scope (company-wide or individual)');
+                errors.push('Delivery scope');
             } else if (distVal === 'targeted') {
                 var target = document.getElementById('targetGuardInput');
                 if (!target || !target.value) {

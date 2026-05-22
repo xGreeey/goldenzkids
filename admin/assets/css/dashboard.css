@@ -1,4 +1,29 @@
 /* Admin dashboard — colors from theme.php --app-* tokens (login module palette) */
+
+        /* Operations Dashboard — full width, height follows content (not viewport-locked) */
+        body.page-dashboard {
+            overflow-x: clip;
+        }
+
+        body.page-dashboard .app-shell {
+            display: block;
+            height: auto;
+            min-height: 0;
+            max-height: none;
+            overflow: visible;
+        }
+
+        body.page-dashboard .app-main,
+        body.page-dashboard .app-main__stage {
+            display: block;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            min-height: 0;
+            height: auto;
+            overflow: visible;
+        }
+
         .app-main > * {
             min-width: 0;
             max-width: 100%;
@@ -83,7 +108,7 @@
             color: var(--app-ink-muted);
         }
 
-        /* Dashboard two-column layout (analytics | compose) */
+        /* Dashboard layout — fluid columns, grows with content */
         .content-grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr);
@@ -91,6 +116,14 @@
             align-items: start;
             width: 100%;
             min-width: 0;
+        }
+
+        body.page-dashboard .kpi-grid {
+            width: 100%;
+        }
+
+        body.page-dashboard .kpi-card {
+            flex: 1 1 min(100%, 10rem);
         }
 
         .content-grid > * {
@@ -101,6 +134,17 @@
         @media (min-width: 900px) {
             .content-grid {
                 grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 720px) {
+            .content-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .panel--compose {
+                position: static;
+                top: auto;
             }
         }
 
@@ -540,6 +584,52 @@
 
         .hg-posts-no-results td {
             border-bottom: none;
+        }
+
+        .panel--hg-roster {
+            margin-top: 1.25rem;
+        }
+
+        .panel--hg-roster .data-table--hg-roster .col-hg-account { width: 22%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-post { width: 18%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-team { width: 24%; }
+        .panel--hg-roster .data-table--hg-roster .col-hg-pick { width: 36%; }
+
+        .hg-roster-count {
+            display: block;
+            font-size: var(--font-body-size-xs);
+            font-weight: 700;
+            color: var(--app-ink-deep);
+        }
+
+        .hg-roster-team-preview {
+            display: block;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .hg-roster-assign-form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 8px;
+            max-width: 100%;
+        }
+
+        .hg-roster-assign-form__field {
+            flex: 1 1 14rem;
+            min-width: min(100%, 14rem);
+        }
+
+        .hg-roster-assign-form__select {
+            width: 100%;
+            min-height: 8.5rem;
+            padding: 8px 10px;
+        }
+
+        .hg-roster-assign-form__hint {
+            margin: 6px 0 0;
+            font-size: 0.6875rem;
         }
 
         @media (max-width: 720px) {

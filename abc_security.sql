@@ -67,10 +67,9 @@ CREATE TABLE `callout_posts` (
 --
 
 INSERT INTO `callout_posts` (`post_id`, `post_name`, `is_active`, `created_at`) VALUES
-(1, 'SM Megamall', 1, '2026-05-21 07:25:08'),
-(2, 'SM Fairview', 1, '2026-05-21 07:25:08'),
-(3, 'SM Marilao', 1, '2026-05-21 07:25:08'),
-(4, 'St. Lukes Medical Center', 1, '2026-05-21 07:25:08');
+(1, 'Quiapo, Manila', 1, '2026-05-21 07:25:08'),
+(2, 'Tondo, Manila', 1, '2026-05-21 07:25:08'),
+(3, 'Sta. Ana, Manila', 1, '2026-05-21 07:25:08');
 
 -- --------------------------------------------------------
 
@@ -178,10 +177,6 @@ CREATE TABLE `guard_announcements` (
 -- Dumping data for table `guard_announcements`
 --
 
-INSERT INTO `guard_announcements` (`id`, `title`, `body`, `is_active`, `created_at`) VALUES
-(1, 'Shift briefing', 'Review post orders and radio check every hour. Report incidents through the portal immediately.', 1, '2026-05-21 13:01:54'),
-(2, 'Uniform inspection', 'Full uniform and ID must be worn during duty hours. Non-compliance will be noted in daily reports.', 1, '2026-05-21 13:01:54');
-
 -- --------------------------------------------------------
 
 --
@@ -288,6 +283,33 @@ CREATE TABLE `guard_incident_submissions` (
 
 INSERT INTO `guard_incident_submissions` (`inc_id`, `reference_code`, `dgd_report_number`, `head_guard_company_id`, `head_guard_name`, `category`, `incident_type`, `severity`, `site_name`, `status`, `summary`, `incident_description`, `action_taken`, `scan_path_cipher`, `ai_extracted_cipher`, `iv`, `submit_latitude`, `submit_longitude`, `submit_accuracy_m`, `location_label`, `history_json`, `submitted_at`, `updated_at`) VALUES
 (1, 'INC-2026-0001', 8, 'amor', 'christian5787264@gmail.com', 'per_post', 'MAY NADAP SA DI MALAMAN NA DAHILAN KOYA NATANGGAL Ako si Badang Ang ulo This document is to be processed digitally. P…', 'Medium', 'SM Fairview', 'ongoing', 'Incident date (form): This document is to be processed digitally. PLEASE WRITE IN CAPITALIZED/BIG LETTERS.\n\nSubject: INOCENCIO, JOHN ALDRIM R.\n\nMAY NADAP SA DI MALAMAN NA DAHILAN KOYA NATANGGAL Ako si Badang Ang ulo This document is to be processed digitally. PLEASE WRITE IN CAPITALIZED/BIG LETTERS.', 'MAY NADAP SA DI MALAMAN NA DAHILAN KOYA NATANGGAL Ako si Badang Ang ulo This document is to be processed digitally. PLEASE WRITE IN CAPITALIZED/BIG LETTERS.', NULL, 'afTg+xvtM3p7E2dKHC+GLXbJx5qDVJJ+I4mMJryPFmr4cOhlhYJfttM6Gzo5VhjF', '/p14iSWwU/OuNFXG9aCTT/KrLNuShEpuz/ptlTwNfXUPJu4SIZbvelF/q1cmiOL4gz50qww5UMuRM4+9kvQbmE7bwR7vy+Wk1ZhBxRaB8mVyaSEreCN5wC6zgxrVqWg2LEX5CBGpMvPeZGzzj5G0dlpzWYtwgaUaYvA1fYAgbNrzCI+wYhlyUXhLRapm1PXhffrRdCXdVt7PSgX0508FOt7Or/NzbFFCs8I5rFNZ/ycErUyOdj7NA7/qNZuwCrnj5DM9RovzApXPPyYnNwr1u8oz6d9YPQR9YYORdJ41BEBbYw1BxvEabaR4MOw/2N3Te1hvRJEkb6pTP8IS3noZsyxiloQ7uJgSUHjxW/Rz2M6F/yYxOARKQN+zE89elQfHPVoP0h+r7ZFBHKQp0JxiwzXSAa4G/iU3z0wv4/QIlBeSxSUA9Q6tLh4EGXGLNPu3virp1UgXimwrLMx/lIWb6HmtbbMoLx+ftmFsjXeoFGHEpRMuSdv7RkFs2JZCLf6oxDPNNU+mX0BNha8Ut7nomMrRjoCenjXLCG/aGSPuzOUBODFCqiFFl05GyWeXha1LWV/s+tDzmeZzdBQx9Wn5W+GUSn1Bqte7qY4hoAJTjZM4KxH5MnPLij8Ajt0JG/e4DV5kKJ9yX+tveZWM9RoIDO4uDzQOEpCeN9pp0SC+SjCXJdzJh0ZTdHLpS2HX6xca0doSGTQfv3HeQwGFLku/wzLFY60SkFFbEKYAgfA/bHQSR0ph9hTyTVDurobTuKkHne319sw+JzLx4Una+kZYI2+377rkSY0Bg7E4XZgUvVxHtkmHYS5lwvz9AGgOMzWvm79ejtjwXCvcQosenyEaiCLBAEvDEfjTV3At/u38j/VbqWErcUZ6RaHmjJc1f6sTTyLxkCQf3JKXgjICbYRfKnjAomxMbqADAB38jlW5rR5abc9ztm0TTwvSTZm9nY0eEwZWacw6d3RU6ruFqqOxn8yjadjmSRe/Wpq7eDdY8pYTocl0vuFyDRvL1JpBFBu0vuJLru6GM3bfEh2yC5v1SDpgMY36ysXfpdHunVbg5fu4zr5AQBVVkkldfEEOyKr3Zl1T6um0VKni0xLFbAWz+qdR2oCALMCjtVcjedY/aEZZ4+6VSl8mQoxaQFkVNVKDyH0RKJ7otC/IrC+u706gPnCNqPmBeGg38WZtAo5wNYoJCdRNbXReRqBRnBYUdFmEaaEu76eDPw6SA/G50hq3FUv5cMDkOfvCo3Ufu0qmGP6A6GhSRgo29mZKNvqIvmgyxwLUerEoWqFVlobCQX1NTf/0+5S/dq0GylatKRyafm08v3/QhNulYqi1W1mJgFkKe4wNUKaJooeqVGIOz/Ysgw0y2W8tVWX8TbmNsRnMRu5NKoTMv4QtJX1YEA34fLiMaaq4NKkD9RVkoTZ+UbPeoaIOH43vpyXKEo5w8emHZ4Tf33ADV2KRG3kv+lMhCGGnIz9/+PJzNb7bHgk32XCvrsB+yTQtxff/FuIbmhyib33cVHft/Tc7h82BBvbvWeSaNqBU5GPf3egNQt8o2QsAhm9fOaYTazllEJyP19PKGW3tQJnyuDQiY3VxtQtlQ6ai29F5oC16R2KDYkzmur6S0DIFmCvpzASUm8oQRvQBpbrQ1S8g9lJeSVK7P9hSz1qj2Qei7X7h06lvdDi/A96f/l2yz6vGtSa92aTZuR95tKuZuK9qSOraBGklSTFTTNceu4U2liTGYi3FIoSKh12yhogh4xIUfFSB1/gEWXLwnow13UAXxgYIpvqyd+8SK0R2B8gLE/Mo0It6OjymmbBpGw==', 'tsgBojOuNDd4K6qJa8kA7g==', NULL, NULL, NULL, NULL, '[{\"at\":\"21 May 2026, 23:21\",\"event\":\"Submitted by head guard\",\"note\":\"Submitted via guard portal\"}]', '2026-05-21 23:21:24', '2026-05-21 23:21:24');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `guard_daily_activity_submissions`
+--
+
+CREATE TABLE `guard_daily_activity_submissions` (
+  `da_id` int(10) UNSIGNED NOT NULL,
+  `reference_code` varchar(32) NOT NULL,
+  `dgd_report_number` int(11) DEFAULT NULL,
+  `head_guard_company_id` varchar(13) NOT NULL,
+  `head_guard_name` varchar(255) DEFAULT NULL,
+  `site_name` varchar(255) NOT NULL,
+  `activity_mode` varchar(16) NOT NULL,
+  `activity_details_cipher` text DEFAULT NULL,
+  `scan_path_cipher` text DEFAULT NULL,
+  `ai_extracted_cipher` text DEFAULT NULL,
+  `iv` varchar(64) NOT NULL,
+  `submit_latitude` decimal(10,7) DEFAULT NULL,
+  `submit_longitude` decimal(10,7) DEFAULT NULL,
+  `submit_accuracy_m` decimal(8,2) DEFAULT NULL,
+  `location_label` varchar(512) DEFAULT NULL,
+  `history_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`history_json`)),
+  `submitted_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 

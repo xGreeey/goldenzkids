@@ -2,50 +2,61 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin_ui_icons.php';
+require_once __DIR__ . '/admin_report_nav.php';
 
 $adminNavActive = $adminNavActive ?? 'dashboard';
-$adminProfile = admin_sidebar_profile();
+$reportNavOpen = admin_report_nav_is_open($adminNavActive);
+$reportNavItems = admin_report_nav_items();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
         <img src="<?= e(app_logo_url()) ?>" alt="<?= e(app_agency_name()) ?>" class="brand-logo" width="104" height="104" decoding="async">
+        <p class="brand-name"><?= e(app_agency_name()) ?></p>
     </div>
 
     <nav class="sidebar-nav" aria-label="Workspace">
         <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Operations dashboard') ?>>
-            <?= admin_nav_icon('chart-line') ?>
             Dashboard
         </a>
         <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging board') ?>>
-            <?= admin_nav_icon('inbox') ?>
             Inbox
         </a>
-        <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Secured memos and internal announcements') ?>>
-            <?= admin_nav_icon('bullhorn') ?>
+        <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Publish memos to all head guards — Guard corner announcements') ?>>
             Announcement
         </a>
-        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Incident reports — monitor and archive') ?>>
-            <?= admin_nav_icon('file-lines') ?>
-            Incident report
-        </a>
-        <a href="dad.php" class="sidebar-link<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' active' : '' ?>"<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Attendance Detail (DAD) — time-in/out, NTE, missing values') ?>>
-            <?= admin_nav_icon('calendar-day') ?>
-            DAD
-        </a>
+        <div class="sidebar-nav-group<?= $reportNavOpen ? ' is-open has-active' : '' ?>" data-sidebar-nav-group>
+            <button type="button"
+                    class="sidebar-nav-group__toggle"
+                    aria-expanded="<?= $reportNavOpen ? 'true' : 'false' ?>"
+                    aria-controls="sidebarReportMenu"
+                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly summary, daily activity, DTR, incident') ?>>
+                <span class="sidebar-nav-group__label">Report</span>
+                <span class="sidebar-nav-group__chevron" aria-hidden="true"><?= admin_ui_icon('chevron-down', 16) ?></span>
+            </button>
+            <div id="sidebarReportMenu"
+                 class="sidebar-nav-group__menu"
+                 role="group"
+                 aria-labelledby="sidebarReportToggle"
+                 <?= $reportNavOpen ? '' : ' hidden' ?>>
+                <?php foreach ($reportNavItems as $item):
+                    $itemActive = in_array($adminNavActive, $item['active'], true);
+                    ?>
+                <a href="<?= e($item['href']) ?>"
+                   class="sidebar-link sidebar-link--sub<?= $itemActive ? ' active' : '' ?>"
+                   data-nav-slug="<?= e((string) $item['slug']) ?>"
+                   <?= $itemActive ? ' aria-current="page"' : '' ?>
+                   <?= ui_tooltip((string) $item['tip']) ?>>
+                    <?= e((string) ($item['menu_label'] ?? $item['label'])) ?>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
-            <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts
         </a>
     </nav>
 
     <div class="sidebar-footer">
-        <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
-            <div class="sidebar-footer-meta">
-                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-            </div>
-        </div>
-
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>

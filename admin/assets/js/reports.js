@@ -237,9 +237,12 @@
         );
     }
 
-    function initReportsModule() {
+        function initReportsModule() {
     const root = document.getElementById('reports-module');
-    if (!root) {
+    if (!root || root.getAttribute('data-registry-kind')) {
+        return;
+    }
+    if (!document.getElementById('reports-tbody')) {
         return;
     }
 
@@ -247,6 +250,9 @@
     if (!isReinit) {
         root.dataset.reportsBound = '1';
     }
+
+    reportsLive.currentIncidentId = document.body.dataset.openIncident || '';
+    reportsLive.currentMode = document.body.dataset.openMode || 'view';
 
     const tableHeadWrap = document.getElementById('reports-table-head-wrap');
     const tableBodyWrap = document.getElementById('reports-table-body-wrap');
@@ -302,9 +308,6 @@
     if (LEGACY_STATUS_TABS[activeStatus]) {
         activeStatus = LEGACY_STATUS_TABS[activeStatus];
     }
-    reportsLive.currentIncidentId = document.body.dataset.openIncident || '';
-    reportsLive.currentMode = document.body.dataset.openMode || 'view';
-
     function statusMatchesTab(reportStatus, tab) {
         if (tab === 'all') return true;
         return reportStatus === tab;
@@ -338,10 +341,6 @@
         }));
     }
 
-    let reportsIndex = buildIndex();
-    let sortKey = 'submitted';
-    let sortDir = 'desc';
-
     function safeParse(json) {
         try {
             return JSON.parse(json || '{}');
@@ -349,6 +348,49 @@
             return {};
         }
     }
+
+    function hydrateReportsByIdFromRows() {
+        getRows().forEach((row) => {
+            const id = row.dataset.id || '';
+            if (!id || reportsLive.reportsById[id]) {
+                return;
+            }
+            const parsed = safeParse(row.dataset.detail);
+            if (parsed && parsed.id) {
+                reportsLive.reportsById[id] = parsed;
+            }
+        });
+    }
+
+    function resolveIncidentById(id) {
+        if (!id) {
+            return null;
+        }
+        if (reportsLive.reportsById[id]) {
+            return reportsLive.reportsById[id];
+        }
+        const fromIndex = reportsIndex.find((r) => r.id === id);
+        if (fromIndex?.payload?.id) {
+            reportsLive.reportsById[id] = fromIndex.payload;
+            return fromIndex.payload;
+        }
+        const row = root.querySelector('[data-report-row][data-id="' + id.replace(/"/g, '\\"') + '"]');
+        if (row) {
+            const parsed = safeParse(row.dataset.detail);
+            if (parsed?.id) {
+                reportsLive.reportsById[id] = parsed;
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    let reportsIndex = buildIndex();
+    hydrateReportsByIdFromRows();
+    reportsIndex = buildIndex();
+
+    let sortKey = 'submitted';
+    let sortDir = 'desc';
 
     function parseDate(str) {
         if (!str) return null;
@@ -1493,7 +1535,7 @@
         }
 
         const id = reportsLive.currentIncidentId;
-        const payload = id ? reportsLive.reportsById[id] : null;
+        const payload = id ? resolveIncidentById(id) : null;
         if (payload) {
             renderViewDetails(payload);
             renderHistoryStepper(payload.history, payload);
@@ -1534,7 +1576,7 @@
         if (!id) {
             return;
         }
-        const p = reportsLive.reportsById[id];
+        const p = resolveIncidentById(id);
         if (!p) {
             return;
         }
@@ -1555,7 +1597,7 @@
         if (!id) {
             return;
         }
-        if (!reportsLive.reportsById[id]) {
+        if (!resolveIncidentById(id)) {
             return;
         }
         setModalMode('view');
@@ -1650,9 +1692,12 @@
     }
 
     function openIncident(id, mode) {
-        const p = reportsLive.reportsById[id];
+        const p = resolveIncidentById(id);
         const modalOverlay = document.getElementById('reports-modal-overlay');
         if (!p || !modalOverlay) {
+            if (id) {
+                window.alert('Could not load this incident report. Refresh the page and try again.');
+            }
             return;
         }
 
@@ -1949,6 +1994,7 @@
         }
     }
 
+    if (!isReinit) {
     tabs.forEach((tab) => {
         tab.addEventListener('click', () => setActiveTab(tab));
     });
@@ -2002,6 +2048,7 @@
             setSort(btn.dataset.sortKey || '');
         });
     });
+    }
 
     reportsLive.handlers = {
         switchToEditMode,
@@ -2022,12 +2069,13 @@
     bindReportsTableUi(root);
 
     if (isReinit) {
-        if (reportsLive.currentIncidentId && reportsLive.reportsById[reportsLive.currentIncidentId]) {
+        if (reportsLive.currentIncidentId && resolveIncidentById(reportsLive.currentIncidentId)) {
             const modalOverlay = document.getElementById('reports-modal-overlay');
             if (modalOverlay?.classList.contains('is-open')) {
                 openIncident(reportsLive.currentIncidentId, reportsLive.currentMode);
             }
         }
+        applyFilters();
         return;
     }
 
@@ -2069,7 +2117,7 @@
         applyFilters();
     }
 
-    if (reportsLive.currentIncidentId && reportsLive.reportsById[reportsLive.currentIncidentId]) {
+    if (reportsLive.currentIncidentId && resolveIncidentById(reportsLive.currentIncidentId)) {
         openIncident(reportsLive.currentIncidentId, reportsLive.currentMode);
     }
     }

@@ -466,43 +466,61 @@ function guard_hub_scripts(): void
             .replace(/"/g, '&quot;');
     }
 
+    function guardPolicyNumberedItems(text) {
+        var lines = String(text || '').split(/\r\n|\r|\n/);
+        var items = [];
+        var current = '';
+        lines.forEach(function (line) {
+            line = line.trim();
+            if (!line) {
+                return;
+            }
+            var match = line.match(/^(\d+)\.\s*(.*)$/);
+            if (match) {
+                if (current) {
+                    items.push(current.trim());
+                }
+                current = (match[2] || '').trim();
+                return;
+            }
+            if (current) {
+                current += ' ' + line;
+            }
+        });
+        if (current) {
+            items.push(current.trim());
+        }
+        return items.filter(function (item) {
+            return item !== '';
+        });
+    }
+
     function guardPolicyBodyHtml(text) {
         text = String(text || '').trim();
         if (!text) {
             return '';
         }
-        if (!/\d+\.\s/.test(text)) {
+        var items = guardPolicyNumberedItems(text);
+        if (items.length < 2) {
             return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
         }
-        var parts = text.split(/(?=\d+\.\s)/);
-        var items = [];
-        parts.forEach(function (part) {
-            part = part.trim();
-            if (!part) {
-                return;
-            }
-            part = part.replace(/^\d+\.\s*/, '');
-            part = part.trim();
-            if (part) {
-                items.push(part);
-            }
-        });
-        if (!items.length) {
-            return guardPolicyEscapeHtml(text).replace(/\n/g, '<br>');
-        }
-        return '<ol class="guard-policy-modal__list">' + items.map(function (item) {
+        return '<ul class="guard-policy-modal__list">' + items.map(function (item) {
             return '<li>' + guardPolicyEscapeHtml(item) + '</li>';
-        }).join('') + '</ol>';
+        }).join('') + '</ul>';
     }
 
-    function guardPolicyContentFromSource(src) {
-        if (!src) {
+    function guardPolicyRawFromSource(sourceId) {
+        if (!sourceId) {
             return '';
         }
-        if (src.querySelector('.guard-policy-modal__list')) {
-            return src.innerHTML;
+        var el = document.getElementById(sourceId);
+        if (!el) {
+            return '';
         }
-        return guardPolicyBodyHtml(src.textContent || src.innerText || '');
+        if (el.tagName === 'TEXTAREA') {
+            return el.value || '';
+        }
+        return el.textContent || el.innerText || '';
     }
 
     function initPolicyModals(root) {
@@ -519,13 +537,12 @@ function guard_hub_scripts(): void
 
         function openModal(btn) {
             var sourceId = btn.getAttribute('data-policy-source');
-            var src = sourceId ? document.getElementById(sourceId) : null;
-            if (!src || !titleEl || !scrollEl) {
+            if (!sourceId || !titleEl || !scrollEl) {
                 return;
             }
             lastTrigger = btn;
             titleEl.textContent = btn.getAttribute('data-policy-title') || '';
-            scrollEl.innerHTML = guardPolicyContentFromSource(src);
+            scrollEl.innerHTML = guardPolicyBodyHtml(guardPolicyRawFromSource(sourceId));
             scrollEl.scrollTop = 0;
             modal.classList.add('is-open');
             modal.removeAttribute('hidden');
@@ -613,8 +630,10 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
-        var DAD_TYPE = 'Daily Attendance Document';
-        var INCIDENT_TYPE = 'Post incident';
+        var DTR_TYPE = 'Daily Time Record';
+        var INCIDENT_TYPE = 'Incident Report';
+        var DAILY_ACTIVITY_TYPE = 'Daily Activity';
+        var DAILY_ACTIVITY_MAX_PHOTOS = 5;
         var ocrPreview = qs('[data-guard-ocr-preview]', form);
         var ocrAsIs = qs('[data-guard-ocr-as-is]', form);
         var ocrStatus = qs('[data-guard-ocr-status]', form);
@@ -640,7 +659,21 @@ function guard_hub_scripts(): void
         var step2Title = qs('[data-guard-step2-title]', form);
         var step2Hint = qs('[data-guard-step2-hint]', form);
         var step1Next = qs('[data-guard-step1-next]', form);
+        var scanFlow = qs('[data-guard-scan-flow]', form);
+        var dailyPanel = qs('[data-guard-daily-activity]', form);
+        var dailyDetailsInput = qs('[data-guard-daily-details-input]', form);
+        var dailySubmitBtn = qs('[data-guard-daily-submit]', form);
+        var wizardSubmitBtn = qs('[data-guard-submit]', form);
+        var dailyModal = qs('[data-guard-daily-activity-modal]', document);
+        var dailyModalDetails = qs('[data-guard-daily-activity-details]', document);
+        var dailyModalPhotos = qs('[data-guard-daily-activity-photos]', document);
+        var dailyModalPreview = qs('[data-guard-daily-activity-photo-preview]', document);
+        var dailyModalPhotoError = qs('[data-guard-daily-activity-photo-error]', document);
+        var wizardStepsBar = qs('.guard-wizard__steps', form);
         var submitSubtitle = qs('[data-guard-submit-subtitle]', form.closest('.guard-section-stack') || document);
+        var dailyActivityEvent = null;
+        var dailyActivityPhotos = [];
+        var dailyActivitySubmitting = false;
         var sheetLocationFix = null;
         var evidenceLocationFix = null;
         var ocrDone = false;
@@ -648,12 +681,22 @@ function guard_hub_scripts(): void
 
         function isDadMode() {
             var sel = qs('[name="report_type"]', form);
-            return sel && String(sel.value || '').trim() === DAD_TYPE;
+            return sel && String(sel.value || '').trim() === DTR_TYPE;
         }
 
         function isIncidentMode() {
             var sel = qs('[name="report_type"]', form);
             return sel && String(sel.value || '').trim() === INCIDENT_TYPE;
+        }
+
+        function isDailyActivityMode() {
+            var sel = qs('[name="report_type"]', form);
+            return sel && String(sel.value || '').trim() === DAILY_ACTIVITY_TYPE;
+        }
+
+        function getDailyActivityMode() {
+            var checked = qs('[name="daily_activity_mode"]:checked', form);
+            return checked ? String(checked.value || '').trim() : '';
         }
 
         function usesOcrPreview() {
@@ -716,7 +759,7 @@ function guard_hub_scripts(): void
             if (step2Title) step2Title.textContent = dad ? 'Step 2 — Site photos & location' : 'Step 2 — Insert evidences';
             if (step2Hint) {
                 step2Hint.textContent = dad
-                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DAD).'
+                    ? 'Add on-site photos. Step 1 stamped the sheet location; step 2 stamps evidence location (both sent to admin DTR).'
                     : 'Photos are tagged with device date/time and GPS when available.';
             }
             if (sheetLocPanel) sheetLocPanel.hidden = !dad;
@@ -728,16 +771,273 @@ function guard_hub_scripts(): void
                 submitSubtitle.textContent = dad
                     ? 'Daily attendance: GPS is stamped when you scan the sheet (step 1) and again at the site with photos (step 2). Document AI reads handwriting on the sheet.'
                     : incident
-                      ? 'Post incident: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
+                      ? 'Incident report: scan the filled form. Document AI shows handwritten incident description (left) and action taken (right), without printed template text.'
                       : 'Scan your filled report, add evidence photos, then submit. Document AI reads the form on submit; evidence files are stored encrypted.';
             }
             if (!usesOcrPreview() && ocrPreview) {
                 ocrPreview.hidden = true;
             }
+            syncDailyActivityUi();
+        }
+
+        function clearDailyActivityPhotos() {
+            dailyActivityPhotos.forEach(function (item) {
+                if (item.url) URL.revokeObjectURL(item.url);
+            });
+            dailyActivityPhotos = [];
+            renderDailyActivityPhotoPreview();
+        }
+
+        function dailyActivityPhotoLabel(item, idx) {
+            if (item.file && item.file.name) return item.file.name;
+            return 'Photo ' + (idx + 1);
+        }
+
+        function renderDailyActivityPhotoPreview() {
+            if (!dailyModalPreview) return;
+            dailyModalPreview.innerHTML = '';
+            dailyActivityPhotos.slice(0, DAILY_ACTIVITY_MAX_PHOTOS).forEach(function (item, idx) {
+                var row = document.createElement('div');
+                row.className = 'guard-daily-activity-photo-list__row';
+                var thumb = document.createElement('img');
+                thumb.className = 'guard-daily-activity-photo-list__thumb';
+                thumb.src = item.url;
+                thumb.alt = '';
+                var name = document.createElement('span');
+                name.className = 'guard-daily-activity-photo-list__name';
+                name.textContent = dailyActivityPhotoLabel(item, idx);
+                name.title = name.textContent;
+                var rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'guard-daily-activity-photo-list__remove';
+                rm.setAttribute('aria-label', 'Remove ' + name.textContent);
+                rm.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                rm.addEventListener('click', function () {
+                    URL.revokeObjectURL(item.url);
+                    dailyActivityPhotos.splice(idx, 1);
+                    renderDailyActivityPhotoPreview();
+                    syncDailyActivityUi();
+                });
+                row.appendChild(thumb);
+                row.appendChild(name);
+                row.appendChild(rm);
+                dailyModalPreview.appendChild(row);
+            });
+        }
+
+        function dailyActivityEventFormComplete() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            return details !== '' && dailyActivityPhotos.length >= 1
+                && dailyActivityPhotos.length <= DAILY_ACTIVITY_MAX_PHOTOS;
+        }
+
+        function syncDailyActivityEventFromModal() {
+            if (!dailyActivityEventFormComplete()) {
+                dailyActivityEvent = null;
+                if (dailyDetailsInput) dailyDetailsInput.value = '';
+                return;
+            }
+            var details = String(dailyModalDetails.value || '').trim();
+            dailyActivityEvent = {
+                details: details,
+                files: dailyActivityPhotos.map(function (item) { return item.file; })
+            };
+            if (dailyDetailsInput) dailyDetailsInput.value = details;
+        }
+
+        function shouldShowDailySubmit() {
+            if (!isDailyActivityMode()) return false;
+            var mode = getDailyActivityMode();
+            if (mode === 'normal') return true;
+            if (mode === 'event') return dailyActivityEventFormComplete();
+            return false;
+        }
+
+        function syncDailyActivityUi() {
+            var da = isDailyActivityMode();
+            form.classList.toggle('is-daily-activity', da);
+            if (dailyPanel) dailyPanel.hidden = !da;
+            if (scanFlow) scanFlow.hidden = da;
+            if (wizardStepsBar) wizardStepsBar.hidden = da;
+            if (wizardSubmitBtn) wizardSubmitBtn.hidden = da;
+            qsa('[data-wizard-pane="2"], [data-wizard-pane="3"]', form).forEach(function (pane) {
+                if (da) pane.classList.remove('is-active');
+            });
+            if (da) {
+                goStep(1);
+                stopCamera();
+            }
+            if (dailySubmitBtn) dailySubmitBtn.hidden = !shouldShowDailySubmit();
+            if (submitSubtitle) {
+                if (da) {
+                    submitSubtitle.textContent = 'Daily activity: choose normal operation to submit immediately, or with event / activity to complete the popup form (details and photos).';
+                }
+            }
+        }
+
+        function openDailyActivityModal() {
+            if (!dailyModal) return;
+            if (dailyModalDetails && dailyActivityEvent) {
+                dailyModalDetails.value = dailyActivityEvent.details || '';
+            }
+            if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+            dailyModal.hidden = false;
+            dailyModal.classList.add('is-open');
+            document.body.classList.add('guard-daily-activity-modal-open');
+            if (dailyModalDetails) dailyModalDetails.focus();
+        }
+
+        function closeDailyActivityModal() {
+            if (!dailyModal) return;
+            dailyModal.classList.remove('is-open');
+            dailyModal.hidden = true;
+            document.body.classList.remove('guard-daily-activity-modal-open');
+        }
+
+        function saveDailyActivityModal() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            if (details === '') {
+                window.guardShowToast('Enter activity details before continuing.', 'error');
+                if (dailyModalDetails) dailyModalDetails.focus();
+                return;
+            }
+            if (dailyActivityPhotos.length < 1) {
+                if (dailyModalPhotoError) {
+                    dailyModalPhotoError.hidden = false;
+                    dailyModalPhotoError.textContent = 'Add at least one photo (up to 5).';
+                }
+                window.guardShowToast('Add at least one supporting photo.', 'error');
+                return;
+            }
+            if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                window.guardShowToast('You can upload at most 5 photos.', 'error');
+                return;
+            }
+            if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+            syncDailyActivityEventFromModal();
+            closeDailyActivityModal();
+            syncDailyActivityUi();
+        }
+
+        function resetDailyActivityState() {
+            dailyActivityEvent = null;
+            if (dailyDetailsInput) dailyDetailsInput.value = '';
+            if (dailyModalDetails) dailyModalDetails.value = '';
+            clearDailyActivityPhotos();
+            qsa('[name="daily_activity_mode"]', form).forEach(function (radio) {
+                radio.checked = false;
+            });
+            closeDailyActivityModal();
+            syncDailyActivityUi();
+        }
+
+        function submitDailyActivity() {
+            if (dailyActivitySubmitting) return;
+            var reportType = DAILY_ACTIVITY_TYPE;
+            var mode = getDailyActivityMode();
+            if (!reportType || !isDailyActivityMode()) {
+                window.guardShowToast('Select Daily Activity as the report type.', 'error');
+                return;
+            }
+            if (!mode) {
+                window.guardShowToast('Choose Normal Operation or With Event / Activity.', 'error');
+                return;
+            }
+            if (mode === 'event') {
+                syncDailyActivityEventFromModal();
+                if (!dailyActivityEvent || !dailyActivityEvent.details || !dailyActivityEvent.files.length) {
+                    window.guardShowToast('Complete activity details and add at least one photo.', 'error');
+                    openDailyActivityModal();
+                    return;
+                }
+                if (dailyActivityEvent.files.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                    window.guardShowToast('You can upload at most 5 photos.', 'error');
+                    return;
+                }
+            }
+
+            dailyActivitySubmitting = true;
+            var activeBtn = dailySubmitBtn;
+            if (activeBtn) {
+                activeBtn.classList.add('is-loading');
+                activeBtn.disabled = true;
+            }
+
+            function finishSubmit(geo) {
+                var fd = new FormData();
+                fd.append('report_type', reportType);
+                fd.append('daily_activity_mode', mode);
+                if (mode === 'event' && dailyActivityEvent) {
+                    fd.append('daily_activity_details', dailyActivityEvent.details);
+                    dailyActivityEvent.files.forEach(function (file, i) {
+                        fd.append('daily_activity_photos[]', file, file.name || ('activity-' + i + '.jpg'));
+                    });
+                }
+                if (geo && geo.lat != null && geo.lng != null) {
+                    fd.append('submit_latitude', String(geo.lat));
+                    fd.append('submit_longitude', String(geo.lng));
+                    if (geo.accuracy != null) fd.append('submit_accuracy_m', String(geo.accuracy));
+                    if (geo.label) fd.append('location_label', geo.label);
+                }
+                var csrfInput = qs('input[name="_csrf"]', form);
+                var csrfValue = csrfInput ? csrfInput.value : '';
+                if (csrfValue) fd.append('_csrf', csrfValue);
+
+                var fetchHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
+                if (csrfValue) fetchHeaders['X-CSRF-Token'] = csrfValue;
+
+                fetch(form.getAttribute('action') || 'api/report-submit.php', {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: fetchHeaders
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.ok) {
+                            window.guardShowToast(data.message || 'Report submitted successfully.', 'success');
+                            resetDailyActivityState();
+                            form.reset();
+                            if (reportTypeSelect) reportTypeSelect.value = '';
+                            syncReportTypeSummary();
+                            syncDadUi();
+                            setTimeout(function () {
+                                window.location.href = data.redirect || 'submit-report.php?view=history';
+                            }, 1200);
+                        } else {
+                            window.guardShowToast(data.error || 'Submission failed.', 'error');
+                        }
+                    })
+                    .catch(function () {
+                        window.guardShowToast('Network error. Try again.', 'error');
+                    })
+                    .finally(function () {
+                        dailyActivitySubmitting = false;
+                        if (activeBtn) {
+                            activeBtn.classList.remove('is-loading');
+                            activeBtn.disabled = false;
+                        }
+                    });
+            }
+
+            if (navigator.geolocation) {
+                acquireGpsFix({ timeoutMs: 20000, targetAccuracyM: 50 })
+                    .then(function (fix) {
+                        finishSubmit({
+                            lat: fix.lat,
+                            lng: fix.lng,
+                            accuracy: fix.accuracy,
+                            label: ''
+                        });
+                    })
+                    .catch(function () { finishSubmit(null); });
+            } else {
+                finishSubmit(null);
+            }
         }
 
         function runOcrPreview() {
-            if (!usesOcrPreview() || !reportFile || ocrBusy) {
+            if (isDailyActivityMode() || !usesOcrPreview() || !reportFile || ocrBusy) {
                 return;
             }
             ocrBusy = true;
@@ -755,7 +1055,7 @@ function guard_hub_scripts(): void
             }
 
             var fd = new FormData();
-            fd.append('report_type', isIncidentMode() ? INCIDENT_TYPE : DAD_TYPE);
+            fd.append('report_type', isIncidentMode() ? INCIDENT_TYPE : DTR_TYPE);
             fd.append('report_scan', reportFile, reportFile.name || 'scan.jpg');
             var csrfInput = qs('input[name="_csrf"]', form);
             if (csrfInput && csrfInput.value) fd.append('_csrf', csrfInput.value);
@@ -786,6 +1086,92 @@ function guard_hub_scripts(): void
                 });
         }
 
+        function acquireGpsFix(options) {
+            options = options || {};
+            var timeoutMs = options.timeoutMs || 28000;
+            var targetAccuracyM = options.targetAccuracyM || 35;
+            return new Promise(function (resolve, reject) {
+                if (!navigator.geolocation) {
+                    reject(new Error('unsupported'));
+                    return;
+                }
+                var best = null;
+                var watchId = null;
+                var settled = false;
+                var geoOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs };
+
+                function toFix(pos) {
+                    return {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy
+                    };
+                }
+
+                function cleanup() {
+                    if (watchId != null) {
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    }
+                }
+
+                function finish(pos) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    resolve(toFix(pos));
+                }
+
+                function fail(err) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    clearTimeout(timer);
+                    if (best) {
+                        resolve(toFix(best));
+                        return;
+                    }
+                    reject(err || new Error('gps_failed'));
+                }
+
+                var timer = setTimeout(function () {
+                    if (best) {
+                        finish({ coords: { latitude: best.lat, longitude: best.lng, accuracy: best.accuracy } });
+                    } else {
+                        fail(new Error('timeout'));
+                    }
+                }, timeoutMs);
+
+                watchId = navigator.geolocation.watchPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                        if (fix.accuracy <= targetAccuracyM) {
+                            finish(pos);
+                        }
+                    },
+                    function (err) {
+                        fail(err);
+                    },
+                    geoOpts
+                );
+
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        var fix = toFix(pos);
+                        if (!best || fix.accuracy < best.accuracy) {
+                            best = fix;
+                        }
+                    },
+                    function () { /* watchPosition handles errors */ },
+                    geoOpts
+                );
+            });
+        }
+
         function updateLocationUi(kind, lat, lng, accuracy, label, statusText) {
             var coordsEl = kind === 'sheet' ? sheetLocCoords : evidenceLocCoords;
             var addressEl = kind === 'sheet' ? sheetLocAddress : evidenceLocAddress;
@@ -811,18 +1197,31 @@ function guard_hub_scripts(): void
             if (statusEl && statusText) statusEl.textContent = statusText;
         }
 
-        function reverseGeocode(lat, lng) {
-            return fetch('api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), {
+        function reverseGeocode(lat, lng, accuracyM) {
+            var url = 'api/geocode.php?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng);
+            if (accuracyM != null && !isNaN(accuracyM)) {
+                url += '&accuracy_m=' + encodeURIComponent(accuracyM);
+            }
+            return fetch(url, {
                 credentials: 'same-origin',
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.ok && data.label) return String(data.label);
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: data.ok && data.label
+                            ? String(data.label)
+                            : ('Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6)),
+                        locality: data.locality ? String(data.locality) : '',
+                        accuracyWarning: data.accuracy_warning ? String(data.accuracy_warning) : ''
+                    };
                 })
                 .catch(function () {
-                    return 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                    return {
+                        label: 'Coordinates ' + lat.toFixed(6) + ', ' + lng.toFixed(6),
+                        locality: '',
+                        accuracyWarning: ''
+                    };
                 });
         }
 
@@ -834,47 +1233,45 @@ function guard_hub_scripts(): void
             }
             var statusEl = kind === 'sheet' ? sheetLocStatus : evidenceLocStatus;
             var pending = kind === 'sheet'
-                ? 'Stamping sheet location from this device…'
-                : 'Stamping evidence location at the site…';
+                ? 'Acquiring GPS for sheet location (wait outdoors if possible)…'
+                : 'Acquiring GPS at the site (wait outdoors if possible)…';
             if (statusEl) statusEl.textContent = pending;
 
-            navigator.geolocation.getCurrentPosition(
-                function (pos) {
-                    var lat = pos.coords.latitude;
-                    var lng = pos.coords.longitude;
-                    var acc = pos.coords.accuracy;
-                    var fix = { lat: lat, lng: lng, accuracy: acc, label: '' };
+            acquireGpsFix({ timeoutMs: 28000, targetAccuracyM: 35 })
+                .then(function (fix) {
+                    var lat = fix.lat;
+                    var lng = fix.lng;
+                    var acc = fix.accuracy;
+                    var locFix = { lat: lat, lng: lng, accuracy: acc, label: '' };
                     if (kind === 'sheet') {
-                        sheetLocationFix = fix;
+                        sheetLocationFix = locFix;
                     } else {
-                        evidenceLocationFix = fix;
+                        evidenceLocationFix = locFix;
                     }
                     updateLocationUi(kind, lat, lng, acc, '', 'Resolving address…');
-                    reverseGeocode(lat, lng).then(function (address) {
-                        fix.label = address;
-                        if (kind === 'sheet') sheetLocationFix = fix;
-                        else evidenceLocationFix = fix;
-                        updateLocationUi(
-                            kind,
-                            lat,
-                            lng,
-                            acc,
-                            address,
-                            kind === 'sheet'
-                                ? 'Sheet location stamped — continue when ready.'
-                                : 'Evidence location stamped — add photos or continue.'
-                        );
+                    return reverseGeocode(lat, lng, acc).then(function (geo) {
+                        locFix.label = geo.label;
+                        if (kind === 'sheet') sheetLocationFix = locFix;
+                        else evidenceLocationFix = locFix;
+                        var statusMsg = kind === 'sheet'
+                            ? 'Sheet location stamped — continue when ready.'
+                            : 'Evidence location stamped — add photos or continue.';
+                        if (geo.accuracyWarning) {
+                            statusMsg = geo.accuracyWarning;
+                            window.guardShowToast(geo.accuracyWarning, 'error');
+                        } else if (geo.locality) {
+                            statusMsg += ' City: ' + geo.locality + '.';
+                        }
+                        updateLocationUi(kind, lat, lng, acc, geo.label, statusMsg);
                     });
-                },
-                function (err) {
+                })
+                .catch(function (err) {
                     if (statusEl) {
-                        statusEl.textContent = err.code === 1
+                        statusEl.textContent = err && err.code === 1
                             ? 'Location denied. Enable GPS in browser settings.'
-                            : 'Could not acquire GPS. Move outdoors and retry.';
+                            : 'Could not acquire GPS. Move outdoors, wait a few seconds, and tap stamp again.';
                     }
-                },
-                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-            );
+                });
         }
 
         function syncDadSheetPreview() {
@@ -1244,18 +1641,9 @@ function guard_hub_scripts(): void
                     evidenceInput.value = '';
                 };
                 if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        function (pos) {
-                            var gps = {
-                                lat: pos.coords.latitude,
-                                lng: pos.coords.longitude,
-                                accuracy: pos.coords.accuracy
-                            };
-                            done(gps);
-                        },
-                        function () { done(null); },
-                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                    );
+                    acquireGpsFix({ timeoutMs: 22000, targetAccuracyM: 40 })
+                        .then(function (fix) { done(fix); })
+                        .catch(function () { done(null); });
                 } else {
                     done(null);
                 }
@@ -1277,11 +1665,78 @@ function guard_hub_scripts(): void
 
         if (reportTypeSelect) {
             reportTypeSelect.addEventListener('change', function () {
+                resetDailyActivityState();
                 syncReportTypeSummary();
                 syncDadUi();
             });
         }
         syncDadUi();
+
+        qsa('[data-guard-daily-mode]', form).forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (radio.value === 'normal' && radio.checked) {
+                    dailyActivityEvent = null;
+                    if (dailyDetailsInput) dailyDetailsInput.value = '';
+                    if (dailyModalDetails) dailyModalDetails.value = '';
+                    clearDailyActivityPhotos();
+                    closeDailyActivityModal();
+                }
+                if (radio.value === 'event' && radio.checked) {
+                    openDailyActivityModal();
+                }
+                syncDailyActivityUi();
+            });
+        });
+
+        if (dailySubmitBtn) {
+            dailySubmitBtn.addEventListener('click', function () {
+                submitDailyActivity();
+            });
+        }
+
+        if (dailyModalDetails) {
+            dailyModalDetails.addEventListener('input', syncDailyActivityUi);
+        }
+
+        qsa('[data-guard-daily-activity-modal-close]', document).forEach(function (btn) {
+            btn.addEventListener('click', closeDailyActivityModal);
+        });
+        var dailyModalSave = qs('[data-guard-daily-activity-modal-save]', document);
+        if (dailyModalSave) {
+            dailyModalSave.addEventListener('click', saveDailyActivityModal);
+        }
+        if (dailyModalPhotos) {
+            dailyModalPhotos.addEventListener('change', function () {
+                var files = dailyModalPhotos.files;
+                if (!files || !files.length) return;
+                var remaining = DAILY_ACTIVITY_MAX_PHOTOS - dailyActivityPhotos.length;
+                if (remaining <= 0) {
+                    window.guardShowToast('Maximum of 5 photos reached.', 'error');
+                    dailyModalPhotos.value = '';
+                    return;
+                }
+                Array.prototype.forEach.call(files, function (file, i) {
+                    if (i >= remaining) return;
+                    if (!file.type || file.type.indexOf('image/') !== 0) return;
+                    dailyActivityPhotos.push({
+                        file: file,
+                        url: URL.createObjectURL(file)
+                    });
+                });
+                dailyModalPhotos.value = '';
+                if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
+                renderDailyActivityPhotoPreview();
+                syncDailyActivityUi();
+                if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                    while (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
+                        var removed = dailyActivityPhotos.pop();
+                        if (removed && removed.url) URL.revokeObjectURL(removed.url);
+                    }
+                    window.guardShowToast('Only the first 5 photos were kept.', 'error');
+                    renderDailyActivityPhotoPreview();
+                }
+            });
+        }
 
         qsa('[data-wizard-next]', form).forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -1290,6 +1745,10 @@ function guard_hub_scripts(): void
                     if (!selectedReportType()) {
                         window.guardShowToast('Select a report type first.', 'error');
                         if (reportTypeSelect) reportTypeSelect.focus();
+                        return;
+                    }
+                    if (isDailyActivityMode()) {
+                        window.guardShowToast('Use the Daily Activity buttons on this step to submit.', 'error');
                         return;
                     }
                     if (!reportFile) {
@@ -1325,6 +1784,10 @@ function guard_hub_scripts(): void
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (isDailyActivityMode()) {
+                submitDailyActivity();
+                return;
+            }
             var reportType = selectedReportType();
             if (!reportType) {
                 window.guardShowToast('Select a report type first.', 'error');
@@ -1568,6 +2031,7 @@ function guard_hub_scripts(): void
                     url.searchParams.set('view', 'history');
                 } else {
                     url.searchParams.delete('view');
+                    url.searchParams.delete('page');
                 }
                 history.replaceState({ panelNav: true, url: url.href }, '', url.href);
                 persistGuardLocation(url.href);

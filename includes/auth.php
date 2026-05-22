@@ -220,8 +220,9 @@ function auth_permissions_for_role(int $role): array
         'admin.dashboard.view',
         'admin.inbox.manage',
         'admin.reports.view',
-        'admin.duty.view', // Daily Attendance Detail (DAD) registry
-        'admin.dad.view',
+        'admin.duty.view', // Daily Time Record (DTR) registry (legacy slug)
+        'admin.dtr.view',
+        'admin.dad.view', // legacy alias for admin.dtr.view
         'admin.messaging.send',
         'admin.memo.send',
         'admin.legacy_portal',
@@ -494,9 +495,14 @@ function auth_user_can(string $permissionSlug): bool
         return true;
     }
 
-    // Daily Attendance Detail (DAD) — alias for sessions granted before admin.dad.view
-    if ($permissionSlug === 'admin.dad.view' && in_array('admin.duty.view', $perms, true)) {
-        return true;
+    // Daily Time Record (DTR) — permission aliases across legacy slugs
+    $dtrAliases = ['admin.dtr.view', 'admin.dad.view', 'admin.duty.view'];
+    if (in_array($permissionSlug, $dtrAliases, true)) {
+        foreach ($dtrAliases as $alias) {
+            if (in_array($alias, $perms, true)) {
+                return true;
+            }
+        }
     }
 
     return false;

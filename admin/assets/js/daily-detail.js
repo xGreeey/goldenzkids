@@ -18,11 +18,15 @@
     }
 
     function initDailyDetailModule() {
-        const root = document.getElementById('daily-detail-module');
-        if (!root || root.dataset.dailyBound === '1') {
+        const root = document.querySelector('#reports-module[data-registry-kind="dtr"]');
+        if (!root) {
             return;
         }
-        root.dataset.dailyBound = '1';
+
+        const isReinit = root.dataset.dailyBound === '1';
+        if (!isReinit) {
+            root.dataset.dailyBound = '1';
+        }
 
         if (window.__dailyDetailAbort) {
             window.__dailyDetailAbort.abort();
@@ -30,9 +34,9 @@
         window.__dailyDetailAbort = new AbortController();
         const panelSignal = window.__dailyDetailAbort.signal;
 
-        const tableHeadWrap = document.getElementById('daily-table-head-wrap');
-        const tableBodyWrap = document.getElementById('daily-table-body-wrap');
-        if (tableHeadWrap && tableBodyWrap) {
+        const tableHeadWrap = document.getElementById('reports-table-head-wrap');
+        const tableBodyWrap = document.getElementById('reports-table-body-wrap');
+        if (!isReinit && tableHeadWrap && tableBodyWrap) {
             tableBodyWrap.addEventListener(
                 'scroll',
                 () => {
@@ -407,20 +411,18 @@
             );
         }
 
-        function locationBlockHtml(title, lat, lng, accuracy, label) {
+        function dadLocCardHtml(title, lat, lng, accuracy, label) {
             if (lat == null && lng == null && !label) {
                 return '';
             }
-            let html =
-                '<div class="reports-detail-about reports-dad-loc"><h4 class="reports-detail-about__title">' +
-                escapeHtml(title) +
-                '</h4>';
+            let html = '<article class="reports-dad-loc-card">';
+            html += '<h4 class="reports-dad-loc-card__title">' + escapeHtml(title) + '</h4>';
             if (label) {
-                html += '<p>' + escapeHtml(label) + '</p>';
+                html += '<p class="reports-dad-loc-card__label">' + escapeHtml(label) + '</p>';
             }
             if (lat != null && lng != null) {
                 html +=
-                    '<p class="mono">' +
+                    '<p class="reports-dad-loc-card__coords mono">' +
                     escapeHtml(lat.toFixed(6) + ', ' + lng.toFixed(6));
                 if (accuracy != null) {
                     html += ' <span class="reports-optional">(±' + escapeHtml(String(Math.round(accuracy))) + ' m)</span>';
@@ -429,11 +431,111 @@
                 const mapUrl =
                     'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng);
                 html +=
-                    '<p><a href="' +
+                    '<p class="reports-dad-loc-card__map"><a href="' +
                     escapeHtml(mapUrl) +
                     '" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></p>';
+            } else {
+                html += '<p class="reports-dad-loc-card__empty">No GPS coordinates captured.</p>';
             }
-            html += '</div>';
+            html += '</article>';
+            return html;
+        }
+
+        function dadLocationsSectionHtml(p) {
+            const sheet = dadLocCardHtml(
+                'Attendance sheet capture',
+                p.sheet_latitude != null ? Number(p.sheet_latitude) : null,
+                p.sheet_longitude != null ? Number(p.sheet_longitude) : null,
+                p.sheet_accuracy_m != null ? Number(p.sheet_accuracy_m) : null,
+                p.sheet_location_label || ''
+            );
+            const evidence = dadLocCardHtml(
+                'Site evidence (step 2)',
+                p.evidence_latitude != null
+                    ? Number(p.evidence_latitude)
+                    : p.submit_latitude != null
+                      ? Number(p.submit_latitude)
+                      : null,
+                p.evidence_longitude != null
+                    ? Number(p.evidence_longitude)
+                    : p.submit_longitude != null
+                      ? Number(p.submit_longitude)
+                      : null,
+                p.evidence_accuracy_m != null
+                    ? Number(p.evidence_accuracy_m)
+                    : p.submit_accuracy_m != null
+                      ? Number(p.submit_accuracy_m)
+                      : null,
+                p.evidence_location_label || p.location_label || ''
+            );
+            if (!sheet && !evidence) {
+                return '';
+            }
+            return (
+                '<section class="reports-detail-sheet__section" aria-label="Capture locations">' +
+                '<h4 class="reports-dad-section-heading">Locations</h4>' +
+                '<div class="reports-dad-locations">' +
+                sheet +
+                evidence +
+                '</div></section>'
+            );
+        }
+
+        function dadSheetFieldHtml(label, value, modifier) {
+            const trimmed = String(value || '').trim();
+            const mod = modifier ? ' reports-detail-sheet__field--' + modifier : '';
+            const empty = trimmed === '' ? ' is-empty' : '';
+            return (
+                '<div class="reports-detail-sheet__field' +
+                mod +
+                empty +
+                '"><span class="reports-detail-sheet__label">' +
+                escapeHtml(label) +
+                '</span><span class="reports-detail-sheet__value">' +
+                escapeHtml(trimmed !== '' ? trimmed : '—') +
+                '</span></div>'
+            );
+        }
+
+        function dadRecordSheetHtml(p) {
+            let guard = (p.guard_name || '').trim();
+            const guardId = (p.guard_id || '').trim();
+            if (guard && guardId) {
+                guard += ' (' + guardId + ')';
+            } else if (!guard && guardId) {
+                guard = guardId;
+            }
+            const summary = (p.summary || '').trim();
+            let html =
+                '<div class="reports-dad-below"><div class="reports-detail-sheet" role="group" aria-label="DTR record details">';
+            html += '<section class="reports-detail-sheet__section" aria-label="Assignment">';
+            html += '<h4 class="reports-dad-section-heading">Assignment</h4>';
+            html += '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">';
+            html += dadSheetFieldHtml('Guard', guard);
+            html += dadSheetFieldHtml('Post', p.post || '');
+            html += dadSheetFieldHtml('Head guard', p.head_guard_name || '');
+            html += '</div></section>';
+            html += '<section class="reports-detail-sheet__section" aria-label="Timekeeping">';
+            html += '<h4 class="reports-dad-section-heading">Timekeeping</h4>';
+            html += '<div class="reports-detail-sheet__grid reports-dad-sheet__grid--timekeeping">';
+            html += dadSheetFieldHtml('Shift', p.shift_display || p.shift_date || '');
+            html += dadSheetFieldHtml('Time record', p.time_record || '');
+            html += dadSheetFieldHtml('Issue', p.issue_label || '');
+            html += dadSheetFieldHtml('Equivalence', p.recorded_label || '');
+            html += dadSheetFieldHtml('Status', p.status_label || '');
+            html += dadSheetFieldHtml('Submitted', p.submitted_display || '');
+            html += dadSheetFieldHtml('Updated', p.updated_display || '—');
+            html += '</div></section>';
+            html += dadLocationsSectionHtml(p);
+            html +=
+                '<section class="reports-detail-sheet__section reports-dad-summary' +
+                (summary === '' ? ' is-empty' : '') +
+                '" aria-label="Summary">';
+            html += '<h4 class="reports-dad-section-heading">Summary</h4>';
+            html +=
+                '<p class="reports-dad-summary__body">' +
+                escapeHtml(summary !== '' ? summary : 'No summary provided.') +
+                '</p></section></div></div>';
             return html;
         }
 
@@ -507,7 +609,7 @@
             const csvUrl = dadOcrExportUrl(record);
             let html = '<div class="reports-dad-ocr-export" data-dad-ocr-export>';
             html +=
-                '<p class="reports-dad-ocr-export__hint">Download a password-protected ZIP with the CSV extract inside. A one-time password is emailed to your admin account — use it to open the ZIP, then open the CSV in Excel.</p>';
+                '<p class="reports-dad-ocr-export__hint">Download a password-protected ZIP containing the CSV extract. A one-time password is emailed to your admin account — use it to open the ZIP, then open the CSV in Excel.</p>';
             html += '<div class="reports-dad-ocr-export__actions">';
             if (csvUrl) {
                 html +=
@@ -517,6 +619,17 @@
             }
             html += '</div></div>';
             return html;
+        }
+
+        function dadStep1ExportFooterHtml(record) {
+            if (!record || !dadHasOcrExport(record)) {
+                return '';
+            }
+            return (
+                '<div class="reports-dad-step1__footer" data-dad-step1-export>' +
+                dadOcrExportActionsHtml(record) +
+                '</div>'
+            );
         }
 
         function ocrStructuredHtml(structured, formatted, raw, displayFieldsOverride, record) {
@@ -530,18 +643,11 @@
                     html += '</div>';
                 });
                 html += '</div>';
-                if (record && dadHasOcrExport(record)) {
-                    html += dadOcrExportActionsHtml(record);
-                }
                 return html;
             }
             const body = (formatted || '').trim();
             if (body) {
-                let html = '<pre class="reports-dad-media__ocr">' + escapeHtml(body) + '</pre>';
-                if (record && dadHasOcrExport(record)) {
-                    html += dadOcrExportActionsHtml(record);
-                }
-                return html;
+                return '<pre class="reports-dad-media__ocr">' + escapeHtml(body) + '</pre>';
             }
             return '<p class="reports-dad-media__hint">Could not read NAME, TIME IN, or TIME OUT from this sheet. Try a clearer photo of the attendance row.</p>';
         }
@@ -562,13 +668,9 @@
                 (dadId > 0 ? ' data-dad-id="' + escapeHtml(String(dadId)) + '"' : '') +
                 '>';
             html += '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
-            html += '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
-            html +=
-                '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet">Sheet image</button>';
-            html +=
-                '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr">Extracted text</button>';
-            html += '</div><div class="reports-dad-step1__panels">';
-            html += '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';
+            html += '<div class="reports-dad-step1__split">';
+            html += '<div class="reports-dad-step1__col reports-dad-step1__col--sheet">';
+            html += '<h4 class="reports-dad-step1__col-title">Sheet image</h4>';
             if (scanUrl) {
                 html +=
                     '<a href="' +
@@ -580,13 +682,15 @@
                 html += '<p class="reports-dad-media__hint">No scan image on file.</p>';
             }
             html += '</div>';
-            html += '<div class="reports-dad-step1__panel" role="tabpanel" data-dad-panel="ocr" hidden>';
+            html += '<div class="reports-dad-step1__col reports-dad-step1__col--ocr">';
+            html += '<h4 class="reports-dad-step1__col-title">Extracted text</h4>';
+            html += '<div class="reports-dad-step1__ocr-body" data-dad-ocr-panel>';
             if (hasOcr) {
                 html += ocrBody;
             } else {
                 html += '<div class="reports-dad-ocr-empty" data-dad-ocr-empty>';
                 html +=
-                    '<p class="reports-dad-media__hint">Document AI reads only NAME, TIME IN, and TIME OUT from the sheet. Open this tab to extract those fields.</p>';
+                    '<p class="reports-dad-media__hint">Document AI reads NAME, TIME IN, and TIME OUT from the sheet.</p>';
                 if (dadId > 0 && scanUrl) {
                     html +=
                         '<button type="button" class="reports-btn reports-btn--secondary reports-dad-ocr-run" data-dad-ocr-run>Extract text now</button>';
@@ -594,23 +698,11 @@
                 html += '<p class="reports-dad-ocr-status" data-dad-ocr-status hidden></p></div>';
             }
             html += '</div></div></div>';
-            return html;
-        }
-
-        function setDadStep1Tab(step1Root, tabKey) {
-            if (!step1Root) {
-                return;
+            if (hasOcr) {
+                html += dadStep1ExportFooterHtml(p);
             }
-            step1Root.querySelectorAll('[data-dad-tab]').forEach((btn) => {
-                const active = btn.getAttribute('data-dad-tab') === tabKey;
-                btn.classList.toggle('is-active', active);
-                btn.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-            step1Root.querySelectorAll('[data-dad-panel]').forEach((panel) => {
-                const active = panel.getAttribute('data-dad-panel') === tabKey;
-                panel.classList.toggle('is-active', active);
-                panel.hidden = !active;
-            });
+            html += '</div>';
+            return html;
         }
 
         let dadOcrBusy = false;
@@ -624,7 +716,7 @@
             }
 
             const statusEl = step1Root?.querySelector('[data-dad-ocr-status]');
-            const ocrPanel = step1Root?.querySelector('[data-dad-panel="ocr"]');
+            const ocrPanel = step1Root?.querySelector('[data-dad-ocr-panel]');
             dadOcrBusy = true;
             if (statusEl) {
                 statusEl.hidden = false;
@@ -675,6 +767,23 @@
                             record
                         );
                     }
+                    const exportFooter = step1Root?.querySelector('[data-dad-step1-export]');
+                    if (exportFooter) {
+                        exportFooter.innerHTML = dadHasOcrExport(record)
+                            ? dadOcrExportActionsHtml(record)
+                            : '';
+                        exportFooter.hidden = !dadHasOcrExport(record);
+                    } else if (dadHasOcrExport(record)) {
+                        const split = step1Root?.querySelector('.reports-dad-step1__split');
+                        if (split && split.parentNode) {
+                            split.insertAdjacentHTML(
+                                'afterend',
+                                '<div class="reports-dad-step1__footer" data-dad-step1-export">' +
+                                    dadOcrExportActionsHtml(record) +
+                                    '</div>'
+                            );
+                        }
+                    }
                     if (statusEl) {
                         statusEl.hidden = true;
                     }
@@ -690,34 +799,27 @@
                 });
         }
 
-        function bindDadStep1Tabs(container, record) {
+        function bindDadStep1(container, record) {
             const step1 = container?.querySelector('[data-dad-step1]');
             if (!step1) {
                 return;
             }
 
             step1.addEventListener('click', (e) => {
-                const tabBtn = e.target.closest('[data-dad-tab]');
-                if (tabBtn && step1.contains(tabBtn)) {
-                    e.preventDefault();
-                    const key = tabBtn.getAttribute('data-dad-tab') || 'sheet';
-                    setDadStep1Tab(step1, key);
-                    if (
-                        key === 'ocr' &&
-                        record &&
-                        dadDisplayFields(record.ocr_structured, record.ocr_display_fields).length === 0 &&
-                        record.scan_url
-                    ) {
-                        runDadOcr(record, step1);
-                    }
-                    return;
-                }
                 const runBtn = e.target.closest('[data-dad-ocr-run]');
                 if (runBtn && step1.contains(runBtn)) {
                     e.preventDefault();
                     runDadOcr(record, step1);
                 }
             });
+
+            if (
+                record &&
+                record.scan_url &&
+                dadDisplayFields(record.ocr_structured, record.ocr_display_fields).length === 0
+            ) {
+                runDadOcr(record, step1);
+            }
         }
 
         function renderViewDetails(p, options) {
@@ -727,50 +829,13 @@
             const forceClient = options && options.forceClient === true;
             if (!forceClient && p && typeof p.view_html === 'string' && p.view_html.trim() !== '') {
                 viewDetails.innerHTML = p.view_html;
-                bindDadStep1Tabs(viewDetails, p);
+                bindDadStep1(viewDetails, p);
                 return;
             }
-            const pairs = [
-                ['Guard', (p.guard_name || '—') + (p.guard_id ? ' (' + p.guard_id + ')' : '')],
-                ['Post', p.post || '—'],
-                ['Shift', p.shift_display || p.shift_date || '—'],
-                ['Time record', p.time_record || '—'],
-                ['Equivalence', p.recorded_label || '—'],
-                ['Status', p.status_label || '—'],
-                ['Head guard', p.head_guard_name || '—'],
-                ['Submitted', p.submitted_display || '—'],
-                ['Updated', p.updated_display || '—'],
-            ];
             let html = mediaBlockHtml(p);
-            html += '<dl class="reports-detail-grid">';
-            pairs.forEach(([label, value]) => {
-                html +=
-                    '<div class="reports-detail-item"><dt class="reports-detail-label">' +
-                    escapeHtml(label) +
-                    '</dt><dd class="reports-detail-value">' +
-                    escapeHtml(value) +
-                    '</dd></div>';
-            });
-            html += '</dl>';
-            html += locationBlockHtml(
-                'Location — attendance sheet (step 1)',
-                p.sheet_latitude != null ? Number(p.sheet_latitude) : null,
-                p.sheet_longitude != null ? Number(p.sheet_longitude) : null,
-                p.sheet_accuracy_m != null ? Number(p.sheet_accuracy_m) : null,
-                p.sheet_location_label || ''
-            );
-            html += locationBlockHtml(
-                'Location — site evidence (step 2)',
-                p.evidence_latitude != null ? Number(p.evidence_latitude) : null,
-                p.evidence_longitude != null ? Number(p.evidence_longitude) : null,
-                p.evidence_accuracy_m != null ? Number(p.evidence_accuracy_m) : null,
-                p.evidence_location_label || ''
-            );
-            html += '<div class="reports-detail-about"><h4 class="reports-detail-about__title">Summary</h4><p>';
-            html += escapeHtml(p.summary || '—');
-            html += '</p></div>';
+            html += dadRecordSheetHtml(p);
             viewDetails.innerHTML = html;
-            bindDadStep1Tabs(viewDetails, p);
+            bindDadStep1(viewDetails, p);
         }
 
         function renderHistory(history, record) {
@@ -932,7 +997,7 @@
                 p = row?.payload || null;
             }
             if (!p) {
-                window.alert('Could not load this DAD record. Refresh the page and try again.');
+                window.alert('Could not load this DTR record. Refresh the page and try again.');
                 return;
             }
             recordsById[id] = p;
@@ -1025,7 +1090,7 @@
             const csrf = root.dataset.csrf || '';
             const label = refLabel || id || 'this record';
             const confirmed = window.confirm(
-                'Delete ' + label + '? This removes the DAD registry entry. The guard report in Reports is not deleted.'
+                'Delete ' + label + '? This removes the DTR registry entry. The guard report in Reports is not deleted.'
             );
             if (!confirmed) {
                 return;
@@ -1247,6 +1312,32 @@
             },
             { signal: panelSignal }
         );
+
+        if (isReinit) {
+            currentRecordId = document.body.dataset.openRecord || '';
+            currentMode = document.body.dataset.openMode || 'view';
+            const reinitTab = document.body.dataset.statusTab;
+            if (reinitTab) {
+                const tabEl = tabs.find((t) => t.dataset.statusTab === reinitTab);
+                if (tabEl) {
+                    setActiveTab(tabEl);
+                } else {
+                    applyFilters();
+                }
+            } else {
+                applyFilters();
+            }
+            if (
+                currentRecordId
+                && (recordsById[currentRecordId] || recordsIndex.find((r) => r.id === currentRecordId)?.payload)
+            ) {
+                const modalOverlay = document.getElementById('daily-modal-overlay');
+                if (modalOverlay?.classList.contains('is-open')) {
+                    openRecord(currentRecordId, currentMode);
+                }
+            }
+            return;
+        }
 
         const initialTab = document.body.dataset.statusTab;
         if (initialTab) {

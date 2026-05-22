@@ -69,13 +69,13 @@ if ($messagingActivePeer !== null && $messagingActivePeer !== '') {
 }
 
 $boardSubtitle = match (auth_normalize_role(auth_user_role())) {
-    AUTH_ROLE_ADMIN => 'Direct messages to super administrators and head guards, plus group chats.',
+    AUTH_ROLE_ADMIN => 'Direct messages to head guards, plus group chats.',
     AUTH_ROLE_GUARD => 'Direct messages with administrators, plus group chats.',
     default => 'Direct messages with administrators, plus group chats with head guards.',
 };
 
 $messagingSidebarTitle = $messagingSidebarTitle ?? 'Conversations';
-$messagingSidebarSubtitle = $messagingSidebarSubtitle ?? 'Staff messaging board for direct and group conversations.';
+$messagingSidebarSubtitle = $messagingSidebarSubtitle ?? 'Direct and group conversations with head guards.';
 $messagingHideSidebarHead = $messagingHideSidebarHead ?? false;
 
 $canRenderCreateForm = $messagingCanCreateGroups && $messagingHeadGuardOptions !== [];
@@ -156,7 +156,7 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                 <h3 class="messaging-board__section-title">Direct</h3>
                 <?php if ($messagingContacts === []): ?>
                     <p class="messaging-board__empty"><?= auth_normalize_role(auth_user_role()) === AUTH_ROLE_ADMIN
-                        ? 'No super administrator or head guard accounts are active yet.'
+                        ? 'No head guard accounts are active yet.'
                         : 'No administrator accounts are active yet.' ?></p>
                 <?php else: ?>
                 <ul class="messaging-contact-list">

@@ -382,10 +382,13 @@ function admin_shell_styles(): void
 
         .sidebar-brand {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 28px 16px;
-            min-height: 140px;
+            gap: 10px;
+            padding: 20px 12px 16px;
+            min-height: 0;
+            text-align: center;
             border-bottom: 1px solid var(--app-border-on-dark);
         }
 
@@ -406,16 +409,29 @@ function admin_shell_styles(): void
             min-width: 0;
         }
 
-        .brand-name {
-            display: block;
-            font-family: var(--font-body-family);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: var(--color-white);
-            line-height: 1.3;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .sidebar-brand .brand-name {
+            margin: 0;
+            padding: 0 4px;
+            max-width: 100%;
+            font-family: var(--font-heading-family);
+            font-size: clamp(0.6875rem, 2.4vw, 0.8125rem);
+            font-weight: 400;
+            letter-spacing: var(--font-heading-letter);
+            line-height: 1.35;
+            color: var(--app-ink-on-dark);
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            overflow-wrap: anywhere;
+            hyphens: auto;
+        }
+
+        body.light-mode:has(.app-shell) .sidebar-brand .brand-name {
+            color: var(--color-primary);
+        }
+
+        body:not(.light-mode):has(.app-shell) .sidebar-brand .brand-name {
+            color: var(--app-ink-on-dark);
         }
 
         .sidebar-nav {
@@ -423,13 +439,17 @@ function admin_shell_styles(): void
             flex-direction: column;
             gap: 2px;
             padding: 12px 8px;
-            flex: 0 0 auto;
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .sidebar-link {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0;
             padding: 10px 14px;
             font-size: var(--font-body-size-sm);
             font-weight: 600;
@@ -515,6 +535,133 @@ function admin_shell_styles(): void
         }
 
         .sidebar-link:focus-visible {
+            outline: 2px solid var(--brand-accent);
+            outline-offset: 2px;
+        }
+
+        .sidebar-nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .sidebar-nav-group__toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            font-size: var(--font-body-size-sm);
+            font-weight: 600;
+            font-family: inherit;
+            color: var(--app-ink-muted-on-dark);
+            text-align: left;
+            text-decoration: none;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition:
+                background-color 0.08s ease,
+                color 0.08s ease,
+                box-shadow 0.08s ease;
+        }
+
+        .sidebar-nav-group__toggle:hover {
+            color: var(--app-ink-on-dark);
+            background: var(--bg-elevated);
+        }
+
+        .sidebar-nav-group.has-active > .sidebar-nav-group__toggle {
+            color: var(--app-ink-on-dark);
+            font-weight: 700;
+        }
+
+        .sidebar-nav-group__label {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-nav-group__chevron {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            opacity: 0.75;
+            transition: transform 0.15s ease;
+        }
+
+        .sidebar-nav-group.is-open .sidebar-nav-group__chevron {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-nav-group__menu {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            box-sizing: border-box;
+            width: calc(100% - 10px);
+            margin: 2px 4px 4px 10px;
+            padding: 4px 0 4px 8px;
+            border-left: 2px solid color-mix(in srgb, var(--app-border-on-dark) 65%, transparent);
+        }
+
+        body.light-mode .sidebar-nav-group__menu {
+            border-left-color: color-mix(in srgb, var(--app-border) 80%, transparent);
+        }
+
+        .sidebar-nav-group:not(.is-open) .sidebar-nav-group__menu {
+            display: none;
+        }
+
+        .sidebar-link--sub {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 7px 8px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            line-height: 1.3;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .sidebar-link--sub.active {
+            box-shadow: inset 3px 0 0 0 var(--brand-accent);
+        }
+
+        body.light-mode .sidebar-link--sub.active {
+            box-shadow: inset 3px 0 0 0 var(--color-primary);
+        }
+
+        .sidebar-link--sub .sidebar-link__icon {
+            width: 16px;
+        }
+
+        .sidebar-link--sub .sidebar-link__icon .admin-ui-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        body.light-mode .sidebar-nav-group__toggle {
+            color: var(--app-ink-muted);
+        }
+
+        body.light-mode .sidebar-nav-group__toggle:hover {
+            color: var(--app-ink);
+            background: var(--bg-elevated);
+        }
+
+        body.light-mode .sidebar-nav-group.has-active > .sidebar-nav-group__toggle {
+            color: var(--app-ink-deep);
+        }
+
+        .sidebar-nav-group__toggle:focus-visible {
             outline: 2px solid var(--brand-accent);
             outline-offset: 2px;
         }
@@ -723,29 +870,66 @@ function admin_shell_styles(): void
             z-index: 1;
             display: flex;
             flex-direction: column;
+            align-items: stretch;
             min-width: 0;
             width: calc(100% - var(--sidebar-w));
             margin-left: var(--sidebar-w);
-            min-height: 100vh;
-            min-height: 100dvh;
+            min-height: 0;
+            height: auto;
             box-sizing: border-box;
+            overflow: visible;
+        }
+
+        /* Content-sized admin pages (dashboard, activity registries). */
+        body.page-dashboard .app-main {
+            max-width: none;
+        }
+
+        /* Full-viewport workspaces (incident registry, DTR). Everything else sizes to content. */
+        body.page-incident-reports .app-shell,
+        body.page-daily-detail .app-shell,
+        body.page-dtr .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            min-height: 100dvh;
+            max-height: 100dvh;
+            overflow: hidden;
+        }
+
+        body.page-incident-reports .admin-app__topbar,
+        body.page-daily-detail .admin-app__topbar,
+        body.page-dtr .admin-app__topbar {
+            flex-shrink: 0;
         }
 
         .app-main {
-            flex: 1 1 auto;
+            flex: 0 0 auto;
+            align-self: stretch;
             width: 100%;
             max-width: 1440px;
             margin: 0 auto;
             min-width: 0;
             min-height: 0;
+            height: auto;
             font-size: var(--font-body-size);
             line-height: var(--font-body-line-relaxed);
             overflow-x: clip;
+            overflow-y: visible;
             padding:
                 max(clamp(16px, 2.5vw, 32px), env(safe-area-inset-top, 0px))
                 max(clamp(16px, 3vw, 32px), env(safe-area-inset-right, 0px))
                 max(clamp(20px, 4vw, 48px), env(safe-area-inset-bottom, 0px))
                 max(clamp(16px, 3vw, 32px), env(safe-area-inset-left, 0px));
+        }
+
+        .app-main__stage {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            height: auto;
+            overflow: visible;
         }
 
         .page-header {
@@ -830,6 +1014,113 @@ function admin_shell_styles(): void
                 margin-bottom: 16px;
             }
         }
+
+        /* Full-height workspaces (incident + DTR only). Activity registries size to content in reports.css. */
+        body.page-incident-reports .app-main,
+        body.page-daily-detail .app-main,
+        body.page-dtr .app-main {
+            flex: 1 1 auto;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        body.page-incident-reports .app-main__stage,
+        body.page-daily-detail .app-main__stage,
+        body.page-dtr .app-main__stage {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .report-hub-placeholder {
+            margin-top: 8px;
+        }
+
+        .report-hub-placeholder__card {
+            max-width: 42rem;
+            padding: clamp(1.25rem, 2vw, 1.75rem);
+            border-radius: var(--app-radius-lg, 12px);
+            border: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+            background: var(--app-surface-raised, rgba(255, 255, 255, 0.6));
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__card {
+            border-color: var(--app-border-on-dark, rgba(255, 255, 255, 0.12));
+            background: var(--app-surface-dark, rgba(0, 0, 0, 0.2));
+        }
+
+        .report-hub-placeholder__icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--app-accent, #c9a227);
+        }
+
+        .report-hub-placeholder__title {
+            margin: 0 0 0.5rem;
+            font-family: var(--font-heading-family);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--app-ink-deep);
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__title {
+            color: var(--app-ink-on-dark);
+        }
+
+        .report-hub-placeholder__text {
+            margin: 0 0 1rem;
+            color: var(--app-ink-muted);
+            line-height: 1.55;
+            max-width: 50ch;
+        }
+
+        .report-hub-placeholder__badge {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(201, 162, 39, 0.15);
+            color: var(--app-accent, #9a7b1a);
+        }
+
+        .report-hub-placeholder__links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
+        }
+
+        body:not(.light-mode) .report-hub-placeholder__links {
+            border-top-color: var(--app-border-on-dark, rgba(255, 255, 255, 0.1));
+        }
+
+        .report-hub-placeholder__link {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--app-accent, #9a7b1a);
+            text-decoration: none;
+        }
+
+        .report-hub-placeholder__link:hover {
+            text-decoration: underline;
+        }
     <?php
     /* Ensure create-account modal CSS exists even after SPA panel swaps. */
     superadmin_modal_styles();
@@ -894,6 +1185,21 @@ document.addEventListener('DOMContentLoaded', function () {
             event.preventDefault();
         });
     });
+
+    document.querySelectorAll('[data-sidebar-nav-group]').forEach(function (group) {
+        var toggle = group.querySelector('.sidebar-nav-group__toggle');
+        var menu = group.querySelector('.sidebar-nav-group__menu');
+        if (!toggle || !menu) {
+            return;
+        }
+
+        toggle.addEventListener('click', function () {
+            var open = !group.classList.contains('is-open');
+            group.classList.toggle('is-open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            menu.hidden = !open;
+        });
+    });
 });
 </script>
     <?php
@@ -910,6 +1216,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (is_readable($dailyDetailJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/daily-detail.js'))
                 . '?v=' . (int) filemtime($dailyDetailJs) . '" defer></script>';
+        }
+        $activityRegistryJs = dirname(__DIR__) . '/admin/assets/js/activity-registry.js';
+        if (is_readable($activityRegistryJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/activity-registry.js'))
+                . '?v=' . (int) filemtime($activityRegistryJs) . '" defer></script>';
         }
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';

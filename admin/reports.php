@@ -154,6 +154,7 @@ function admin_reports_row_attrs(array $report): string
     </style>
 </head>
 <body class="light-mode page-incident-reports"
+      data-admin-nav="reports"
       data-open-incident="<?= e($openIncidentId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
       data-status-tab="<?= e($initialStatusTab) ?>">
@@ -167,29 +168,16 @@ function admin_reports_row_attrs(array $report): string
         </header>
 
             <div id="reports-module" class="reports-module">
-                <?php
-                $reportKpiIcons = [
-                    'all' => 'clipboard-list',
-                    'ongoing' => 'folder-open',
-                    'on_hold' => 'clock',
-                    'accomplished' => 'circle-check',
-                    'denied' => 'ban',
-                ];
-                ?>
                 <section class="kpi-grid" aria-label="Report summary">
                     <article class="kpi-card kpi-card--total" title="All incident reports in the registry">
                         <div class="kpi-stat">
-                            <?= admin_kpi_icon($reportKpiIcons['all']) ?>
                             <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
                         </div>
                         <p class="kpi-label">Total reports</p>
                     </article>
-                    <?php foreach ($statusDefinitions as $slug => $def):
-                        $icon = $reportKpiIcons[$slug] ?? 'file-lines';
-                        ?>
+                    <?php foreach ($statusDefinitions as $slug => $def): ?>
                     <article class="kpi-card kpi-card--<?= e($slug) ?>" title="<?= e((string) $def['description']) ?>">
                         <div class="kpi-stat">
-                            <?= admin_kpi_icon($icon) ?>
                             <span class="kpi-value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></span>
                         </div>
                         <p class="kpi-label"><?= e((string) $def['kpi']) ?></p>
@@ -226,19 +214,12 @@ function admin_reports_row_attrs(array $report): string
                             <div class="reports-toolbar-actions" role="toolbar" aria-label="Report filter actions">
                                 <div class="reports-button-set">
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-reset">
-                                        <?= admin_btn_icon('rotate-left') ?>
                                         <span class="reports-btn__text">Reset</span>
                                     </button>
-                                    <a href="reports.php?export=1" class="reports-btn reports-btn--primary" id="reports-export">
-                                        <?= admin_btn_icon('file-export') ?>
-                                        <span class="reports-btn__text">Export</span>
-                                    </a>
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
-                                        <?= admin_btn_icon('book-open') ?>
                                         <span class="reports-btn__text">Guard guide</span>
                                     </button>
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-incident-types-open" title="Incident types — severity and filing reference" aria-haspopup="dialog" aria-controls="reports-incident-types-modal">
-                                        <i class="fa-solid fa-list-check reports-btn__icon" aria-hidden="true"></i>
                                         <span class="reports-btn__text">Incident types</span>
                                     </button>
                                 </div>
@@ -426,13 +407,20 @@ function admin_reports_row_attrs(array $report): string
                             <?php foreach ($statusDefinitions as $slug => $def): ?>
                             <span class="reports-status-key__item" title="<?= e($def['description']) ?>">
                                 <span class="reports-status-dot reports-status-dot--<?= e($slug) ?>" aria-hidden="true"></span>
-                                <span class="reports-status-key__name"><?= e($def['label']) ?></span><span class="reports-status-key__desc"> — <?= e($def['description']) ?></span>
+                                <span class="reports-status-key__name"><?= e($def['label']) ?></span>
                             </span>
                             <?php endforeach; ?>
                         </p>
                     </footer>
                 </section>
         </div>
+
+        <script type="application/json" id="reports-data-json"><?=
+            json_encode($incidentReports, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
+        <script type="application/json" id="reports-status-labels"><?=
+            json_encode(admin_incident_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
+        ?></script>
     </main>
 </div>
 
@@ -630,12 +618,6 @@ function admin_reports_row_attrs(array $report): string
     </div>
 </div>
 
-<script type="application/json" id="reports-data-json"><?=
-    json_encode($incidentReports, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
-<script type="application/json" id="reports-status-labels"><?=
-    json_encode(admin_incident_status_options(), JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT)
-?></script>
 <?php admin_shell_scripts(); ?>
 <script src="assets/js/reports.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/reports.js') ?>" defer></script>
 

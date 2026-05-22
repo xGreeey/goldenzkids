@@ -143,6 +143,39 @@ function guard_hub_styles(): void
             display: none;
         }
 
+        body.guard-portal .guard-corner-page .guard-corner-reminder {
+            margin: 0 0 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--guard-card-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-reminder__heading {
+            margin: 0 0 0.35rem;
+            font-size: 0.9375rem;
+            line-height: 1.35;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-reminder__text {
+            margin: 0;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: var(--guard-ui-muted, #64748b);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-memos__title {
+            margin: 0 0 0.75rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-corner-page .guard-corner-memos .empty-state {
+            margin: 0;
+            padding: 0;
+        }
+
         /* Inbox / hub stack — compact headers and empty states without icons */
         body.guard-portal .guard-section-stack .guard-card__icon {
             display: none;
@@ -173,6 +206,145 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-report-history__hint {
             margin: 0 0 10px;
+        }
+
+        body.guard-portal .guard-report-history-pagination {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--guard-card-border);
+        }
+
+        body.guard-portal .guard-report-history-pagination__summary {
+            margin: 0 0 8px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--guard-select-placeholder, var(--guard-ui-subtle, #64748b));
+        }
+
+        body.guard-portal .guard-report-history-pagination__controls {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            width: 100%;
+            max-width: 100%;
+            padding: 4px;
+            border-radius: 8px;
+            background: var(--guard-select-bg, var(--guard-surface-muted));
+            border: 1px solid var(--guard-select-border, var(--guard-card-border));
+        }
+
+        body.guard-portal .guard-report-history-pagination__btn,
+        body.guard-portal .guard-report-history-pagination__page {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 28px;
+            padding: 0 8px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            color: var(--guard-select-text, var(--guard-ui-primary, #0f172a));
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        body.guard-portal .guard-report-history-pagination__btn {
+            padding: 0 10px;
+        }
+
+        body.guard-portal .guard-report-history-pagination__btn i {
+            font-size: 0.625rem;
+        }
+
+        body.guard-portal .guard-report-history-pagination__btn-label {
+            font-size: 0.75rem;
+        }
+
+        body.guard-portal a.guard-report-history-pagination__btn:hover,
+        body.guard-portal a.guard-report-history-pagination__page:hover {
+            background: var(--guard-select-bg-hover, var(--guard-ui-cream, #f1f5f9));
+            border-color: var(--guard-select-border-hover, var(--guard-ui-border, #e2e8f0));
+        }
+
+        body.guard-portal .guard-report-history-pagination__btn.is-disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        body.guard-portal .guard-report-history-pagination__pages {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        body.guard-portal .guard-report-history-pagination__page {
+            min-width: 28px;
+            padding: 0 6px;
+        }
+
+        body.guard-portal .guard-report-history-pagination__page.is-current {
+            color: var(--guard-select-text, var(--guard-ui-primary, #0f172a));
+            background: var(--guard-surface, #fff);
+            border-color: var(--guard-select-border-hover, var(--guard-ui-border, #cbd5e1));
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        body.guard-portal .guard-report-history-pagination__ellipsis {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 28px;
+            font-size: 0.6875rem;
+            color: var(--guard-select-placeholder, var(--guard-ui-subtle, #64748b));
+            font-weight: 600;
+            user-select: none;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-report-history-pagination__controls {
+            background: var(--guard-select-bg);
+            border-color: var(--guard-select-border);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-report-history-pagination__page.is-current {
+            color: var(--guard-select-text);
+            background: color-mix(in srgb, var(--guard-ui-surface, #1e293b) 65%, #334155);
+            border-color: var(--guard-select-border-hover);
+            box-shadow: none;
+        }
+
+        body.guard-portal:not(.light-mode) a.guard-report-history-pagination__btn:hover,
+        body.guard-portal:not(.light-mode) a.guard-report-history-pagination__page:hover {
+            background: var(--guard-select-bg-hover);
+            border-color: var(--guard-select-border-hover);
+        }
+
+        @media (max-width: 380px) {
+            body.guard-portal .guard-report-history-pagination__btn-label {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+
+            body.guard-portal .guard-report-history-pagination__btn {
+                padding: 0 8px;
+            }
         }
 
         body.guard-portal .guard-submit-card.is-history-open .guard-wizard {
@@ -560,81 +732,105 @@ function guard_hub_styles(): void
             line-height: 1.4;
         }
 
+        body.guard-portal {
+            --guard-select-bg: var(--sa-input-bg, #f8fafc);
+            --guard-select-bg-hover: var(--guard-ui-cream, #f1f5f9);
+            --guard-select-border: var(--guard-ui-border, #e2e8f0);
+            --guard-select-border-hover: color-mix(in srgb, var(--guard-ui-primary, #0f172a) 18%, var(--guard-ui-border, #e2e8f0));
+            --guard-select-text: var(--guard-ui-primary, #0f172a);
+            --guard-select-placeholder: var(--guard-ui-subtle, #64748b);
+            --guard-select-option-bg: #ffffff;
+            --guard-select-option-text: #0f172a;
+            --guard-select-focus-ring: color-mix(in srgb, var(--brand-accent, #2563eb) 22%, transparent);
+            --guard-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        }
+
+        body.guard-portal:not(.light-mode) {
+            --guard-select-bg: color-mix(in srgb, var(--guard-ui-surface, #1e293b) 88%, #0f172a);
+            --guard-select-bg-hover: color-mix(in srgb, var(--guard-ui-surface, #1e293b) 72%, #334155);
+            --guard-select-border: var(--guard-ui-border, #334155);
+            --guard-select-border-hover: color-mix(in srgb, var(--guard-ui-secondary, #cbd5e1) 35%, var(--guard-ui-border, #334155));
+            --guard-select-text: var(--guard-ui-secondary, #e2e8f0);
+            --guard-select-placeholder: var(--guard-ui-subtle, #94a3b8);
+            --guard-select-option-bg: #1e293b;
+            --guard-select-option-text: #f1f5f9;
+            --guard-select-focus-ring: color-mix(in srgb, var(--guard-ui-secondary, #cbd5e1) 18%, transparent);
+            --guard-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        }
+
         body.guard-portal .guard-app__scroll .guard-select {
             position: relative;
             width: 100%;
+            max-width: 100%;
         }
 
-        /* Report type — neutral only (no brand/accent tints on field or options) */
         body.guard-portal .guard-app__scroll .guard-wizard__report-type .guard-select__native,
         body.guard-portal .guard-app__scroll .guard-select__native {
             width: 100%;
-            min-height: 44px;
-            padding: 10px 40px 10px 14px;
+            min-height: 40px;
+            padding: 8px 36px 8px 12px;
             font-family: inherit;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
-            line-height: 1.3;
-            color: #111827;
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
+            line-height: 1.35;
+            color: var(--guard-select-text);
+            background-color: var(--guard-select-bg);
+            border: 1px solid var(--guard-select-border);
+            border-radius: 8px;
             box-shadow: none;
             cursor: pointer;
             appearance: none;
             -webkit-appearance: none;
-            accent-color: #6b7280;
+            accent-color: var(--guard-select-placeholder);
             color-scheme: light;
-            transition: border-color 0.15s ease;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+            background-image: var(--guard-select-chevron);
             background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 18px 18px;
+            background-position: right 10px center;
+            background-size: 16px 16px;
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:hover {
-            border-color: #d1d5db;
-            background-color: #ffffff;
+            border-color: var(--guard-select-border-hover);
+            background-color: var(--guard-select-bg-hover);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:focus,
         body.guard-portal.superadmin-portal .form-field .guard-select__native:focus {
             outline: none;
-            border-color: #9ca3af;
-            box-shadow: none;
-            background-color: #ffffff;
+            border-color: var(--guard-select-border-hover);
+            background-color: var(--guard-select-bg-hover);
+            box-shadow: 0 0 0 2px var(--guard-select-focus-ring);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:invalid {
-            color: #111827;
+            color: var(--guard-select-placeholder);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:valid {
+            color: var(--guard-select-text);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native option,
         body.guard-portal .guard-app__scroll .guard-select__native optgroup {
-            background-color: #ffffff;
-            color: #111827;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            background-color: var(--guard-select-option-bg);
+            color: var(--guard-select-option-text);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native option:disabled {
+            color: var(--guard-select-placeholder);
         }
 
         body.guard-portal:not(.light-mode) .guard-app__scroll .guard-wizard__report-type .guard-select__native,
         body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native {
-            color: #111827;
-            background-color: #ffffff;
-            border-color: #d1d5db;
+            color-scheme: dark;
+        }
+
+        body.guard-portal.light-mode .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal.light-mode .guard-app__scroll .guard-select__native {
             color-scheme: light;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:hover,
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:focus,
-        body.guard-portal.superadmin-portal:not(.light-mode) .form-field .guard-select__native:focus {
-            background-color: #ffffff;
-            border-color: #9ca3af;
-            box-shadow: none;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native option,
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native optgroup {
-            background-color: #ffffff;
-            color: #111827;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner {
@@ -1230,7 +1426,8 @@ function guard_hub_styles(): void
             color: var(--guard-ui-subtle, #64748b);
         }
 
-        body.guard-portal .guard-policy-list__source {
+        body.guard-portal .guard-policy-list__source,
+        body.guard-portal .guard-policy-list__raw {
             display: none !important;
         }
 
@@ -1434,14 +1631,25 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-policy-modal__list {
             margin: 0;
-            padding-left: 1.35rem;
-            list-style-type: decimal;
-            list-style-position: outside;
+            padding: 0;
+            list-style: none;
+            counter-reset: guard-policy-step;
         }
 
         body.guard-portal .guard-policy-modal__list li {
+            position: relative;
             margin: 0 0 0.85em;
-            padding-left: 0.35rem;
+            padding: 0 0 0 1.75rem;
+            counter-increment: guard-policy-step;
+        }
+
+        body.guard-portal .guard-policy-modal__list li::before {
+            content: counter(guard-policy-step) '.';
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-weight: 700;
+            color: var(--guard-ui-primary, #0f172a);
         }
 
         body.guard-portal .guard-policy-modal__list li:last-child {
@@ -1453,12 +1661,249 @@ function guard_hub_styles(): void
             color: var(--guard-ui-secondary, #cbd5e1);
         }
 
+        body.guard-portal:not(.light-mode) .guard-policy-modal__list li::before {
+            color: #f1f5f9;
+        }
+
         body.guard-portal .guard-app__scroll code {
             font-size: 0.6875rem;
             padding: 2px 4px;
             border-radius: 4px;
             background: var(--sa-input-bg, #f8fafc);
             color: var(--guard-ui-primary, #0f172a);
+        }
+
+        /* Daily Activity (submit report) */
+        body.guard-portal .guard-wizard.is-daily-activity [data-guard-scan-flow] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-wizard.is-daily-activity [data-guard-submit] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity__intro {
+            margin: 0 0 12px;
+        }
+
+        body.guard-portal .guard-daily-activity__modes {
+            border: 0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        body.guard-portal .guard-daily-activity__mode {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+            cursor: pointer;
+        }
+
+        body.guard-portal .guard-daily-activity__mode:has(input:checked) {
+            border-color: var(--sa-primary, #2563eb);
+            box-shadow: 0 0 0 1px var(--sa-primary, #2563eb);
+        }
+
+        body.guard-portal .guard-daily-activity__mode input {
+            margin: 0 8px 0 0;
+            align-self: flex-start;
+        }
+
+        body.guard-portal .guard-daily-activity__mode-label {
+            font-weight: 600;
+            color: var(--guard-ui-primary, #0f172a);
+        }
+
+        body.guard-portal .guard-daily-activity__actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        body.guard-portal .guard-daily-activity__submit {
+            width: 100%;
+        }
+
+        body.guard-portal .guard-daily-activity-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 12000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        body.guard-portal .guard-daily-activity-modal[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity-modal.is-open {
+            display: flex;
+        }
+
+        body.guard-portal.guard-daily-activity-modal-open {
+            overflow: hidden;
+        }
+
+        body.guard-portal.guard-daily-activity-modal-open .guard-app__scroll {
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(6px);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__dialog {
+            position: relative;
+            z-index: 1;
+            width: min(100%, 520px);
+            max-height: min(90vh, 720px);
+            display: flex;
+            flex-direction: column;
+            border-radius: 14px;
+            background: var(--guard-ui-surface, #fff);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
+            overflow: hidden;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__title {
+            margin: 0;
+            font-size: 1.0625rem;
+            font-weight: 700;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__close {
+            border: 0;
+            background: transparent;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            color: var(--guard-ui-secondary, #64748b);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__body {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__textarea {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        body.guard-portal .guard-daily-activity-modal__photo-error {
+            color: #b91c1c;
+            margin-top: 6px;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+            max-height: none;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list:empty {
+            display: none;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f8fafc);
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__thumb {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            object-fit: cover;
+            display: block;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__name {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.8125rem;
+            line-height: 1.3;
+            color: var(--guard-ui-text, #334155);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--guard-ui-secondary, #64748b);
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove:hover {
+            background: rgba(15, 23, 42, 0.06);
+            color: #b91c1c;
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__row {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__name {
+            color: var(--guard-ui-secondary, #cbd5e1);
+        }
+
+        body.guard-portal .guard-daily-activity-modal__foot {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--guard-ui-border, #e2e8f0);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity__mode {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        body.guard-portal:not(.light-mode) .guard-daily-activity-modal__dialog {
+            background: var(--guard-ui-surface, #1e293b);
         }
 
         /* Status badges */

@@ -51,7 +51,3 @@ CREATE TABLE IF NOT EXISTS guard_staff_messages (
     CONSTRAINT fk_guard_msg_sender FOREIGN KEY (sender_company_id) REFERENCES users (Company_ID) ON DELETE CASCADE,
     CONSTRAINT fk_guard_msg_recipient FOREIGN KEY (recipient_company_id) REFERENCES users (Company_ID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT IGNORE INTO guard_announcements (title, body) VALUES
-    ('Shift briefing', 'Review post orders and radio check every hour. Report incidents through the portal immediately.'),
-    ('Uniform inspection', 'Full uniform and ID must be worn during duty hours. Non-compliance will be noted in daily reports.');

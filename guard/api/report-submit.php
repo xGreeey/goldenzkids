@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/guard_portal.php';
 require_once __DIR__ . '/../../includes/document_ai.php';
 require_once __DIR__ . '/../../includes/guard_dad.php';
 require_once __DIR__ . '/../../includes/guard_incident.php';
+require_once __DIR__ . '/../../includes/guard_daily_activity.php';
 
 if (!auth_user_can('guard.reports.submit')) {
     http_response_code(403);
@@ -40,6 +41,12 @@ $templateName = $reportType;
 
 if ($establishment === '') {
     echo json_encode(['ok' => false, 'error' => 'No post is assigned to your guard profile. Contact your administrator.']);
+    exit;
+}
+
+if (guard_daily_activity_is_report_type($reportType)) {
+    $daResult = guard_daily_activity_handle_submit($conn, $companyId, $establishment, $reportType);
+    echo json_encode($daResult);
     exit;
 }
 
@@ -195,7 +202,7 @@ if (guard_dad_is_report_type($templateName)) {
     );
 
     if (!$dadResult['ok']) {
-        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DAD record.')]);
+        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DTR record.')]);
         exit;
     }
     $dadReference = (string) ($dadResult['reference'] ?? '');
@@ -234,9 +241,9 @@ if (guard_incident_is_report_type($templateName)) {
 }
 
 $message = guard_dad_is_report_type($templateName)
-    ? 'Daily attendance document submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
+    ? 'Daily time record submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
     : (guard_incident_is_report_type($templateName)
-        ? 'Post incident submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
+        ? 'Incident report submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
         : 'Report submitted. Status: Pending review.');
 if ($aiStored !== '') {
     $message .= ' Form text extracted via Document AI.';

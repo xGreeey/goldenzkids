@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * DAD — Daily Attendance Detail (registry, NTE, missing/wrong time-in/out).
+ * DTR — Daily Time Record (registry, NTE, missing/wrong time-in/out).
  */
 
 require_once __DIR__ . '/admin_incident_reports.php';
@@ -11,13 +11,13 @@ require_once __DIR__ . '/guard_dad.php';
 const ADMIN_ATTENDANCE_SESSION_KEY = 'admin_attendance_detail_store';
 
 /** Full module name shown in page titles and section headers. */
-const ADMIN_ATTENDANCE_MODULE_LABEL = 'Daily Attendance Detail';
+const ADMIN_ATTENDANCE_MODULE_LABEL = 'Daily Time Record';
 
-/** Registry reference code prefix (e.g. DAD-2026-0201). */
-const ADMIN_ATTENDANCE_REF_CODE = 'DAD';
+/** Registry reference code prefix (e.g. DTR-2026-0201). */
+const ADMIN_ATTENDANCE_REF_CODE = 'DTR';
 
 /** Admin registry page (canonical URL). */
-const ADMIN_ATTENDANCE_PAGE = 'dad.php';
+const ADMIN_ATTENDANCE_PAGE = 'dtr.php';
 
 function admin_attendance_page_path(): string
 {
@@ -155,7 +155,7 @@ function admin_attendance_seed_templates(): array
     return [
         [
             'id' => 'dad-001',
-            'ref' => 'DAD-2026-0201',
+            'ref' => 'DTR-2026-0201',
             'guard_id' => 'GZ-1042',
             'guard_name' => 'Juan Dela Cruz',
             'head_guard_name' => 'Head Guard Reyes',
@@ -170,12 +170,12 @@ function admin_attendance_seed_templates(): array
             'status' => 'pending',
             'summary' => 'Guard forgot morning punch. Head guard flagged before payroll cutoff.',
             'history' => [
-                ['at' => '20 May 2026, 19:10', 'event' => 'Flagged by head guard', 'note' => 'Auto-alert from DAD sheet.'],
+                ['at' => '20 May 2026, 19:10', 'event' => 'Flagged by head guard', 'note' => 'Auto-alert from DTR sheet.'],
             ],
         ],
         [
             'id' => 'dad-002',
-            'ref' => 'DAD-2026-0198',
+            'ref' => 'DTR-2026-0198',
             'guard_id' => 'GZ-0877',
             'guard_name' => 'Maria Santos',
             'head_guard_name' => 'Head Guard Cruz',
@@ -196,7 +196,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-003',
-            'ref' => 'DAD-2026-0194',
+            'ref' => 'DTR-2026-0194',
             'guard_id' => 'GZ-1203',
             'guard_name' => 'Ramon Garcia',
             'post' => 'SM Seaside — Annex Retail',
@@ -216,7 +216,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-004',
-            'ref' => 'DAD-2026-0188',
+            'ref' => 'DTR-2026-0188',
             'guard_id' => 'GZ-0911',
             'guard_name' => 'Elena Reyes',
             'post' => 'Quest Hotel Mactan — Lobby',
@@ -236,7 +236,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-005',
-            'ref' => 'DAD-2026-0181',
+            'ref' => 'DTR-2026-0181',
             'guard_id' => 'GZ-1055',
             'guard_name' => 'Carlo Mendoza',
             'post' => 'Cebu IT Park — Tower 1',
@@ -255,7 +255,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-006',
-            'ref' => 'DAD-2026-0175',
+            'ref' => 'DTR-2026-0175',
             'guard_id' => 'GZ-0788',
             'guard_name' => 'Ana Villanueva',
             'post' => 'Landers Superstore Banilad',
@@ -275,7 +275,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-007',
-            'ref' => 'DAD-2026-0169',
+            'ref' => 'DTR-2026-0169',
             'guard_id' => 'GZ-1120',
             'guard_name' => 'Pedro Navarro',
             'post' => 'University of San Carlos — Gate 2',
@@ -295,7 +295,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-008',
-            'ref' => 'DAD-2026-0162',
+            'ref' => 'DTR-2026-0162',
             'guard_id' => 'GZ-0994',
             'guard_name' => 'Liza Fernandez',
             'post' => 'Operations Dispatch',
@@ -315,7 +315,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-009',
-            'ref' => 'DAD-2026-0155',
+            'ref' => 'DTR-2026-0155',
             'guard_id' => 'GZ-0833',
             'guard_name' => 'Miguel Torres',
             'post' => 'Training Facility — Lapu-Lapu',
@@ -335,7 +335,7 @@ function admin_attendance_seed_templates(): array
         ],
         [
             'id' => 'dad-010',
-            'ref' => 'DAD-2026-0148',
+            'ref' => 'DTR-2026-0148',
             'guard_id' => 'GZ-1066',
             'guard_name' => 'Grace Lim',
             'post' => 'Golden Z-5 Main Office',
@@ -430,9 +430,11 @@ function admin_attendance_store_all(): array
         foreach (guard_dad_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_attendance_normalize($row);
         }
-        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        if ($out !== []) {
+            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-        return $out;
+            return $out;
+        }
     }
 
     if (!isset($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY]) || !is_array($_SESSION[ADMIN_ATTENDANCE_SESSION_KEY])) {
@@ -567,6 +569,64 @@ function admin_attendance_guard_cell_html(array $record): string
         . '</div>';
 }
 
+function admin_attendance_modal_sheet_field_html(string $label, string $value, string $modifier = ''): string
+{
+    $trimmed = trim($value);
+    $mod = $modifier !== '' ? ' reports-detail-sheet__field--' . $modifier : '';
+    $empty = $trimmed === '' ? ' is-empty' : '';
+
+    return '<div class="reports-detail-sheet__field' . $mod . $empty . '">'
+        . '<span class="reports-detail-sheet__label">' . e($label) . '</span>'
+        . '<span class="reports-detail-sheet__value">' . e($trimmed !== '' ? $trimmed : '—') . '</span>'
+        . '</div>';
+}
+
+/**
+ * @param array<string, mixed> $record
+ */
+function admin_attendance_modal_record_sheet_html(array $record): string
+{
+    $guard = trim((string) ($record['guard_name'] ?? ''));
+    $guardId = trim((string) ($record['guard_id'] ?? ''));
+    if ($guard !== '' && $guardId !== '') {
+        $guard .= ' (' . $guardId . ')';
+    } elseif ($guard === '' && $guardId !== '') {
+        $guard = $guardId;
+    }
+
+    $html = '<div class="reports-dad-below"><div class="reports-detail-sheet" role="group" aria-label="DTR record details">';
+
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Assignment">';
+    $html .= '<h4 class="reports-dad-section-heading">Assignment</h4>';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">';
+    $html .= admin_attendance_modal_sheet_field_html('Guard', $guard);
+    $html .= admin_attendance_modal_sheet_field_html('Post', (string) ($record['post'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Head guard', (string) ($record['head_guard_name'] ?? ''));
+    $html .= '</div></section>';
+
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Timekeeping">';
+    $html .= '<h4 class="reports-dad-section-heading">Timekeeping</h4>';
+    $html .= '<div class="reports-detail-sheet__grid reports-dad-sheet__grid--timekeeping">';
+    $html .= admin_attendance_modal_sheet_field_html('Shift', (string) ($record['shift_display'] ?? $record['shift_date'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Time record', (string) ($record['time_record'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Issue', (string) ($record['issue_label'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Equivalence', (string) ($record['recorded_label'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Status', (string) ($record['status_label'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Submitted', (string) ($record['submitted_display'] ?? ''));
+    $html .= admin_attendance_modal_sheet_field_html('Updated', (string) ($record['updated_display'] ?? '—'));
+    $html .= '</div></section>';
+
+    $html .= guard_dad_locations_section_html($record);
+
+    $summary = trim((string) ($record['summary'] ?? ''));
+    $html .= '<section class="reports-detail-sheet__section reports-dad-summary' . ($summary === '' ? ' is-empty' : '') . '" aria-label="Summary">';
+    $html .= '<h4 class="reports-dad-section-heading">Summary</h4>';
+    $html .= '<p class="reports-dad-summary__body">' . e($summary !== '' ? $summary : 'No summary provided.') . '</p>';
+    $html .= '</section></div></div>';
+
+    return $html;
+}
+
 /**
  * @param array<string, mixed> $record
  */
@@ -577,25 +637,7 @@ function admin_attendance_modal_details_html(array $record): string
         $html .= guard_dad_modal_extras_html($GLOBALS['conn'], $record);
     }
 
-    $html .= '<dl class="reports-detail-grid">';
-    $pairs = [
-        'Guard' => (string) ($record['guard_name'] ?? '') . ' (' . (string) ($record['guard_id'] ?? '') . ')',
-        'Post' => (string) ($record['post'] ?? ''),
-        'Shift' => (string) ($record['shift_display'] ?? $record['shift_date'] ?? ''),
-        'Time record' => (string) ($record['time_record'] ?? ''),
-        'Equivalence' => (string) ($record['recorded_label'] ?? ''),
-        'Status' => (string) ($record['status_label'] ?? ''),
-        'Head guard' => (string) ($record['head_guard_name'] ?? ''),
-        'Submitted' => (string) ($record['submitted_display'] ?? ''),
-        'Updated' => (string) ($record['updated_display'] ?? '—'),
-    ];
-    foreach ($pairs as $label => $value) {
-        $html .= '<div class="reports-detail-item"><dt class="reports-detail-label">' . e($label) . '</dt>';
-        $html .= '<dd class="reports-detail-value">' . e($value) . '</dd></div>';
-    }
-    $html .= '</dl>';
-    $html .= '<div class="reports-detail-about"><h4 class="reports-detail-about__title">Summary</h4>';
-    $html .= '<p>' . e((string) ($record['summary'] ?? '')) . '</p></div>';
+    $html .= admin_attendance_modal_record_sheet_html($record);
 
     return $html;
 }
@@ -681,7 +723,7 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
         require_once __DIR__ . '/portal_audit.php';
         portal_audit_log(
             $conn,
-            'DAD_UPDATED',
+            'DTR_UPDATED',
             'Reference: ' . (string) ($mappedFresh['ref'] ?? ('dad-' . $dadId))
                 . ($newStatus !== $oldStatus ? '; status → ' . $newStatus : ''),
             (string) ($row['head_guard_company_id'] ?? ''),
@@ -788,7 +830,7 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
         require_once __DIR__ . '/portal_audit.php';
         portal_audit_log(
             $GLOBALS['conn'],
-            'DAD_UPDATED',
+            'DTR_UPDATED',
             'Reference: ' . (string) ($records[$idx]['ref'] ?? $id)
                 . ($newStatus !== $oldStatus ? '; status → ' . $newStatus : ''),
             (string) ($records[$idx]['submitter_id'] ?? ''),
@@ -801,7 +843,7 @@ function admin_attendance_update(string $id, array $input, string $actorId): ?ar
 }
 
 /**
- * Delete a DAD registry record (database or demo session).
+ * Delete a DTR registry record (database or demo session).
  *
  * @return array{id:string,ref:string}|null
  */
@@ -855,11 +897,11 @@ function admin_attendance_delete(string $id): ?array
 }
 
 /**
- * DAD monitoring reference (single scroll, like operations guide).
+ * DTR monitoring reference (single scroll, like operations guide).
  */
 function admin_attendance_monitoring_guide_html(): string
 {
-    $html = '<nav class="reports-guide-jump" aria-label="Jump to DAD guide section">';
+    $html = '<nav class="reports-guide-jump" aria-label="Jump to DTR guide section">';
     $html .= '<a class="reports-guide-jump__link" href="#dad-guide-values">Equivalence values</a>';
     $html .= '<a class="reports-guide-jump__link" href="#dad-guide-flow">Review workflow</a>';
     $html .= '<a class="reports-guide-jump__link" href="#dad-guide-nte">NTE &amp; missing</a>';
@@ -872,7 +914,7 @@ function admin_attendance_monitoring_guide_html(): string
     $html .= '<thead><tr><th>Status</th><th>Basis</th><th>Value</th><th>Typical action</th></tr></thead><tbody>';
     $html .= '<tr><td>Present</td><td>Time-in within grace (0–15 min)</td><td>1.00</td><td>Usually no case — monitor only</td></tr>';
     $html .= '<tr><td>Late</td><td>Check-in after grace (16–30 min) or wrong time-out</td><td>0.50</td><td>Flag; coaching if pattern repeats</td></tr>';
-    $html .= '<tr><td>Absent</td><td>No punch or confirmed no-show</td><td>0.00</td><td>File DAD case; relief roster update</td></tr>';
+    $html .= '<tr><td>Absent</td><td>No punch or confirmed no-show</td><td>0.00</td><td>File DTR case; relief roster update</td></tr>';
     $html .= '<tr><td>No value</td><td>Missing time-in/out or system gap</td><td>N/A</td><td>Pending review → NTE if not fixed in 24h</td></tr>';
     $html .= '</tbody></table></div></div>';
 

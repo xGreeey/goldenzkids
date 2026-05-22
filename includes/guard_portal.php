@@ -1,34 +1,99 @@
 <?php
 declare(strict_types=1);
 
-/** @return list<array<string,mixed>> */
-function guard_portal_announcements(PDO $conn, int $limit = 20): array
-{
-    if (!db_table_exists($conn, 'guard_announcements')) {
-        return [];
-    }
-    $limit = max(1, min($limit, 50));
+require_once __DIR__ . '/memo_portal.php';
+require_once __DIR__ . '/guard_dad.php';
+require_once __DIR__ . '/guard_incident.php';
 
-    return db_fetch_all(
+const GUARD_REPORT_HISTORY_PER_PAGE = 10;
+
+function guard_portal_user_reports_count(PDO $conn, string $companyId): int
+{
+    if ($companyId === '') {
+        return 0;
+    }
+    $row = db_fetch_one(
         $conn,
-        'SELECT id, title, body, created_at FROM guard_announcements
-         WHERE is_active = 1 ORDER BY created_at DESC LIMIT ' . $limit
+        'SELECT COUNT(*) AS total FROM dgd WHERE Company_ID = ?',
+        's',
+        [$companyId]
     );
+
+    return $row !== null ? max(0, (int) ($row['total'] ?? 0)) : 0;
+}
+
+/**
+ * @return array{page:int,per_page:int,total:int,total_pages:int,offset:int}
+ */
+function guard_portal_report_history_pagination_state(
+    int $total,
+    int $requestedPage,
+    int $perPage = GUARD_REPORT_HISTORY_PER_PAGE
+): array {
+    $perPage = max(1, $perPage);
+    $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 1;
+    $page = max(1, min($requestedPage, $totalPages));
+
+    return [
+        'page' => $page,
+        'per_page' => $perPage,
+        'total' => $total,
+        'total_pages' => $totalPages,
+        'offset' => ($page - 1) * $perPage,
+    ];
+}
+
+function guard_portal_report_history_page_url(int $page): string
+{
+    $params = ['view' => 'history'];
+    if ($page > 1) {
+        $params['page'] = (string) $page;
+    }
+
+    return 'submit-report.php?' . http_build_query($params);
+}
+
+/** @return list<int> */
+function guard_portal_report_history_page_numbers(int $currentPage, int $totalPages): array
+{
+    if ($totalPages <= 1) {
+        return $totalPages >= 1 ? [1] : [];
+    }
+    if ($totalPages <= 9) {
+        return range(1, $totalPages);
+    }
+
+    $pages = [1];
+    $start = max(2, $currentPage - 1);
+    $end = min($totalPages - 1, $currentPage + 1);
+    if ($start > 2) {
+        $pages[] = 0;
+    }
+    for ($p = $start; $p <= $end; $p++) {
+        $pages[] = $p;
+    }
+    if ($end < $totalPages - 1) {
+        $pages[] = 0;
+    }
+    $pages[] = $totalPages;
+
+    return array_values(array_unique($pages));
 }
 
 /** @return list<array<string,mixed>> */
-function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50): array
+function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50, int $offset = 0): array
 {
     if ($companyId === '') {
         return [];
     }
     $limit = max(1, min($limit, 100));
+    $offset = max(0, $offset);
     $res = db_query(
         $conn,
         'SELECT Report_Number, Time_of_Report, Status, Template, Establishment
-         FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC LIMIT ?',
-        'si',
-        [$companyId, $limit]
+         FROM dgd WHERE Company_ID = ? ORDER BY Time_of_Report DESC LIMIT ? OFFSET ?',
+        'sii',
+        [$companyId, $limit, $offset]
     );
     $rows = [];
     if ($res) {
@@ -49,8 +114,9 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
 function guard_portal_report_types(): array
 {
     return [
-        'Post incident',
-        'Daily Attendance Document',
+        GUARD_INCIDENT_REPORT_TYPE,
+        GUARD_DTR_REPORT_TYPE,
+        'Daily Activity',
     ];
 }
 
@@ -59,6 +125,12 @@ function guard_portal_report_type_label(string $template): string
     $template = trim($template);
     if ($template === '') {
         return 'Guard report';
+    }
+    if ($template === GUARD_DTR_REPORT_TYPE_LEGACY) {
+        return GUARD_DTR_REPORT_TYPE;
+    }
+    if ($template === GUARD_INCIDENT_REPORT_TYPE_LEGACY || $template === 'Incident') {
+        return GUARD_INCIDENT_REPORT_TYPE;
     }
     if (in_array($template, guard_portal_report_types(), true)) {
         return $template;
@@ -69,19 +141,79 @@ function guard_portal_report_type_label(string $template): string
 
 function guard_portal_report_type_icon(string $label): string
 {
+    $label = guard_portal_report_type_label($label);
+
     return match ($label) {
-        'Post incident' => 'fa-triangle-exclamation',
-        'Daily Attendance Document' => 'fa-calendar-day',
+        GUARD_INCIDENT_REPORT_TYPE => 'fa-triangle-exclamation',
+        GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY => 'fa-calendar-day',
+        'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',
     };
 }
 
-/** @param list<array<string,mixed>> $reports */
-function guard_portal_report_history_markup(array $reports): void
+function guard_portal_report_history_pagination_markup(int $currentPage, int $totalPages, int $total): void
 {
+    if ($totalPages <= 1) {
+        return;
+    }
+
+    $pageNumbers = guard_portal_report_history_page_numbers($currentPage, $totalPages);
+    $from = (($currentPage - 1) * GUARD_REPORT_HISTORY_PER_PAGE) + 1;
+    $to = min($currentPage * GUARD_REPORT_HISTORY_PER_PAGE, $total);
+    ?>
+    <nav class="guard-report-history-pagination" aria-label="Report history pages">
+        <p class="guard-report-history-pagination__summary form-hint">
+            Showing <?= e((string) $from) ?>–<?= e((string) $to) ?> of <?= e((string) $total) ?>
+        </p>
+        <div class="guard-report-history-pagination__controls">
+            <?php if ($currentPage > 1): ?>
+                <a class="guard-report-history-pagination__btn" href="<?= e(guard_portal_report_history_page_url($currentPage - 1)) ?>" aria-label="Previous page" title="Previous page">
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    <span class="guard-report-history-pagination__btn-label">Prev</span>
+                </a>
+            <?php else: ?>
+                <span class="guard-report-history-pagination__btn is-disabled" aria-disabled="true" title="Previous page">
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    <span class="guard-report-history-pagination__btn-label">Prev</span>
+                </span>
+            <?php endif; ?>
+            <div class="guard-report-history-pagination__pages" role="group" aria-label="Page numbers">
+                <?php foreach ($pageNumbers as $pageNum): ?>
+                    <?php if ($pageNum === 0): ?>
+                        <span class="guard-report-history-pagination__ellipsis" aria-hidden="true">…</span>
+                    <?php elseif ($pageNum === $currentPage): ?>
+                        <span class="guard-report-history-pagination__page is-current" aria-current="page"><?= e((string) $pageNum) ?></span>
+                    <?php else: ?>
+                        <a class="guard-report-history-pagination__page" href="<?= e(guard_portal_report_history_page_url($pageNum)) ?>"><?= e((string) $pageNum) ?></a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+            <?php if ($currentPage < $totalPages): ?>
+                <a class="guard-report-history-pagination__btn" href="<?= e(guard_portal_report_history_page_url($currentPage + 1)) ?>" aria-label="Next page" title="Next page">
+                    <span class="guard-report-history-pagination__btn-label">Next</span>
+                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </a>
+            <?php else: ?>
+                <span class="guard-report-history-pagination__btn is-disabled" aria-disabled="true" title="Next page">
+                    <span class="guard-report-history-pagination__btn-label">Next</span>
+                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </span>
+            <?php endif; ?>
+        </div>
+    </nav>
+    <?php
+}
+
+/** @param list<array<string,mixed>> $reports */
+function guard_portal_report_history_markup(
+    array $reports,
+    int $currentPage = 1,
+    int $totalPages = 1,
+    int $total = 0
+): void {
     ?>
     <p class="form-hint guard-report-history__hint">Status matches the admin dashboard. Refresh to see updates.</p>
-    <?php if ($reports === []): ?>
+    <?php if ($total === 0): ?>
         <p class="empty-state">No reports submitted yet.</p>
     <?php else: ?>
         <ul class="guard-report-list">
@@ -92,11 +224,12 @@ function guard_portal_report_history_markup(array $reports): void
                     <time class="guard-report-list__date"><?= e((string) ($report['Time_of_Report'] ?? '—')) ?></time>
                     <span class="guard-report-list__meta">
                         <?= e((string) ($report['establishment_label'] ?? '—')) ?>
-                        · <?= e((string) ($report['Template'] ?? 'Report')) ?>
+                        · <?= e(guard_portal_report_type_label((string) ($report['Template'] ?? 'Report'))) ?>
                     </span>
                 </li>
             <?php endforeach; ?>
         </ul>
+        <?php guard_portal_report_history_pagination_markup($currentPage, $totalPages, $total); ?>
     <?php endif;
 }
 
@@ -356,7 +489,8 @@ function guard_portal_store_report_evidence(
     string $ivB64,
     string $masterKey,
     string $cipherAlgo,
-    array $evidenceMeta = []
+    array $evidenceMeta = [],
+    string $uploadField = 'evidence'
 ): int {
     if (!db_table_exists($conn, 'guard_report_evidence')) {
         return 0;
@@ -367,7 +501,7 @@ function guard_portal_store_report_evidence(
         return 0;
     }
 
-    $files = guard_portal_normalized_upload_files('evidence');
+    $files = guard_portal_normalized_upload_files($uploadField);
     $saved = 0;
 
     foreach ($files as $i => $file) {
@@ -433,7 +567,7 @@ function guard_portal_store_report_evidence(
 }
 
 /**
- * Numbered policy text → HTML list with spacing between items.
+ * Numbered policy text → HTML list (one counter; numbers stripped from item text).
  */
 function guard_portal_policy_body_html(string $body): string
 {
@@ -442,35 +576,49 @@ function guard_portal_policy_body_html(string $body): string
         return '';
     }
 
-    if (!preg_match('/\d+\.\s/', $body)) {
+    $items = guard_portal_policy_numbered_items($body);
+    if (count($items) < 2) {
         return nl2br(e($body));
     }
 
-    $chunks = preg_split('/(?=\d+\.\s)/u', $body) ?: [];
-    $items = [];
-    foreach ($chunks as $chunk) {
-        $chunk = trim($chunk);
-        if ($chunk === '') {
-            continue;
-        }
-        $text = preg_replace('/^\d+\.\s*/u', '', $chunk);
-        $text = trim((string) $text);
-        if ($text !== '') {
-            $items[] = $text;
-        }
-    }
-
-    if ($items === []) {
-        return nl2br(e($body));
-    }
-
-    $html = '<ol class="guard-policy-modal__list">';
+    $html = '<ul class="guard-policy-modal__list">';
     foreach ($items as $item) {
         $html .= '<li>' . e($item) . '</li>';
     }
-    $html .= '</ol>';
+    $html .= '</ul>';
 
     return $html;
+}
+
+/** @return list<string> */
+function guard_portal_policy_numbered_items(string $body): array
+{
+    $lines = preg_split('/\r\n|\r|\n/', $body) ?: [];
+    $items = [];
+    $current = '';
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        if (preg_match('/^\d+\.\s*(.*)$/u', $line, $matches)) {
+            if ($current !== '') {
+                $items[] = trim($current);
+            }
+            $current = trim((string) ($matches[1] ?? ''));
+            continue;
+        }
+        if ($current !== '') {
+            $current .= ' ' . $line;
+        }
+    }
+
+    if ($current !== '') {
+        $items[] = trim($current);
+    }
+
+    return array_values(array_filter($items, static fn (string $item): bool => $item !== ''));
 }
 
 /** @return list<array{title:string,slug:string,body:string}> */

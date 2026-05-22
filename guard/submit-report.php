@@ -10,8 +10,16 @@ auth_require_permission('guard.reports.submit');
 
 $companyId = (string) $_SESSION['company_id'];
 $reportTypes = guard_portal_report_types();
-$reports = guard_portal_user_reports($conn, $companyId);
 $showHistory = (($_GET['view'] ?? '') === 'history');
+$historyPage = $showHistory ? max(1, (int) ($_GET['page'] ?? 1)) : 1;
+$reportTotal = guard_portal_user_reports_count($conn, $companyId);
+$historyPager = guard_portal_report_history_pagination_state($reportTotal, $historyPage);
+$reports = guard_portal_user_reports(
+    $conn,
+    $companyId,
+    $historyPager['per_page'],
+    $historyPager['offset']
+);
 $guardNavActive = 'submit';
 guard_layout_head('Submit report');
 ?>
@@ -34,7 +42,12 @@ guard_layout_head('Submit report');
                 <?= $showHistory ? '' : 'hidden' ?>
                 aria-labelledby="guard-submit-card-heading"
             >
-                <?php guard_portal_report_history_markup($reports); ?>
+                <?php guard_portal_report_history_markup(
+                    $reports,
+                    $historyPager['page'],
+                    $historyPager['total_pages'],
+                    $historyPager['total']
+                ); ?>
             </div>
             <form
                 class="guard-wizard"
@@ -75,6 +88,29 @@ guard_layout_head('Submit report');
                             </select>
                         </div>
                     </div>
+                    <div class="guard-daily-activity" data-guard-daily-activity hidden>
+                        <p class="form-hint guard-daily-activity__intro">Log today&apos;s shift activity for your post.</p>
+                        <fieldset class="guard-daily-activity__modes">
+                            <legend class="visually-hidden">Daily activity mode</legend>
+                            <label class="guard-daily-activity__mode">
+                                <input type="radio" name="daily_activity_mode" value="normal" data-guard-daily-mode>
+                                <span class="guard-daily-activity__mode-label">Normal Operation</span>
+                                <span class="form-hint">Can be submitted immediately without additional input.</span>
+                            </label>
+                            <label class="guard-daily-activity__mode">
+                                <input type="radio" name="daily_activity_mode" value="event" data-guard-daily-mode>
+                                <span class="guard-daily-activity__mode-label">With Event / Activity</span>
+                                <span class="form-hint">Requires activity details and at least one photo (up to 5).</span>
+                            </label>
+                        </fieldset>
+                        <input type="hidden" name="daily_activity_details" data-guard-daily-details-input value="">
+                        <div class="guard-daily-activity__actions">
+                            <button type="button" class="btn-primary guard-daily-activity__submit" data-guard-daily-submit hidden>
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit report
+                            </button>
+                        </div>
+                    </div>
+                    <div data-guard-scan-flow>
                     <div class="guard-scanner" data-guard-scanner>
                         <video class="guard-scanner__video" data-guard-scanner-video playsinline muted aria-label="Camera preview"></video>
                         <img class="guard-scanner__preview" data-guard-scanner-preview alt="Captured report">
@@ -120,6 +156,7 @@ guard_layout_head('Submit report');
                     <button type="button" class="btn-primary" style="width:100%;margin-top:10px;" data-wizard-next="2" data-guard-step1-next>
                         Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                     </button>
+                    </div>
                 </div>
 
                 <div class="guard-wizard__pane" data-wizard-pane="2">
@@ -163,6 +200,60 @@ guard_layout_head('Submit report');
                     </button>
                 </div>
             </form>
+            <div
+                class="guard-daily-activity-modal"
+                data-guard-daily-activity-modal
+                hidden
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="guard-daily-activity-modal-title"
+            >
+                <div class="guard-daily-activity-modal__backdrop" data-guard-daily-activity-modal-close tabindex="-1"></div>
+                <div class="guard-daily-activity-modal__dialog">
+                    <header class="guard-daily-activity-modal__head">
+                        <h3 id="guard-daily-activity-modal-title" class="guard-daily-activity-modal__title">Event / activity details</h3>
+                        <button type="button" class="guard-daily-activity-modal__close" data-guard-daily-activity-modal-close aria-label="Close">
+                            <span class="guard-daily-activity-modal__close-glyph" aria-hidden="true">×</span>
+                        </button>
+                    </header>
+                    <div class="guard-daily-activity-modal__body">
+                        <div class="form-field">
+                            <label for="guard_daily_activity_details">Activity details <span class="form-required">*</span></label>
+                            <textarea
+                                id="guard_daily_activity_details"
+                                class="guard-daily-activity-modal__textarea"
+                                rows="4"
+                                data-guard-daily-activity-details
+                                placeholder="Describe the event or activity at your post…"
+                                required
+                            ></textarea>
+                        </div>
+                        <div class="form-field">
+                            <label class="guard-daily-activity-modal__photos-label">Supporting photos <span class="form-required">*</span></label>
+                            <p class="form-hint">At least 1 image, up to 5 maximum.</p>
+                            <label class="btn-ghost" style="display:inline-flex;cursor:pointer;margin-top:6px;">
+                                <i class="fa-solid fa-camera" aria-hidden="true"></i> Add photos
+                                <input
+                                    type="file"
+                                    class="visually-hidden"
+                                    data-guard-daily-activity-photos
+                                    accept="image/*"
+                                    multiple
+                                    capture="environment"
+                                >
+                            </label>
+                            <p class="form-hint guard-daily-activity-modal__photo-error" data-guard-daily-activity-photo-error hidden></p>
+                            <div class="guard-daily-activity-photo-list" data-guard-daily-activity-photo-preview></div>
+                        </div>
+                    </div>
+                    <footer class="guard-daily-activity-modal__foot">
+                        <button type="button" class="btn-ghost" data-guard-daily-activity-modal-close>Cancel</button>
+                        <button type="button" class="btn-primary" data-guard-daily-activity-modal-save>
+                            Done
+                        </button>
+                    </footer>
+                </div>
+            </div>
         </section>
         </div>
 <?php

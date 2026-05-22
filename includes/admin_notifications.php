@@ -317,15 +317,15 @@ function admin_notifications_pending_dad(PDO $conn): array
         $ref = (string) ($row['reference_code'] ?? '');
         $post = (string) ($row['post_name'] ?? 'Post');
         $hg = (string) ($row['head_guard_name'] ?? 'Head guard');
-        $summary = admin_notification_excerpt((string) ($row['summary'] ?? 'DAD submission pending review'));
+        $summary = admin_notification_excerpt((string) ($row['summary'] ?? 'DTR submission pending review'));
         $at = (string) ($row['submitted_at'] ?? '');
 
         $items[] = admin_notification_item(
             'dad-' . $dadId,
             'dad_pending',
-            'DAD submission · ' . $ref,
+            'DTR submission · ' . $ref,
             $hg . ' · ' . $post . ' — ' . $summary,
-            app_url('admin/dad.php?record=' . rawurlencode('dad-' . $dadId) . '&mode=view'),
+            app_url('admin/dtr.php?record=' . rawurlencode('dad-' . $dadId) . '&mode=view'),
             $at,
             'calendar-day'
         );

@@ -86,6 +86,47 @@ body.auth-shell.dark-mode { --error-bg: #3a3d42; --error-border: #6b7280; }
 }
 .strength__fill { height: 100%; width: 0%; transition: width .2s ease; background: #ef4444; }
 .strength__label { margin-top: 6px; font-size: .82rem; color: var(--ink-soft, #64748b); }
+.password-requirements-block {
+    margin: 10px 0 0;
+}
+.password-requirements {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.password-requirements__title {
+    margin: 0 0 2px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #000;
+}
+.password-requirements__item {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: #000;
+    transition: color 0.15s ease;
+}
+.password-requirements__item.is-met {
+    color: #16a34a;
+}
+body.auth-shell.auth-sign-in.dark-mode .login-card .password-requirements__title,
+body.auth-shell.auth-sign-in.dark-mode .login-card .password-requirements__item:not(.is-met) {
+    color: #000;
+}
+body.auth-shell.auth-sign-in.dark-mode .login-card .password-requirements__item.is-met {
+    color: #16a34a;
+}
+.password-match-hint {
+    margin: 8px 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: #000;
+}
+.password-match-hint.is-met { color: #16a34a; }
+.password-match-hint.is-mismatch { color: #dc2626; }
 CSS;
 
 auth_page_head('Reset password', 'Set your new portal password.', $headExtra);
@@ -101,7 +142,17 @@ if ($error !== null) {
                 <?= csrf_field() ?>
                 <div class="input-group">
                     <label class="input-label" for="new_password">New password</label>
-                    <input type="password" id="new_password" name="new_password" class="form-input" autocomplete="new-password" required>
+                    <input type="password" id="new_password" name="new_password" class="form-input" autocomplete="new-password" required aria-describedby="passwordRequirements">
+                    <div class="password-requirements-block" id="passwordRequirements" aria-live="polite">
+                        <p class="password-requirements__title">Your password must include:</p>
+                        <ul class="password-requirements" role="list">
+                            <li class="password-requirements__item" id="reqLength" data-rule="length">At least 8 characters (maximum 64)</li>
+                            <li class="password-requirements__item" id="reqLower" data-rule="lower">One lowercase letter</li>
+                            <li class="password-requirements__item" id="reqUpper" data-rule="upper">One uppercase letter</li>
+                            <li class="password-requirements__item" id="reqNumber" data-rule="number">One number</li>
+                            <li class="password-requirements__item" id="reqSymbol" data-rule="symbol">One symbol</li>
+                        </ul>
+                    </div>
                     <div class="strength" aria-live="polite">
                         <div class="strength__bar"><div class="strength__fill" id="strengthFill"></div></div>
                         <p class="strength__label" id="strengthLabel">Password strength: weak</p>
@@ -110,7 +161,8 @@ if ($error !== null) {
 
                 <div class="input-group">
                     <label class="input-label" for="confirm_password">Confirm new password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" autocomplete="new-password" required>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" autocomplete="new-password" required aria-describedby="passwordMatchHint">
+                    <p class="password-match-hint" id="passwordMatchHint" aria-live="polite">Passwords must match.</p>
                 </div>
 
                 <button type="submit" class="btn-signin" id="resetPasswordBtn" disabled>Update password</button>
@@ -122,6 +174,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var submitBtn = document.getElementById('resetPasswordBtn');
     var fill = document.getElementById('strengthFill');
     var label = document.getElementById('strengthLabel');
+    var matchHint = document.getElementById('passwordMatchHint');
+    var rules = {
+        length: { el: document.getElementById('reqLength'), test: function (v) { return v.length >= 8 && v.length <= 64; } },
+        lower: { el: document.getElementById('reqLower'), test: function (v) { return /[a-z]/.test(v); } },
+        upper: { el: document.getElementById('reqUpper'), test: function (v) { return /[A-Z]/.test(v); } },
+        number: { el: document.getElementById('reqNumber'), test: function (v) { return /\d/.test(v); } },
+        symbol: { el: document.getElementById('reqSymbol'), test: function (v) { return /[^A-Za-z\d]/.test(v); } }
+    };
 
     function scorePassword(value) {
         var score = 0;
@@ -134,18 +194,51 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isPolicyMet(value) {
-        return value.length >= 8
-            && /[a-z]/.test(value)
-            && /[A-Z]/.test(value)
-            && /\d/.test(value)
-            && /[^A-Za-z\d]/.test(value);
+        return rules.length.test(value)
+            && rules.lower.test(value)
+            && rules.upper.test(value)
+            && rules.number.test(value)
+            && rules.symbol.test(value);
+    }
+
+    function setRuleState(rule, met) {
+        if (!rule.el) return;
+        rule.el.classList.toggle('is-met', met);
+        rule.el.setAttribute('aria-label', rule.el.textContent + (met ? ' (met)' : ' (not met)'));
+    }
+
+    function renderRequirements(val) {
+        Object.keys(rules).forEach(function (key) {
+            setRuleState(rules[key], rules[key].test(val));
+        });
+    }
+
+    function renderMatchHint(val, confirmVal) {
+        if (!matchHint) return;
+        if (confirmVal === '') {
+            matchHint.textContent = 'Passwords must match.';
+            matchHint.classList.remove('is-met', 'is-mismatch');
+            return;
+        }
+        if (confirmVal === val && val !== '') {
+            matchHint.textContent = 'Passwords match.';
+            matchHint.classList.add('is-met');
+            matchHint.classList.remove('is-mismatch');
+            return;
+        }
+        matchHint.textContent = 'Passwords do not match.';
+        matchHint.classList.remove('is-met');
+        matchHint.classList.add('is-mismatch');
     }
 
     function renderStrength() {
         var val = newPassword.value || '';
+        var confirmVal = confirmPassword.value || '';
         var score = scorePassword(val);
         var pct = Math.min(100, score * 20);
         fill.style.width = pct + '%';
+
+        renderRequirements(val);
 
         if (score <= 2) {
             fill.style.background = '#ef4444';
@@ -158,7 +251,9 @@ document.addEventListener('DOMContentLoaded', function () {
             label.textContent = 'Password strength: strong';
         }
 
-        var valid = isPolicyMet(val) && confirmPassword.value === val;
+        renderMatchHint(val, confirmVal);
+
+        var valid = isPolicyMet(val) && confirmVal !== '' && confirmVal === val;
         submitBtn.disabled = !valid;
     }
 

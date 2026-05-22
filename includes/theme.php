@@ -885,6 +885,7 @@ function theme_render_css(): void
         }
         body.auth-shell.auth-sign-in.dark-mode .login-card {
             background: var(--color-white);
+            --color-text-muted: rgba(var(--color-primary-rgb), 0.68);
             box-shadow:
                 0 2px 6px rgba(0, 0, 0, 0.1),
                 0 10px 28px rgba(0, 0, 0, 0.14),
@@ -936,8 +937,11 @@ function theme_render_css(): void
         body.auth-shell.auth-sign-in .login-subtitle {
             margin: 0;
             font-size: 0.875rem;
-            color: var(--color-text-muted);
+            color: #000;
             line-height: 1.5;
+        }
+        body.auth-shell.auth-sign-in.dark-mode .login-card .login-subtitle {
+            color: #000;
         }
         body.auth-shell.auth-sign-in .input-label {
             color: var(--trivium-ink);
@@ -1165,7 +1169,7 @@ function theme_render_css(): void
             font-size: var(--font-h2-size); font-weight: 600; color: var(--color-text); margin-bottom: 8px;
         }
         body.auth-shell .login-subtitle {
-            font-size: 0.9rem; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 28px;
+            font-size: 0.9rem; color: #000; line-height: 1.5; margin-bottom: 28px;
         }
         body.auth-shell .input-group {
             margin-bottom: 20px; width: 100%; min-width: 0;

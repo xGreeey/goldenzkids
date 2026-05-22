@@ -26,7 +26,7 @@ function internal_messaging_allowed_peer_roles(int $viewerRole): array
 
     return match ($viewerRole) {
         AUTH_ROLE_SUPERADMIN => [AUTH_ROLE_ADMIN],
-        AUTH_ROLE_ADMIN => [AUTH_ROLE_SUPERADMIN, AUTH_ROLE_GUARD],
+        AUTH_ROLE_ADMIN => [AUTH_ROLE_GUARD],
         AUTH_ROLE_GUARD => [AUTH_ROLE_ADMIN],
         default => [],
     };

@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
+/** Legacy guard workspace status — excluded from admin weekly summary registry. */
 const ADMIN_WEEKLY_ACTIVITY_STATUS_DRAFT = 'draft';
+
 const ADMIN_WEEKLY_ACTIVITY_STATUS_SUBMITTED = 'submitted';
 const ADMIN_WEEKLY_ACTIVITY_STATUS_PENDING = 'pending_review';
 const ADMIN_WEEKLY_ACTIVITY_STATUS_APPROVED = 'approved';
@@ -13,12 +15,6 @@ const ADMIN_WEEKLY_ACTIVITY_STATUS_RETURNED = 'returned';
 function admin_weekly_activity_status_definitions(): array
 {
     return [
-        ADMIN_WEEKLY_ACTIVITY_STATUS_DRAFT => [
-            'label' => 'Draft',
-            'tab' => 'Draft',
-            'kpi' => 'Draft',
-            'description' => 'Head guard started the weekly summary — not yet submitted.',
-        ],
         ADMIN_WEEKLY_ACTIVITY_STATUS_SUBMITTED => [
             'label' => 'Submitted',
             'tab' => 'Submitted',

@@ -144,7 +144,7 @@ function admin_reports_row_attrs(array $report): string
 <head>
     <meta charset="UTF-8">
     <?= mobile_meta_tags() ?>
-    <title><?= e(app_agency_name()) ?> | Incident Reports</title>
+    <title><?= e(app_agency_name()) ?> | Incident Report</title>
     <script src="https://kit.fontawesome.com/3142eebea3.js" crossorigin="anonymous"></script>
     <?= app_fonts_link() ?>
     <style>
@@ -163,7 +163,7 @@ function admin_reports_row_attrs(array $report): string
 
     <main class="app-main">
             <header class="page-header page-header--inline">
-                <h1 class="page-title">Incident Reports</h1>
+                <h1 class="page-title">Incident Report</h1>
                 <p class="page-subtitle">Monitor and archive security guard incident reports — on-post duty, client sites, and guard conduct — with full status history.</p>
         </header>
 

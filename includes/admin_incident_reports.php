@@ -1343,15 +1343,18 @@ function admin_incident_modal_sheet_field_html(string $label, string $value, str
  *
  * @param array<string, mixed> $report
  */
-function admin_incident_modal_attachments_field_html(array $report): string
-{
+function admin_incident_modal_attachments_field_html(
+    array $report,
+    string $label = 'Attachments',
+    string $emptyText = 'No images attached'
+): string {
     $attachments = is_array($report['attachments'] ?? null) ? $report['attachments'] : [];
     $html = '<div class="reports-detail-sheet__field reports-detail-sheet__field--attachments">';
-    $html .= '<span class="reports-detail-sheet__label">Attachments</span>';
+    $html .= '<span class="reports-detail-sheet__label">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
     $html .= '<div class="reports-detail-sheet__value reports-incident-attachments">';
 
     if ($attachments === []) {
-        $html .= '<span class="reports-incident-attachments__empty">No images attached</span>';
+        $html .= '<span class="reports-incident-attachments__empty">' . htmlspecialchars($emptyText, ENT_QUOTES, 'UTF-8') . '</span>';
     } else {
         $html .= '<div class="reports-incident-attachments__grid" role="list">';
         foreach ($attachments as $attachment) {

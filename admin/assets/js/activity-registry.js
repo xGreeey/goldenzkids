@@ -9,12 +9,151 @@
         }
     }
 
+    function parseRowDetail(el) {
+        if (!el) {
+            return null;
+        }
+        const raw = el.getAttribute('data-detail');
+        if (!raw) {
+            return null;
+        }
+        return safeParse(raw);
+    }
+
+    function buildRecordsCatalog(jsonRecords, rowElements) {
+        const byId = {};
+        if (Array.isArray(jsonRecords)) {
+            jsonRecords.forEach((r) => {
+                if (r && r.id) {
+                    byId[r.id] = r;
+                }
+            });
+        }
+        rowElements.forEach((el) => {
+            const id = el.dataset.id || '';
+            if (!id || byId[id]) {
+                return;
+            }
+            const fromRow = parseRowDetail(el);
+            if (fromRow && fromRow.id) {
+                byId[fromRow.id] = fromRow;
+            }
+        });
+
+        return byId;
+    }
+
     function escapeHtml(str) {
         return String(str ?? '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function cellText(value) {
+        const v = String(value ?? '').trim();
+        return escapeHtml(v !== '' ? v : '—');
+    }
+
+    function narrativeHtml(value) {
+        const v = String(value ?? '').trim();
+        if (!v) {
+            return '—';
+        }
+        return escapeHtml(v).replace(/\n/g, '<br>');
+    }
+
+    function sheetField(label, value, modifier) {
+        const trimmed = String(value ?? '').trim();
+        const mod = modifier ? ' reports-detail-sheet__field--' + modifier : '';
+        const empty = trimmed === '' ? ' is-empty' : '';
+
+        return (
+            '<div class="reports-detail-sheet__field' +
+            mod +
+            empty +
+            '"><span class="reports-detail-sheet__label">' +
+            escapeHtml(label) +
+            '</span><span class="reports-detail-sheet__value">' +
+            cellText(trimmed) +
+            '</span></div>'
+        );
+    }
+
+    function narrativeField(label, value) {
+        const trimmed = String(value ?? '').trim();
+        const empty = trimmed === '' ? ' is-empty' : '';
+
+        return (
+            '<div class="reports-detail-sheet__field reports-detail-sheet__field--description' +
+            empty +
+            '"><span class="reports-detail-sheet__label">' +
+            escapeHtml(label) +
+            '</span><span class="reports-detail-sheet__value">' +
+            narrativeHtml(trimmed) +
+            '</span></div>'
+        );
+    }
+
+    function dailyAttachmentsField(p, label, emptyText) {
+        const items = Array.isArray(p.attachments) ? p.attachments : [];
+        let inner = '<span class="reports-incident-attachments__empty">' + escapeHtml(emptyText) + '</span>';
+        if (items.length > 0) {
+            inner = '<div class="reports-incident-attachments__grid" role="list">';
+            items.forEach((attachment) => {
+                if (!attachment || typeof attachment !== 'object') {
+                    return;
+                }
+                const url = String(attachment.url ?? '').trim();
+                if (!url) {
+                    return;
+                }
+                const cap = String(attachment.label ?? 'Supporting photo').trim() || 'Supporting photo';
+                inner +=
+                    '<a href="' +
+                    escapeHtml(url) +
+                    '" role="listitem" class="reports-incident-attachments__link" data-reports-attachment-preview target="_blank" rel="noopener noreferrer">' +
+                    '<img class="reports-incident-attachments__thumb" src="' +
+                    escapeHtml(url) +
+                    '" alt="' +
+                    escapeHtml(cap) +
+                    '" loading="lazy" decoding="async">' +
+                    '<span class="reports-incident-attachments__caption">' +
+                    escapeHtml(cap) +
+                    '</span></a>';
+            });
+            inner += '</div>';
+        }
+
+        return (
+            '<div class="reports-detail-sheet__field reports-detail-sheet__field--attachments">' +
+            '<span class="reports-detail-sheet__label">' +
+            escapeHtml(label) +
+            '</span>' +
+            '<div class="reports-detail-sheet__value reports-incident-attachments">' +
+            inner +
+            '</div></div>'
+        );
+    }
+
+    function renderDailySubmission(p) {
+        const mode = String(p.activity_mode || 'normal').toLowerCase();
+        if (mode === 'normal') {
+            return (
+                '<section class="reports-detail-sheet__section" aria-label="Head guard submission">' +
+                '<p class="reports-daily-submission__intro"><strong>Normal operation</strong> — submitted without the event details step. No activity narrative or supporting photos were required on the guard form.</p>' +
+                '</section>'
+            );
+        }
+
+        return (
+            '<section class="reports-detail-sheet__section" aria-label="Head guard submission">' +
+            '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-narrative">' +
+            narrativeField('Activity details', p.activity_details) +
+            dailyAttachmentsField(p, 'Supporting photos', 'No supporting photos attached') +
+            '</div></section>'
+        );
     }
 
     function initActivityRegistryModule() {
@@ -54,22 +193,20 @@
 
         const dataEl = document.getElementById('activity-data-json');
         const statusLabelsEl = document.getElementById('activity-status-labels');
-        const allRecords = dataEl ? safeParse(dataEl.textContent) : [];
-        const STATUS_LABELS = statusLabelsEl ? safeParse(statusLabelsEl.textContent) : {};
-
-        const recordsById = {};
-        if (Array.isArray(allRecords)) {
-            allRecords.forEach((r) => {
-                if (r && r.id) {
-                    recordsById[r.id] = r;
-                }
-            });
+        function getRows() {
+            return Array.from(root.querySelectorAll('[data-activity-row]'));
         }
+
+        const allRecords = dataEl ? safeParse(dataEl.textContent?.trim()) : [];
+        const STATUS_LABELS = statusLabelsEl ? safeParse(statusLabelsEl.textContent?.trim()) : {};
+        const recordsById = buildRecordsCatalog(allRecords, getRows());
 
         const searchInput = document.getElementById('activity-search');
         const modeSelect = hasModeFilter ? document.getElementById('activity-mode') : null;
         const dateFrom = document.getElementById('activity-date-from');
         const dateTo = document.getElementById('activity-date-to');
+        const defaultDateFrom = dateFrom?.value || '';
+        const defaultDateTo = dateTo?.value || '';
         const resetBtn = document.getElementById('activity-reset');
         const emptyEl = document.getElementById('activity-empty');
         const tbody = document.getElementById('activity-tbody');
@@ -77,11 +214,15 @@
         const sortButtons = Array.from(root.querySelectorAll('.reports-sort[data-sort-key]'));
 
         const modalOverlay = document.getElementById('activity-modal-overlay');
+        if (modalOverlay && modalOverlay.parentElement !== document.body) {
+            document.body.appendChild(modalOverlay);
+        }
         const modalClose = document.getElementById('activity-modal-close');
         const modalRef = document.getElementById('activity-modal-ref');
         const modalStatusBadge = document.getElementById('activity-modal-status-badge');
         const modalDetails = document.getElementById('activity-modal-details');
         const modalHistory = document.getElementById('activity-modal-history');
+        const modalView = document.getElementById('activity-modal-view');
         const footerView = document.getElementById('activity-modal-footer-view');
         const footerEdit = document.getElementById('activity-modal-footer-edit');
         const gotoEdit = document.getElementById('activity-goto-edit');
@@ -104,10 +245,6 @@
         let sortKey = isWeekly ? 'updated' : 'submitted';
         let sortDir = 'desc';
 
-        function getRows() {
-            return Array.from(root.querySelectorAll('[data-activity-row]'));
-        }
-
         function buildIndex() {
             return getRows().map((el) => ({
                 el,
@@ -118,7 +255,7 @@
                 submittedAt: el.dataset.submittedAt || '',
                 updatedAt: el.dataset.updatedAt || '',
                 search: (el.dataset.search || '').toLowerCase(),
-                payload: safeParse(el.dataset.detail || '') || recordsById[el.dataset.id || ''] || null,
+                payload: parseRowDetail(el) || recordsById[el.dataset.id || ''] || null,
             }));
         }
 
@@ -141,7 +278,8 @@
             }
             const from = dateFrom?.value || '';
             const to = dateTo?.value || '';
-            const dateField = isWeekly ? entry.updatedAt : entry.submittedAt;
+            const rawDate = isWeekly ? entry.updatedAt : entry.submittedAt;
+            const dateField = rawDate ? String(rawDate).slice(0, 10) : '';
             if (from && dateField && dateField < from) {
                 return false;
             }
@@ -191,65 +329,134 @@
             if (!modalDetails || !p) {
                 return;
             }
-            const fields = isWeekly
-                ? [
-                      ['Reference', p.ref],
-                      ['Week', p.week_label],
-                      ['Head guard', p.head_guard_name],
-                      ['Post', p.site_name],
-                      ['Summary', p.summary],
-                      ['Highlights', p.highlights || '—'],
-                      ['Submitted', p.submitted_display || '—'],
-                      ['Last updated', p.updated_display || '—'],
-                  ]
-                : [
-                      ['Reference', p.ref],
-                      ['Head guard', p.head_guard_name],
-                      ['Post', p.site_name],
-                      ['Mode', p.activity_mode_label],
-                      ['Summary', p.summary],
-                      ['Activity details', p.activity_details || '—'],
-                      ['Location', p.location_label || '—'],
-                      ['Submitted', p.submitted_display || '—'],
-                      ['Last updated', p.updated_display || '—'],
-                  ];
-            let html = '<div class="reports-detail-sheet">';
-            fields.forEach(([label, value]) => {
-                const v = String(value ?? '').trim() || '—';
+
+            const sheetLabel = isWeekly ? 'Weekly summary report' : 'Daily activity report';
+            let html =
+                '<div class="reports-detail-sheet" role="group" aria-label="' +
+                escapeHtml(sheetLabel) +
+                '">';
+
+            if (isWeekly) {
                 html +=
-                    '<div class="reports-detail-sheet__field"><span class="reports-detail-sheet__label">' +
-                    escapeHtml(label) +
-                    '</span><span class="reports-detail-sheet__value">' +
-                    escapeHtml(v) +
-                    '</span></div>';
-            });
-            html += '</div>';
+                    '<section class="reports-detail-sheet__section" aria-label="Report identifiers">' +
+                    '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-meta">' +
+                    sheetField('Reference', p.ref) +
+                    sheetField('Week', p.week_label) +
+                    '</div></section>' +
+                    '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
+                    '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
+                    sheetField('Post', p.site_name) +
+                    sheetField('Head guard', p.head_guard_name) +
+                    '</div></section>' +
+                    '<section class="reports-detail-sheet__section" aria-label="Weekly narrative">' +
+                    '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-narrative">' +
+                    narrativeField('Summary', p.summary) +
+                    narrativeField('Highlights', p.highlights) +
+                    '</div></section>';
+            } else {
+                html +=
+                    '<section class="reports-detail-sheet__section" aria-label="Report identifiers">' +
+                    '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-meta">' +
+                    sheetField('Reference', p.ref) +
+                    sheetField('Mode', p.activity_mode_label) +
+                    '</div></section>' +
+                    '<section class="reports-detail-sheet__section" aria-label="Assignment">' +
+                    '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">' +
+                    sheetField('Post', p.site_name) +
+                    sheetField('Head guard', p.head_guard_name) +
+                    sheetField('Location', p.location_label) +
+                    '</div></section>' +
+                    renderDailySubmission(p);
+            }
+
+            html +=
+                '<section class="reports-detail-sheet__section" aria-label="Timestamps">' +
+                '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">' +
+                sheetField('Submitted', p.submitted_display) +
+                sheetField('Last updated', p.updated_display) +
+                '</div></section></div>';
+
             modalDetails.innerHTML = html;
+        }
+
+        function historyEventLabel(event) {
+            const raw = String(event || '').trim();
+            if (!raw) {
+                return 'Activity logged';
+            }
+            const registry = raw.match(/^Registry:\s*(.+)$/i);
+            if (registry) {
+                return 'Review status updated';
+            }
+            return raw;
+        }
+
+        function historyNoteText(event, note) {
+            const rawEvent = String(event || '').trim();
+            const rawNote = String(note || '').trim();
+            const registry = rawEvent.match(/^Registry:\s*(.+)$/i);
+            if (registry) {
+                const statusLine = 'New status: ' + registry[1].trim();
+                return rawNote ? statusLine + ' — ' + rawNote : statusLine;
+            }
+            return rawNote;
+        }
+
+        function historyDatetimeAttr(at) {
+            const raw = String(at || '').trim();
+            if (!raw) {
+                return '';
+            }
+            const ts = Date.parse(raw);
+            if (Number.isNaN(ts)) {
+                return '';
+            }
+            return new Date(ts).toISOString();
+        }
+
+        function buildHistoryTimelineItemHtml(entry, isCurrent) {
+            const event = String(entry.event || '');
+            const title = historyEventLabel(event);
+            const noteText = historyNoteText(event, entry.note);
+            const at = String(entry.at || '').trim();
+            const datetimeAttr = historyDatetimeAttr(at);
+            let html =
+                '<li class="reports-activity-timeline__item' +
+                (isCurrent ? ' is-current' : '') +
+                '"><div class="reports-activity-timeline__rail" aria-hidden="true">';
+            html += '<span class="reports-activity-timeline__dot"></span></div>';
+            html += '<div class="reports-activity-timeline__content">';
+            if (at) {
+                html += '<header class="reports-activity-timeline__meta"><time class="reports-activity-timeline__when"';
+                if (datetimeAttr) {
+                    html += ' datetime="' + escapeHtml(datetimeAttr) + '"';
+                }
+                html += '>' + escapeHtml(at) + '</time></header>';
+            }
+            html += '<p class="reports-activity-timeline__title">' + escapeHtml(title) + '</p>';
+            if (noteText) {
+                html += '<p class="reports-activity-timeline__note">' + escapeHtml(noteText) + '</p>';
+            }
+            html += '</div></li>';
+            return html;
+        }
+
+        function buildHistoryTimelineHtml(history) {
+            const list = Array.isArray(history) ? history.filter((e) => e && typeof e === 'object') : [];
+            if (list.length === 0) {
+                return '<p class="reports-activity-timeline__empty">No activity logged for this report yet.</p>';
+            }
+            const items = list
+                .map((entry, index) => buildHistoryTimelineItemHtml(entry, index === list.length - 1))
+                .join('');
+            return '<ol class="reports-activity-timeline" role="list">' + items + '</ol>';
         }
 
         function renderHistory(history) {
             if (!modalHistory) {
                 return;
             }
-            const list = Array.isArray(history) ? history : [];
-            if (list.length === 0) {
-                modalHistory.innerHTML = '<li class="reports-timeline__item"><em>No history yet.</em></li>';
-                return;
-            }
-            modalHistory.innerHTML = list
-                .map((entry) => {
-                    const note = entry.note ? '<p>' + escapeHtml(entry.note) + '</p>' : '';
-                    return (
-                        '<li class="reports-timeline__item"><span class="reports-timeline__time">' +
-                        escapeHtml(entry.at || '') +
-                        '</span><strong>' +
-                        escapeHtml(entry.event || '') +
-                        '</strong>' +
-                        note +
-                        '</li>'
-                    );
-                })
-                .join('');
+            modalHistory.innerHTML = buildHistoryTimelineHtml(history);
         }
 
         function setModalMode(mode) {
@@ -272,9 +479,26 @@
             window.history.pushState({ [openParam]: id, mode: mode || 'view' }, '', url);
         }
 
+        function resolveRecord(id) {
+            if (!id) {
+                return null;
+            }
+            if (recordsById[id]) {
+                return recordsById[id];
+            }
+            const fromRow = recordsIndex.find((r) => r.id === id)?.payload;
+            if (fromRow) {
+                return fromRow;
+            }
+            return null;
+        }
+
         function openRecord(id, mode) {
-            const p = recordsById[id] || recordsIndex.find((r) => r.id === id)?.payload;
-            if (!p || !modalOverlay) {
+            const p = resolveRecord(id);
+            if (!modalOverlay) {
+                return;
+            }
+            if (!p) {
                 return;
             }
             currentId = id;
@@ -305,6 +529,7 @@
             }
             modalOverlay.classList.add('is-open');
             modalOverlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('activity-registry-modal-open');
             document.body.style.overflow = 'hidden';
             pushUrl(id, mode || 'view');
             recordsIndex.forEach((r) => {
@@ -318,6 +543,7 @@
             }
             modalOverlay.classList.remove('is-open');
             modalOverlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('activity-registry-modal-open');
             document.body.style.overflow = '';
             currentId = '';
             setModalMode('view');
@@ -405,6 +631,12 @@
                 if (modeSelect) {
                     modeSelect.value = 'all';
                 }
+                if (dateFrom) {
+                    dateFrom.value = defaultDateFrom;
+                }
+                if (dateTo) {
+                    dateTo.value = defaultDateTo;
+                }
                 applyFilters();
             },
             { signal }
@@ -416,7 +648,16 @@
                 const viewBtn = e.target.closest('[data-action="view"]');
                 if (viewBtn) {
                     e.preventDefault();
-                    const id = viewBtn.dataset.activityId || '';
+                    e.stopPropagation();
+                    const id = viewBtn.dataset.activityId || viewBtn.closest('[data-activity-row]')?.dataset.id || '';
+                    if (id) {
+                        openRecord(id, 'view');
+                    }
+                    return;
+                }
+                const row = e.target.closest('[data-activity-row]');
+                if (row && !e.target.closest('.reports-actions')) {
+                    const id = row.dataset.id || '';
                     if (id) {
                         openRecord(id, 'view');
                     }
@@ -463,7 +704,7 @@
                 const url = new URL(window.location.href);
                 const id = state[openParam] || url.searchParams.get(openParam) || '';
                 const mode = state.mode || url.searchParams.get('mode') || 'view';
-                if (id && recordsById[id]) {
+                if (id && resolveRecord(id)) {
                     openRecord(id, mode);
                 } else {
                     closeModal();
@@ -485,8 +726,10 @@
             applyFilters();
         }
 
-        if (currentId && recordsById[currentId]) {
+        if (currentId && resolveRecord(currentId)) {
             openRecord(currentId, currentMode);
+        } else if (currentId) {
+            closeModal();
         }
     }
 

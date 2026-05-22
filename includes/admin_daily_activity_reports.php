@@ -68,12 +68,38 @@ function admin_daily_activity_normalize(array $row): array
         ?: ($mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? 'With event / activity' : 'Normal operation');
     $row['head_guard_name'] = trim((string) ($row['head_guard_name'] ?? '')) ?: 'Head guard';
     $row['site_name'] = trim((string) ($row['site_name'] ?? '')) ?: '—';
-    $row['summary'] = trim((string) ($row['summary'] ?? '')) ?: $row['activity_mode_label'];
+
+    $details = trim((string) ($row['activity_details'] ?? ''));
+    if ($mode !== GUARD_DAILY_ACTIVITY_MODE_EVENT) {
+        $details = '';
+    }
+    $row['activity_details'] = $details;
+    $row['summary'] = guard_daily_activity_list_summary($mode, $details);
+    $row['attachments'] = admin_daily_activity_resolve_attachments($row);
+    $row['photo_count'] = count($row['attachments']);
     $row['history'] = is_array($row['history'] ?? null) ? $row['history'] : [];
 
     $row = admin_daily_activity_sync_dates($row);
 
     return $row;
+}
+
+/**
+ * @param array<string, mixed> $row
+ * @return list<array{type: string, label: string, url: string, id?: int}>
+ */
+function admin_daily_activity_resolve_attachments(array $row): array
+{
+    $existing = $row['attachments'] ?? null;
+    if (is_array($existing) && $existing !== []) {
+        return $existing;
+    }
+
+    if (!isset($GLOBALS['conn']) || !($GLOBALS['conn'] instanceof PDO)) {
+        return [];
+    }
+
+    return guard_daily_activity_fetch_evidence_attachments($GLOBALS['conn'], $row);
 }
 
 /**
@@ -266,20 +292,60 @@ function admin_daily_activity_row_attrs(array $report): string
 /**
  * @param array<string, mixed> $report
  */
+function admin_daily_activity_modal_submission_section_html(array $report): string
+{
+    $mode = (string) ($report['activity_mode'] ?? GUARD_DAILY_ACTIVITY_MODE_NORMAL);
+    $html = '<section class="reports-detail-sheet__section" aria-label="Head guard submission">';
+
+    if ($mode === GUARD_DAILY_ACTIVITY_MODE_NORMAL) {
+        $html .= '<p class="reports-daily-submission__intro"><strong>Normal operation</strong> — submitted without the event details step. No activity narrative or supporting photos were required on the guard form.</p>';
+
+        return $html . '</section>';
+    }
+
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-narrative">';
+
+    $details = trim((string) ($report['activity_details'] ?? ''));
+    $detailsValue = $details !== ''
+        ? admin_incident_modal_handwriting_text($details)
+        : '—';
+    $html .= '<div class="reports-detail-sheet__field reports-detail-sheet__field--description'
+        . ($details === '' ? ' is-empty' : '')
+        . '"><span class="reports-detail-sheet__label">Activity details</span>'
+        . '<span class="reports-detail-sheet__value">' . $detailsValue . '</span></div>';
+    $html .= admin_incident_modal_attachments_field_html(
+        $report,
+        'Supporting photos',
+        'No supporting photos attached'
+    );
+    $html .= '</div></section>';
+
+    return $html;
+}
+
+/**
+ * @param array<string, mixed> $report
+ */
 function admin_daily_activity_modal_details_html(array $report): string
 {
-    $html = '<div class="reports-detail-sheet">';
+    $html = '<div class="reports-detail-sheet" role="group" aria-label="Daily activity report">';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Report identifiers">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-meta">';
     $html .= admin_incident_modal_sheet_field_html('Reference', (string) ($report['ref'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Post', (string) ($report['site_name'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Mode', (string) ($report['activity_mode_label'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Summary', (string) ($report['summary'] ?? ''), 'wide');
-    if (trim((string) ($report['activity_details'] ?? '')) !== '') {
-        $html .= admin_incident_modal_sheet_field_html('Activity details', (string) $report['activity_details'], 'wide');
-    }
+    $html .= '</div></section>';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Assignment">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">';
+    $html .= admin_incident_modal_sheet_field_html('Post', (string) ($report['site_name'] ?? ''));
+    $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Location', (string) ($report['location_label'] ?? ''));
+    $html .= '</div></section>';
+    $html .= admin_daily_activity_modal_submission_section_html($report);
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Timestamps">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">';
     $html .= admin_incident_modal_sheet_field_html('Submitted', (string) ($report['submitted_display'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Last updated', (string) ($report['updated_display'] ?? ''));
+    $html .= '</div></section>';
 
     return $html . '</div>';
 }

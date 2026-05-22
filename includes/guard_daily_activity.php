@@ -23,6 +23,184 @@ function guard_daily_activity_is_report_type(string $reportType): bool
     return trim($reportType) === GUARD_DAILY_ACTIVITY_TYPE;
 }
 
+/** Short label for registry table / admin summary (not the full guard textarea). */
+function guard_daily_activity_list_summary(string $mode, string $details): string
+{
+    if ($mode === GUARD_DAILY_ACTIVITY_MODE_NORMAL) {
+        return 'Normal operation — no additional details required';
+    }
+
+    $details = trim($details);
+    if ($details === '') {
+        return 'With event / activity';
+    }
+
+    $line = trim((string) (preg_split('/\R/u', $details, 2)[0] ?? $details));
+    if (function_exists('mb_strlen') && mb_strlen($line) > 120) {
+        return mb_substr($line, 0, 117) . '…';
+    }
+    if (strlen($line) > 120) {
+        return substr($line, 0, 117) . '…';
+    }
+
+    return $line;
+}
+
+function guard_daily_activity_evidence_url(int $daId, int $evidenceId): string
+{
+    return app_url('admin/api/daily-activity-evidence.php') . '?da=' . $daId . '&ev=' . $evidenceId;
+}
+
+/**
+ * Supporting photos from guard “Event / activity details” (linked via DGD report number).
+ *
+ * @param array<string, mixed> $row Needs da_id (or id da-N) and dgd_report_number
+ * @return list<array{type: string, label: string, url: string, id?: int}>
+ */
+function guard_daily_activity_fetch_evidence_attachments(PDO $conn, array $row): array
+{
+    if (!db_table_exists($conn, 'guard_report_evidence')) {
+        return [];
+    }
+
+    $daId = (int) ($row['da_id'] ?? 0);
+    if ($daId <= 0 && preg_match('/^da-(\d+)$/', (string) ($row['id'] ?? ''), $m)) {
+        $daId = (int) $m[1];
+    }
+
+    $dgdReportNumber = (int) ($row['dgd_report_number'] ?? 0);
+    if ($daId <= 0 || $dgdReportNumber <= 0) {
+        return [];
+    }
+
+    $stmt = db_query(
+        $conn,
+        'SELECT id FROM guard_report_evidence WHERE report_number = ? ORDER BY id ASC',
+        'i',
+        [$dgdReportNumber]
+    );
+    if ($stmt === false) {
+        return [];
+    }
+
+    $out = [];
+    $n = 0;
+    while ($evRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!is_array($evRow)) {
+            continue;
+        }
+        $evId = (int) ($evRow['id'] ?? 0);
+        if ($evId <= 0) {
+            continue;
+        }
+        ++$n;
+        $out[] = [
+            'type' => 'evidence',
+            'label' => $n === 1 ? 'Supporting photo' : 'Supporting photo ' . $n,
+            'url' => guard_daily_activity_evidence_url($daId, $evId),
+            'id' => $evId,
+        ];
+    }
+
+    return $out;
+}
+
+function guard_daily_activity_stream_evidence(PDO $conn, int $daId, int $evidenceId): void
+{
+    require_once __DIR__ . '/guard_dad.php';
+
+    global $master_key, $cipher_algo;
+
+    if ($daId <= 0 || $evidenceId <= 0) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Invalid request.';
+        exit;
+    }
+
+    $daRow = db_fetch_one(
+        $conn,
+        'SELECT * FROM guard_daily_activity_submissions WHERE da_id = ? LIMIT 1',
+        'i',
+        [$daId]
+    );
+    if ($daRow === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Daily activity report not found.';
+        exit;
+    }
+
+    $dgdReportNumber = (int) ($daRow['dgd_report_number'] ?? 0);
+    if ($dgdReportNumber <= 0) {
+        http_response_code(404);
+        exit;
+    }
+
+    $evRow = db_fetch_one(
+        $conn,
+        'SELECT id, file_name FROM guard_report_evidence WHERE id = ? AND report_number = ? LIMIT 1',
+        'ii',
+        [$evidenceId, $dgdReportNumber]
+    );
+    if ($evRow === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Evidence not found.';
+        exit;
+    }
+
+    $ivB64 = (string) ($daRow['iv'] ?? '');
+    $iv = base64_decode($ivB64, true) ?: '';
+    if ($iv === '' || !isset($master_key, $cipher_algo)) {
+        http_response_code(500);
+        exit;
+    }
+
+    $pathCipher = trim((string) ($evRow['file_name'] ?? ''));
+    $rel = openssl_decrypt($pathCipher, (string) $cipher_algo, (string) $master_key, 0, $iv) ?: '';
+    if ($rel === '') {
+        http_response_code(404);
+        exit;
+    }
+
+    $abs = APP_ROOT . '/' . ltrim(str_replace('\\', '/', $rel), '/');
+    if (!guard_dad_is_safe_guard_upload_path($abs) || !is_file($abs)) {
+        http_response_code(404);
+        exit;
+    }
+
+    $encrypted = file_get_contents($abs);
+    if ($encrypted === false || $encrypted === '') {
+        http_response_code(404);
+        exit;
+    }
+
+    $bytes = openssl_decrypt($encrypted, (string) $cipher_algo, (string) $master_key, 0, $iv);
+    if ($bytes === false || $bytes === '') {
+        http_response_code(500);
+        exit;
+    }
+
+    $mime = 'image/jpeg';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $detected = finfo_buffer($finfo, $bytes);
+            finfo_close($finfo);
+            if (is_string($detected) && str_starts_with($detected, 'image/')) {
+                $mime = $detected;
+            }
+        }
+    }
+
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . (string) strlen($bytes));
+    header('Cache-Control: private, max-age=3600');
+    echo $bytes;
+    exit;
+}
+
 /** @return list<array{name:string,tmp_name:string,error:int,size:int}> */
 function guard_daily_activity_valid_photo_uploads(): array
 {
@@ -391,7 +569,11 @@ function guard_daily_activity_map_row_for_admin(array $row): ?array
 
     $mode = (string) ($row['activity_mode'] ?? GUARD_DAILY_ACTIVITY_MODE_NORMAL);
     $modeLabel = $mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? 'With event / activity' : 'Normal operation';
-    $summary = $details !== '' ? $details : ($mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? 'Event submission' : 'Normal operation check-in');
+    $details = trim($details);
+    if ($mode !== GUARD_DAILY_ACTIVITY_MODE_EVENT) {
+        $details = '';
+    }
+    $summary = guard_daily_activity_list_summary($mode, $details);
 
     $aiPayload = [];
     $aiCipher = (string) ($row['ai_extracted_cipher'] ?? '');
@@ -444,6 +626,7 @@ function guard_daily_activity_map_row_for_admin(array $row): ?array
 
     return [
         'id' => 'da-' . $daId,
+        'da_id' => $daId,
         'ref' => (string) ($row['reference_code'] ?? ''),
         'head_guard_id' => (string) ($row['head_guard_company_id'] ?? ''),
         'head_guard_name' => trim((string) ($row['head_guard_name'] ?? '')) ?: (string) ($row['head_guard_company_id'] ?? ''),
@@ -451,7 +634,7 @@ function guard_daily_activity_map_row_for_admin(array $row): ?array
         'activity_mode' => $mode,
         'activity_mode_label' => $modeLabel,
         'summary' => $summary,
-        'activity_details' => $details,
+        'activity_details' => $mode === GUARD_DAILY_ACTIVITY_MODE_EVENT ? $details : '',
         'location_label' => (string) ($row['location_label'] ?? ''),
         'dgd_report_number' => $row['dgd_report_number'] ?? null,
         'status' => $status,

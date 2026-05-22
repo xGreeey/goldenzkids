@@ -135,24 +135,6 @@ function admin_weekly_activity_seed_reports(): array
                 ['at' => '12 May 2026, 10:00', 'event' => 'Registry: Returned', 'note' => 'Attach signed drill log'],
             ],
         ],
-        [
-            'id' => 'war-seed-4',
-            'ref' => GUARD_WEEKLY_ACTIVITY_REF_PREFIX . '-2026-0004',
-            'week_label' => '19–25 May 2026',
-            'week_start' => '2026-05-19',
-            'week_end' => '2026-05-25',
-            'head_guard_id' => 'HG-DEMO-01',
-            'head_guard_name' => 'Santos, Maria L.',
-            'site_name' => 'Ayala Tower One — Lobby',
-            'summary' => 'In progress — draft not yet submitted.',
-            'highlights' => '',
-            'status' => ADMIN_WEEKLY_ACTIVITY_STATUS_DRAFT,
-            'submitted_at' => '',
-            'updated_at' => '2026-05-20 08:00:00',
-            'history' => [
-                ['at' => '20 May 2026, 08:00', 'event' => 'Draft saved', 'note' => 'Head guard workspace'],
-            ],
-        ],
     ];
 }
 
@@ -168,9 +150,13 @@ function admin_weekly_activity_store_all(): array
 
     $out = [];
     foreach ($_SESSION[ADMIN_WEEKLY_ACTIVITY_SESSION_KEY] as $row) {
-        if (is_array($row)) {
-            $out[] = admin_weekly_activity_normalize($row);
+        if (!is_array($row)) {
+            continue;
         }
+        if ((string) ($row['status'] ?? '') === ADMIN_WEEKLY_ACTIVITY_STATUS_DRAFT) {
+            continue;
+        }
+        $out[] = admin_weekly_activity_normalize($row);
     }
     usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['updated_at'] ?? ''), (string) ($a['updated_at'] ?? '')));
 
@@ -264,15 +250,36 @@ function admin_weekly_activity_row_attrs(array $report): string
  */
 function admin_weekly_activity_modal_details_html(array $report): string
 {
-    $html = '<div class="reports-detail-sheet">';
+    $summaryValue = admin_incident_modal_handwriting_text((string) ($report['summary'] ?? ''));
+    $highlightsValue = admin_incident_modal_handwriting_text((string) ($report['highlights'] ?? ''));
+
+    $html = '<div class="reports-detail-sheet" role="group" aria-label="Weekly summary report">';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Report identifiers">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-meta">';
     $html .= admin_incident_modal_sheet_field_html('Reference', (string) ($report['ref'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Week', (string) ($report['week_label'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
+    $html .= '</div></section>';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Assignment">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--people">';
     $html .= admin_incident_modal_sheet_field_html('Post', (string) ($report['site_name'] ?? ''));
-    $html .= admin_incident_modal_sheet_field_html('Summary', (string) ($report['summary'] ?? ''), 'wide');
-    $html .= admin_incident_modal_sheet_field_html('Highlights', (string) ($report['highlights'] ?? ''), 'wide');
+    $html .= admin_incident_modal_sheet_field_html('Head guard', (string) ($report['head_guard_name'] ?? ''));
+    $html .= '</div></section>';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Weekly narrative">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--activity-narrative">';
+    $html .= '<div class="reports-detail-sheet__field reports-detail-sheet__field--description'
+        . (trim((string) ($report['summary'] ?? '')) === '' ? ' is-empty' : '')
+        . '"><span class="reports-detail-sheet__label">Summary</span>'
+        . '<span class="reports-detail-sheet__value">' . $summaryValue . '</span></div>';
+    $html .= '<div class="reports-detail-sheet__field reports-detail-sheet__field--description'
+        . (trim((string) ($report['highlights'] ?? '')) === '' ? ' is-empty' : '')
+        . '"><span class="reports-detail-sheet__label">Highlights</span>'
+        . '<span class="reports-detail-sheet__value">' . $highlightsValue . '</span></div>';
+    $html .= '</div></section>';
+    $html .= '<section class="reports-detail-sheet__section" aria-label="Timestamps">';
+    $html .= '<div class="reports-detail-sheet__grid reports-detail-sheet__grid--incident">';
     $html .= admin_incident_modal_sheet_field_html('Submitted', (string) ($report['submitted_display'] ?? ''));
     $html .= admin_incident_modal_sheet_field_html('Last updated', (string) ($report['updated_display'] ?? ''));
+    $html .= '</div></section>';
 
     return $html . '</div>';
 }

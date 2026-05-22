@@ -1066,36 +1066,6 @@ function guard_hub_scripts(): void
         });
     }
 
-    function initGuardPeerSelect(root) {
-        qsa('[data-guard-peer-select]', root).forEach(function (sel) {
-            if (sel._guardPeerBound) {
-                return;
-            }
-            sel._guardPeerBound = true;
-            sel.addEventListener('change', function () {
-                var peer = sel.value;
-                if (!peer) {
-                    return;
-                }
-                try {
-                    var url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'chat');
-                    url.searchParams.set('peer', peer);
-                    url.hash = 'guard-chat';
-                    var href = url.href;
-                    persistGuardLocation(href);
-                    if (typeof window.loadGuardPanel === 'function') {
-                        window.loadGuardPanel(href);
-                    } else {
-                        window.location.href = href;
-                    }
-                } catch (e) {
-                    window.location.href = 'corner.php?tab=chat&peer=' + encodeURIComponent(peer) + '#guard-chat';
-                }
-            });
-        });
-    }
-
     function initCornerJump(root) {
         var page = qs('.guard-corner-page', root);
         if (!page) {
@@ -1149,6 +1119,9 @@ function guard_hub_scripts(): void
         }
         if (!tab) {
             return;
+        }
+        if (tab === 'chat') {
+            tab = 'announce';
         }
         var bar = qs('[data-guard-hub-tabs]', page);
         var tabBtn = bar ? qs('[data-guard-hub-tab="' + tab + '"]', bar) : null;
@@ -1276,7 +1249,6 @@ function guard_hub_scripts(): void
         var stage = document.querySelector('[data-guard-panel-root]') || document.querySelector('.guard-app__scroll');
         root = root || stage || document;
         initHubTabs(root);
-        initGuardPeerSelect(root);
         initCornerJump(root);
         initCornerClickables(root);
         initAccordion(root);
@@ -1287,11 +1259,6 @@ function guard_hub_scripts(): void
         var wizard = qs('[data-guard-report-wizard]', root);
         if (wizard) {
             initReportWizard(wizard);
-        }
-
-        var chatScroll = qs('.guard-chat__messages', root);
-        if (chatScroll) {
-            chatScroll.scrollTop = chatScroll.scrollHeight;
         }
 
         if (typeof window.initMessagingBoard === 'function' && document.getElementById('messaging-board')) {

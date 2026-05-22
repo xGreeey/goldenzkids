@@ -24,6 +24,12 @@
         }
         root.dataset.dailyBound = '1';
 
+        if (window.__dailyDetailAbort) {
+            window.__dailyDetailAbort.abort();
+        }
+        window.__dailyDetailAbort = new AbortController();
+        const panelSignal = window.__dailyDetailAbort.signal;
+
         const tableHeadWrap = document.getElementById('daily-table-head-wrap');
         const tableBodyWrap = document.getElementById('daily-table-body-wrap');
         if (tableHeadWrap && tableBodyWrap) {
@@ -1148,20 +1154,26 @@
         });
         guideModal?.addEventListener('click', (e) => e.stopPropagation());
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') {
-                return;
-            }
-            if (guideOverlay?.classList.contains('is-open')) {
-                closeGuide();
-                return;
-            }
-            if (modalOverlay?.classList.contains('is-open')) {
-                closeModal();
-            }
-        });
+        document.addEventListener(
+            'keydown',
+            (e) => {
+                if (e.key !== 'Escape') {
+                    return;
+                }
+                if (guideOverlay?.classList.contains('is-open')) {
+                    closeGuide();
+                    return;
+                }
+                if (modalOverlay?.classList.contains('is-open')) {
+                    closeModal();
+                }
+            },
+            { signal: panelSignal }
+        );
 
-        window.addEventListener('popstate', (e) => {
+        window.addEventListener(
+            'popstate',
+            (e) => {
             const state = e.state || {};
             const url = new URL(window.location.href);
             const statusFromUrl = url.searchParams.get('status');
@@ -1185,7 +1197,9 @@
             } else {
                 closeModal();
             }
-        });
+            },
+            { signal: panelSignal }
+        );
 
         const initialTab = document.body.dataset.statusTab;
         if (initialTab) {
@@ -1218,6 +1232,8 @@
             }
         }
     }
+
+    window.initDailyDetailModule = initDailyDetailModule;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initDailyDetailModule);

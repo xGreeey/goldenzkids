@@ -184,7 +184,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.text();
     }
 
-    var panelBodyOverlayIds = ['reportModal', 'imageViewer', 'reports-modal-overlay', 'reports-sanctions-overlay'];
+    var panelBodyOverlayIds = [
+        'reportModal',
+        'imageViewer',
+        'reports-modal-overlay',
+        'reports-sanctions-overlay',
+        'daily-modal-overlay',
+        'daily-guide-overlay'
+    ];
 
     function syncPanelBodyOverlays(doc) {
         panelBodyOverlayIds.forEach(function (id) {
@@ -260,8 +267,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof window.initAdminNotifications === 'function') {
             window.initAdminNotifications();
         }
-        if (typeof window.initReportsModule === 'function' && doc.getElementById('reports-module')) {
+        if (typeof window.initReportsModule === 'function'
+            && (doc.getElementById('reports-module') || document.getElementById('reports-module'))) {
             window.initReportsModule();
+        }
+        if (typeof window.initDailyDetailModule === 'function'
+            && (doc.getElementById('daily-detail-module') || document.getElementById('daily-detail-module'))) {
+            window.initDailyDetailModule();
         }
         if (typeof window.guardInitPortal === 'function'
             && document.body.classList.contains('guard-portal')) {
@@ -282,7 +294,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.body.classList.remove('app-modal-open');
+        document.body.style.overflow = '';
         document.body.classList.toggle('page-incident-reports', !!doc.getElementById('reports-module'));
+        document.body.classList.toggle('page-daily-detail', !!doc.getElementById('daily-detail-module'));
 
         importMainStageContent(newMain, stage);
         flattenMainStage(stage);

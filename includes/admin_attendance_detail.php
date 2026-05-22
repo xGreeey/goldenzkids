@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/admin_incident_reports.php';
 require_once __DIR__ . '/admin_incident_status.php';
+require_once __DIR__ . '/admin_activity_registry_ui.php';
 require_once __DIR__ . '/guard_dad.php';
 
 const ADMIN_ATTENDANCE_SESSION_KEY = 'admin_attendance_detail_store';
@@ -732,25 +733,13 @@ function guard_dad_admin_update_record(PDO $conn, int $dadId, array $input, stri
  */
 function admin_attendance_history_stepper_html(array $history, string $currentStatus): string
 {
+    unset($currentStatus);
+
     if ($history === []) {
-        return '<p class="reports-timeline-empty">No history yet.</p>';
+        return '<p class="reports-activity-timeline__empty">No history yet.</p>';
     }
 
-    $html = '<ol class="reports-timeline">';
-    foreach ($history as $i => $entry) {
-        $isLast = $i === count($history) - 1;
-        $html .= '<li class="reports-timeline__item' . ($isLast ? ' is-current' : '') . '">';
-        $html .= '<div class="reports-timeline-detail">';
-        $html .= '<span class="reports-timeline-detail__time">' . e((string) ($entry['at'] ?? '')) . '</span>';
-        $html .= '<span class="reports-timeline-detail__event">' . e((string) ($entry['event'] ?? '')) . '</span>';
-        if (($entry['note'] ?? '') !== '') {
-            $html .= '<p class="reports-timeline-detail__note">' . e((string) $entry['note']) . '</p>';
-        }
-        $html .= '</div></li>';
-    }
-    $html .= '</ol>';
-
-    return $html;
+    return admin_activity_registry_history_timeline_html($history);
 }
 
 /**

@@ -838,6 +838,79 @@
             bindDadStep1(viewDetails, p);
         }
 
+        function historyEventLabel(event) {
+            const raw = String(event || '').trim();
+            if (!raw) {
+                return 'Activity logged';
+            }
+            const registry = raw.match(/^Registry:\s*(.+)$/i);
+            if (registry) {
+                return 'Review status updated';
+            }
+            return raw;
+        }
+
+        function historyNoteText(event, note) {
+            const rawEvent = String(event || '').trim();
+            const rawNote = String(note || '').trim();
+            const registry = rawEvent.match(/^Registry:\s*(.+)$/i);
+            if (registry) {
+                const statusLine = 'New status: ' + registry[1].trim();
+                return rawNote ? statusLine + ' — ' + rawNote : statusLine;
+            }
+            return rawNote;
+        }
+
+        function historyDatetimeAttr(at) {
+            const raw = String(at || '').trim();
+            if (!raw) {
+                return '';
+            }
+            const ts = Date.parse(raw);
+            if (Number.isNaN(ts)) {
+                return '';
+            }
+            return new Date(ts).toISOString();
+        }
+
+        function buildHistoryTimelineItemHtml(entry, isCurrent) {
+            const event = String(entry.event || '');
+            const title = historyEventLabel(event);
+            const noteText = historyNoteText(event, entry.note);
+            const at = String(entry.at || '').trim();
+            const datetimeAttr = historyDatetimeAttr(at);
+            let html =
+                '<li class="reports-activity-timeline__item' +
+                (isCurrent ? ' is-current' : '') +
+                '"><div class="reports-activity-timeline__rail" aria-hidden="true">';
+            html += '<span class="reports-activity-timeline__dot"></span></div>';
+            html += '<div class="reports-activity-timeline__content">';
+            if (at) {
+                html += '<header class="reports-activity-timeline__meta"><time class="reports-activity-timeline__when"';
+                if (datetimeAttr) {
+                    html += ' datetime="' + escapeHtml(datetimeAttr) + '"';
+                }
+                html += '>' + escapeHtml(at) + '</time></header>';
+            }
+            html += '<p class="reports-activity-timeline__title">' + escapeHtml(title) + '</p>';
+            if (noteText) {
+                html += '<p class="reports-activity-timeline__note">' + escapeHtml(noteText) + '</p>';
+            }
+            html += '</div></li>';
+            return html;
+        }
+
+        function buildHistoryTimelineHtml(history) {
+            const list = Array.isArray(history) ? history.filter((e) => e && typeof e === 'object') : [];
+            if (list.length === 0) {
+                return '<p class="reports-activity-timeline__empty">No history yet.</p>';
+            }
+            const items = list
+                .map((entry, index) => buildHistoryTimelineItemHtml(entry, index === list.length - 1))
+                .join('');
+            return '<ol class="reports-activity-timeline" role="list">' + items + '</ol>';
+        }
+
         function renderHistory(history, record) {
             if (!stepperHost) {
                 return;
@@ -846,35 +919,7 @@
                 stepperHost.innerHTML = record.history_html;
                 return;
             }
-            if (!history || !history.length) {
-                stepperHost.innerHTML = '<p class="reports-timeline-empty">No history yet.</p>';
-                return;
-            }
-            let html = '<ol class="reports-timeline">';
-            history.forEach((entry, i) => {
-                const isLast = i === history.length - 1;
-                html +=
-                    '<li class="reports-timeline__item' +
-                    (isLast ? ' is-current' : '') +
-                    '"><div class="reports-timeline-detail">';
-                html +=
-                    '<span class="reports-timeline-detail__time">' +
-                    escapeHtml(entry.at || '') +
-                    '</span>';
-                html +=
-                    '<span class="reports-timeline-detail__event">' +
-                    escapeHtml(entry.event || '') +
-                    '</span>';
-                if (entry.note) {
-                    html +=
-                        '<p class="reports-timeline-detail__note">' +
-                        escapeHtml(entry.note) +
-                        '</p>';
-                }
-                html += '</div></li>';
-            });
-            html += '</ol>';
-            stepperHost.innerHTML = html;
+            stepperHost.innerHTML = buildHistoryTimelineHtml(history);
         }
 
         function populateEditForm(p) {

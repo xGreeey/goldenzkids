@@ -508,13 +508,10 @@ function admin_daily_detail_row_attrs(array $record): string
 
                     <section class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history" aria-labelledby="daily-history-heading">
                         <header class="reports-modal-form__section-header reports-modal__history-intro">
-                            <h3 id="daily-history-heading" class="reports-modal-form__section-title reports-modal-form__section-title--timeline">
-                                <?= admin_ui_icon('clock-rotate-left', 16) ?>
-                                Review history
-                            </h3>
+                            <h3 id="daily-history-heading" class="reports-modal-form__section-title">Review history</h3>
                             <p class="reports-modal-form__section-desc reports-modal__history-lead">Chronological audit trail for this DTR record — submissions, status changes, and operations notes.</p>
                         </header>
-                        <div id="daily-stepper" class="reports-timeline-host">
+                        <div id="daily-stepper" class="reports-activity-timeline-host" role="region" aria-label="Review history">
                             <?php if ($openRecord): ?>
                             <?= admin_attendance_history_stepper_html(
                                 is_array($openRecord['history'] ?? null) ? $openRecord['history'] : [],

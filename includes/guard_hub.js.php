@@ -630,7 +630,7 @@ function guard_hub_scripts(): void
         var current = 1;
         var reportFile = null;
         var evidences = [];
-        var DAD_TYPE = 'Daily Attendance Document';
+        var DAD_TYPE = 'Daily Time Record';
         var INCIDENT_TYPE = 'Post incident';
         var DAILY_ACTIVITY_TYPE = 'Daily Activity';
         var DAILY_ACTIVITY_MAX_PHOTOS = 5;
@@ -662,10 +662,8 @@ function guard_hub_scripts(): void
         var scanFlow = qs('[data-guard-scan-flow]', form);
         var dailyPanel = qs('[data-guard-daily-activity]', form);
         var dailyDetailsInput = qs('[data-guard-daily-details-input]', form);
-        var dailySubmitNormal = qs('[data-guard-daily-submit-normal]', form);
-        var dailyOpenEvent = qs('[data-guard-daily-open-event]', form);
-        var dailySubmitEvent = qs('[data-guard-daily-submit-event]', form);
-        var dailyEventReady = qs('[data-guard-daily-event-ready]', form);
+        var dailySubmitBtn = qs('[data-guard-daily-submit]', form);
+        var wizardSubmitBtn = qs('[data-guard-submit]', form);
         var dailyModal = qs('[data-guard-daily-activity-modal]', document);
         var dailyModalDetails = qs('[data-guard-daily-activity-details]', document);
         var dailyModalPhotos = qs('[data-guard-daily-activity-photos]', document);
@@ -818,6 +816,7 @@ function guard_hub_scripts(): void
                     URL.revokeObjectURL(item.url);
                     dailyActivityPhotos.splice(idx, 1);
                     renderDailyActivityPhotoPreview();
+                    syncDailyActivityUi();
                 });
                 row.appendChild(thumb);
                 row.appendChild(name);
@@ -826,12 +825,41 @@ function guard_hub_scripts(): void
             });
         }
 
+        function dailyActivityEventFormComplete() {
+            var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
+            return details !== '' && dailyActivityPhotos.length >= 1
+                && dailyActivityPhotos.length <= DAILY_ACTIVITY_MAX_PHOTOS;
+        }
+
+        function syncDailyActivityEventFromModal() {
+            if (!dailyActivityEventFormComplete()) {
+                dailyActivityEvent = null;
+                if (dailyDetailsInput) dailyDetailsInput.value = '';
+                return;
+            }
+            var details = String(dailyModalDetails.value || '').trim();
+            dailyActivityEvent = {
+                details: details,
+                files: dailyActivityPhotos.map(function (item) { return item.file; })
+            };
+            if (dailyDetailsInput) dailyDetailsInput.value = details;
+        }
+
+        function shouldShowDailySubmit() {
+            if (!isDailyActivityMode()) return false;
+            var mode = getDailyActivityMode();
+            if (mode === 'normal') return true;
+            if (mode === 'event') return dailyActivityEventFormComplete();
+            return false;
+        }
+
         function syncDailyActivityUi() {
             var da = isDailyActivityMode();
             form.classList.toggle('is-daily-activity', da);
             if (dailyPanel) dailyPanel.hidden = !da;
             if (scanFlow) scanFlow.hidden = da;
             if (wizardStepsBar) wizardStepsBar.hidden = da;
+            if (wizardSubmitBtn) wizardSubmitBtn.hidden = da;
             qsa('[data-wizard-pane="2"], [data-wizard-pane="3"]', form).forEach(function (pane) {
                 if (da) pane.classList.remove('is-active');
             });
@@ -839,14 +867,10 @@ function guard_hub_scripts(): void
                 goStep(1);
                 stopCamera();
             }
-            var mode = getDailyActivityMode();
-            if (dailySubmitNormal) dailySubmitNormal.hidden = !da || mode !== 'normal';
-            if (dailyOpenEvent) dailyOpenEvent.hidden = !da || mode !== 'event';
-            if (dailySubmitEvent) dailySubmitEvent.hidden = !da || mode !== 'event' || !dailyActivityEvent;
-            if (dailyEventReady) dailyEventReady.hidden = !da || mode !== 'event' || !dailyActivityEvent;
+            if (dailySubmitBtn) dailySubmitBtn.hidden = !shouldShowDailySubmit();
             if (submitSubtitle) {
                 if (da) {
-                    submitSubtitle.textContent = 'Daily activity: choose normal operation for a quick log, or add event details with photos when something happened at your post.';
+                    submitSubtitle.textContent = 'Daily activity: choose normal operation to submit immediately, or with event / activity to complete the popup form (details and photos).';
                 }
             }
         }
@@ -890,14 +914,9 @@ function guard_hub_scripts(): void
                 return;
             }
             if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
-            dailyActivityEvent = {
-                details: details,
-                files: dailyActivityPhotos.map(function (item) { return item.file; })
-            };
-            if (dailyDetailsInput) dailyDetailsInput.value = details;
+            syncDailyActivityEventFromModal();
             closeDailyActivityModal();
             syncDailyActivityUi();
-            window.guardShowToast('Event details saved. Submit when ready.', 'success');
         }
 
         function resetDailyActivityState() {
@@ -925,8 +944,9 @@ function guard_hub_scripts(): void
                 return;
             }
             if (mode === 'event') {
+                syncDailyActivityEventFromModal();
                 if (!dailyActivityEvent || !dailyActivityEvent.details || !dailyActivityEvent.files.length) {
-                    window.guardShowToast('Add event details and at least one photo.', 'error');
+                    window.guardShowToast('Complete activity details and add at least one photo.', 'error');
                     openDailyActivityModal();
                     return;
                 }
@@ -937,7 +957,7 @@ function guard_hub_scripts(): void
             }
 
             dailyActivitySubmitting = true;
-            var activeBtn = mode === 'normal' ? dailySubmitNormal : dailySubmitEvent;
+            var activeBtn = dailySubmitBtn;
             if (activeBtn) {
                 activeBtn.classList.add('is-loading');
                 activeBtn.disabled = true;
@@ -1645,12 +1665,7 @@ function guard_hub_scripts(): void
 
         if (reportTypeSelect) {
             reportTypeSelect.addEventListener('change', function () {
-                if (!isDailyActivityMode()) {
-                    resetDailyActivityState();
-                } else {
-                    dailyActivityEvent = null;
-                    syncDailyActivityUi();
-                }
+                resetDailyActivityState();
                 syncReportTypeSummary();
                 syncDadUi();
             });
@@ -1662,29 +1677,25 @@ function guard_hub_scripts(): void
                 if (radio.value === 'normal' && radio.checked) {
                     dailyActivityEvent = null;
                     if (dailyDetailsInput) dailyDetailsInput.value = '';
+                    if (dailyModalDetails) dailyModalDetails.value = '';
+                    clearDailyActivityPhotos();
                     closeDailyActivityModal();
                 }
-                if (radio.value === 'event' && radio.checked && !dailyActivityEvent) {
+                if (radio.value === 'event' && radio.checked) {
                     openDailyActivityModal();
                 }
                 syncDailyActivityUi();
             });
         });
 
-        if (dailyOpenEvent) {
-            dailyOpenEvent.addEventListener('click', function () {
-                openDailyActivityModal();
-            });
-        }
-        if (dailySubmitNormal) {
-            dailySubmitNormal.addEventListener('click', function () {
+        if (dailySubmitBtn) {
+            dailySubmitBtn.addEventListener('click', function () {
                 submitDailyActivity();
             });
         }
-        if (dailySubmitEvent) {
-            dailySubmitEvent.addEventListener('click', function () {
-                submitDailyActivity();
-            });
+
+        if (dailyModalDetails) {
+            dailyModalDetails.addEventListener('input', syncDailyActivityUi);
         }
 
         qsa('[data-guard-daily-activity-modal-close]', document).forEach(function (btn) {
@@ -1715,6 +1726,7 @@ function guard_hub_scripts(): void
                 dailyModalPhotos.value = '';
                 if (dailyModalPhotoError) dailyModalPhotoError.hidden = true;
                 renderDailyActivityPhotoPreview();
+                syncDailyActivityUi();
                 if (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
                     while (dailyActivityPhotos.length > DAILY_ACTIVITY_MAX_PHOTOS) {
                         var removed = dailyActivityPhotos.pop();

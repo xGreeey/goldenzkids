@@ -560,81 +560,105 @@ function guard_hub_styles(): void
             line-height: 1.4;
         }
 
+        body.guard-portal {
+            --guard-select-bg: var(--sa-input-bg, #f8fafc);
+            --guard-select-bg-hover: var(--guard-ui-cream, #f1f5f9);
+            --guard-select-border: var(--guard-ui-border, #e2e8f0);
+            --guard-select-border-hover: color-mix(in srgb, var(--guard-ui-primary, #0f172a) 18%, var(--guard-ui-border, #e2e8f0));
+            --guard-select-text: var(--guard-ui-primary, #0f172a);
+            --guard-select-placeholder: var(--guard-ui-subtle, #64748b);
+            --guard-select-option-bg: #ffffff;
+            --guard-select-option-text: #0f172a;
+            --guard-select-focus-ring: color-mix(in srgb, var(--brand-accent, #2563eb) 22%, transparent);
+            --guard-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        }
+
+        body.guard-portal:not(.light-mode) {
+            --guard-select-bg: color-mix(in srgb, var(--guard-ui-surface, #1e293b) 88%, #0f172a);
+            --guard-select-bg-hover: color-mix(in srgb, var(--guard-ui-surface, #1e293b) 72%, #334155);
+            --guard-select-border: var(--guard-ui-border, #334155);
+            --guard-select-border-hover: color-mix(in srgb, var(--guard-ui-secondary, #cbd5e1) 35%, var(--guard-ui-border, #334155));
+            --guard-select-text: var(--guard-ui-secondary, #e2e8f0);
+            --guard-select-placeholder: var(--guard-ui-subtle, #94a3b8);
+            --guard-select-option-bg: #1e293b;
+            --guard-select-option-text: #f1f5f9;
+            --guard-select-focus-ring: color-mix(in srgb, var(--guard-ui-secondary, #cbd5e1) 18%, transparent);
+            --guard-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        }
+
         body.guard-portal .guard-app__scroll .guard-select {
             position: relative;
             width: 100%;
+            max-width: 100%;
         }
 
-        /* Report type — neutral only (no brand/accent tints on field or options) */
         body.guard-portal .guard-app__scroll .guard-wizard__report-type .guard-select__native,
         body.guard-portal .guard-app__scroll .guard-select__native {
             width: 100%;
-            min-height: 44px;
-            padding: 10px 40px 10px 14px;
+            min-height: 40px;
+            padding: 8px 36px 8px 12px;
             font-family: inherit;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
-            line-height: 1.3;
-            color: #111827;
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
+            line-height: 1.35;
+            color: var(--guard-select-text);
+            background-color: var(--guard-select-bg);
+            border: 1px solid var(--guard-select-border);
+            border-radius: 8px;
             box-shadow: none;
             cursor: pointer;
             appearance: none;
             -webkit-appearance: none;
-            accent-color: #6b7280;
+            accent-color: var(--guard-select-placeholder);
             color-scheme: light;
-            transition: border-color 0.15s ease;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+            background-image: var(--guard-select-chevron);
             background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 18px 18px;
+            background-position: right 10px center;
+            background-size: 16px 16px;
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:hover {
-            border-color: #d1d5db;
-            background-color: #ffffff;
+            border-color: var(--guard-select-border-hover);
+            background-color: var(--guard-select-bg-hover);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:focus,
         body.guard-portal.superadmin-portal .form-field .guard-select__native:focus {
             outline: none;
-            border-color: #9ca3af;
-            box-shadow: none;
-            background-color: #ffffff;
+            border-color: var(--guard-select-border-hover);
+            background-color: var(--guard-select-bg-hover);
+            box-shadow: 0 0 0 2px var(--guard-select-focus-ring);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native:invalid {
-            color: #111827;
+            color: var(--guard-select-placeholder);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native:valid {
+            color: var(--guard-select-text);
         }
 
         body.guard-portal .guard-app__scroll .guard-select__native option,
         body.guard-portal .guard-app__scroll .guard-select__native optgroup {
-            background-color: #ffffff;
-            color: #111827;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            background-color: var(--guard-select-option-bg);
+            color: var(--guard-select-option-text);
+        }
+
+        body.guard-portal .guard-app__scroll .guard-select__native option:disabled {
+            color: var(--guard-select-placeholder);
         }
 
         body.guard-portal:not(.light-mode) .guard-app__scroll .guard-wizard__report-type .guard-select__native,
         body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native {
-            color: #111827;
-            background-color: #ffffff;
-            border-color: #d1d5db;
+            color-scheme: dark;
+        }
+
+        body.guard-portal.light-mode .guard-app__scroll .guard-wizard__report-type .guard-select__native,
+        body.guard-portal.light-mode .guard-app__scroll .guard-select__native {
             color-scheme: light;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:hover,
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native:focus,
-        body.guard-portal.superadmin-portal:not(.light-mode) .form-field .guard-select__native:focus {
-            background-color: #ffffff;
-            border-color: #9ca3af;
-            box-shadow: none;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native option,
-        body.guard-portal:not(.light-mode) .guard-app__scroll .guard-select__native optgroup {
-            background-color: #ffffff;
-            color: #111827;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner {
@@ -1482,6 +1506,10 @@ function guard_hub_styles(): void
             display: none !important;
         }
 
+        body.guard-portal .guard-wizard.is-daily-activity [data-guard-submit] {
+            display: none !important;
+        }
+
         body.guard-portal .guard-daily-activity__intro {
             margin: 0 0 12px;
         }
@@ -1528,8 +1556,7 @@ function guard_hub_styles(): void
             margin-top: 14px;
         }
 
-        body.guard-portal .guard-daily-activity__submit-normal,
-        body.guard-portal .guard-daily-activity__submit-event {
+        body.guard-portal .guard-daily-activity__submit {
             width: 100%;
         }
 

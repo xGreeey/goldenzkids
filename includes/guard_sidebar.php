@@ -43,6 +43,12 @@ if (isset($conn) && $conn instanceof PDO) {
             <i class="fa-solid fa-comments" aria-hidden="true"></i>
             Guard corner
         </a>
+        <?php if (auth_user_role() === AUTH_ROLE_GUARD): ?>
+        <a href="my-team.php" class="sidebar-link<?= $guardNavActive === 'team' ? ' active' : '' ?>"<?= $guardNavActive === 'team' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign your field guards') ?>>
+            <i class="fa-solid fa-users" aria-hidden="true"></i>
+            My team
+        </a>
+        <?php endif; ?>
     </nav>
 
     <div class="sidebar-footer">

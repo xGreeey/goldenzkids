@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/app.php';
 require_once APP_ROOT . '/includes/admin_ui_icons.php';
 require_once __DIR__ . '/../includes/admin_head_guard_posts.php';
+require_once __DIR__ . '/../includes/admin_head_guard_roster.php';
 
 auth_require_permission('admin.duty.view');
 
@@ -45,6 +46,44 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['assign_post']
     exit;
 }
 
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['assign_guards'])) {
+    csrf_verify();
+
+    $companyId = trim((string) ($_POST['company_id'] ?? ''));
+    $guardIds = isset($_POST['guard_ids']) && is_array($_POST['guard_ids'])
+        ? array_map(static fn ($id): string => trim((string) $id), $_POST['guard_ids'])
+        : [];
+
+    if ($companyId === '') {
+        flash_set('error', 'Missing head guard account.');
+    } else {
+        $result = admin_head_guard_roster_save_team($conn, $companyId, $guardIds);
+        if ($result['ok']) {
+            require_once __DIR__ . '/../includes/portal_audit.php';
+            $count = (int) ($result['count'] ?? 0);
+            portal_audit_log(
+                $conn,
+                'GUARDS_ASSIGNED',
+                $count > 0 ? 'Assigned ' . $count . ' guard(s)' : 'Cleared guard team',
+                $companyId,
+                (string) ($_SESSION['company_id'] ?? ''),
+                auth_user_role()
+            );
+            flash_set(
+                'success',
+                $count > 0
+                    ? 'Assigned ' . $count . ' guard(s) to ' . $companyId . '.'
+                    : 'Cleared guard team for ' . $companyId . '.'
+            );
+        } else {
+            flash_set('error', (string) ($result['error'] ?? 'Could not save guard assignment.'));
+        }
+    }
+
+    header('Location: head-guard-posts.php#assign-guards');
+    exit;
+}
+
 $posts = admin_head_guard_posts_list_posts($conn);
 $headGuards = admin_head_guard_posts_list_users($conn);
 $activeCount = count(array_filter($headGuards, static fn (array $row): bool => (int) ($row['is_active'] ?? 0) === 1));
@@ -53,6 +92,12 @@ $assignedCount = count(array_filter(
     static fn (array $row): bool => trim((string) ($row['assigned_post_name'] ?? '')) !== ''
 ));
 $unassignedCount = max(0, count($headGuards) - $assignedCount);
+$fieldGuards = admin_head_guard_roster_ready($conn) ? admin_head_guard_roster_list_field_guards($conn) : [];
+$unassignedGuardCount = count(array_filter(
+    $fieldGuards,
+    static fn (array $row): bool => ($row['head_id'] ?? null) === null
+));
+$rosterReady = admin_head_guard_roster_ready($conn);
 
 $adminNavActive = 'head-guards';
 ?>
@@ -278,6 +323,172 @@ $adminNavActive = 'head-guards';
                     </div>
                 </div>
             </section>
+
+            <?php if ($rosterReady): ?>
+            <section class="panel panel--duty panel--hg-roster" id="assign-guards" aria-labelledby="hg-roster-heading">
+                <header class="panel-head panel-head--registry">
+                    <div class="panel-head__head">
+                        <div class="panel-head__intro">
+                            <h2 id="hg-roster-heading" class="panel-title panel-title--registry">
+                                <?= admin_ui_icon('users', 18) ?>
+                                Assign Guards
+                            </h2>
+                            <div class="panel-head__subrow">
+                                <p class="panel-head__note">
+                                    <?= e((string) count($fieldGuards)) ?> field guard<?= count($fieldGuards) === 1 ? '' : 's' ?> in the roster ·
+                                    <?= e((string) $unassignedGuardCount) ?> unassigned.
+                                    Head guards can also pick guards from <strong>My team</strong> in the guard portal.
+                                </p>
+                                <div class="panel-head__table-labels panel-head__table-labels--desktop panel-head__table-labels--4" id="hg-roster-table-labels">
+                                    <span>Head guard</span>
+                                    <span>Post</span>
+                                    <span>Current team</span>
+                                    <span>Assign guards</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php if ($headGuards !== []): ?>
+                        <div class="hg-posts-toolbar" role="search">
+                            <label class="hg-posts-toolbar__label" for="hg-roster-search">
+                                <?= admin_ui_icon('magnifying-glass', 14) ?>
+                                <span>Search head guards</span>
+                            </label>
+                            <input
+                                type="search"
+                                id="hg-roster-search"
+                                class="hg-posts-toolbar__input field-input"
+                                placeholder="Name, company ID, or post…"
+                                autocomplete="off"
+                            >
+                        </div>
+                    <?php endif; ?>
+                </header>
+                <div class="panel-body panel-body--table">
+                    <div class="table-wrap">
+                        <table class="data-table data-table--hg-roster" aria-describedby="hg-roster-table-labels">
+                            <colgroup>
+                                <col class="col-hg-account">
+                                <col class="col-hg-post">
+                                <col class="col-hg-team">
+                                <col class="col-hg-pick">
+                            </colgroup>
+                            <thead class="data-table__head--compact">
+                                <tr>
+                                    <th scope="col">Head guard</th>
+                                    <th scope="col">Post</th>
+                                    <th scope="col">Current team</th>
+                                    <th scope="col">Assign guards</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hg-roster-tbody">
+                                <?php if ($headGuards === []): ?>
+                                    <tr>
+                                        <td colspan="4" class="table-empty">
+                                            No head guard accounts (role 0) found. Create them in User Management first.
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($headGuards as $guard): ?>
+                                        <?php
+                                        $companyId = (string) ($guard['company_id'] ?? '');
+                                        $assignedName = trim((string) ($guard['assigned_post_name'] ?? ''));
+                                        $team = admin_head_guard_roster_team_for_head($conn, $companyId);
+                                        $teamCount = count($team);
+                                        $rosterFieldId = 'guard_ids_' . preg_replace('/[^a-z0-9_-]/i', '_', $companyId);
+                                        $rosterOptions = admin_head_guard_roster_select_options_admin($conn, $companyId);
+                                        $searchBlob = strtolower(implode(' ', [
+                                            (string) ($guard['label'] ?? ''),
+                                            $companyId,
+                                            $assignedName,
+                                        ]));
+                                        ?>
+                                        <tr
+                                            data-hg-roster-row
+                                            data-search="<?= e_attr($searchBlob) ?>"
+                                            class="<?= $teamCount > 0 ? '' : ' is-unassigned' ?>"
+                                        >
+                                            <td class="hg-posts-cell hg-posts-cell--account">
+                                                <span class="hg-posts-name"><?= e((string) ($guard['label'] ?? $companyId)) ?></span>
+                                                <span class="table-meta mono"><?= e($companyId) ?></span>
+                                            </td>
+                                            <td class="hg-posts-cell hg-posts-cell--current">
+                                                <?php if ($assignedName !== ''): ?>
+                                                    <span class="hg-post-status hg-post-status--assigned">
+                                                        <?= admin_ui_icon('circle-check', 12) ?>
+                                                        <?= e($assignedName) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="hg-post-status hg-post-status--unassigned">
+                                                        <?= admin_ui_icon('triangle-exclamation', 12) ?>
+                                                        No post
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="hg-roster-cell hg-roster-cell--team">
+                                                <?php if ($teamCount > 0): ?>
+                                                    <span class="hg-roster-count"><?= e((string) $teamCount) ?> guard<?= $teamCount === 1 ? '' : 's' ?></span>
+                                                    <span class="hg-roster-team-preview table-meta"><?= e(implode(', ', array_map(static fn (array $m): string => (string) $m['label'], array_slice($team, 0, 4)))) ?><?= $teamCount > 4 ? '…' : '' ?></span>
+                                                <?php else: ?>
+                                                    <span class="table-meta">No guards assigned</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="hg-roster-cell hg-roster-cell--pick">
+                                                <form method="POST" class="hg-roster-assign-form">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="assign_guards" value="1">
+                                                    <input type="hidden" name="company_id" value="<?= e($companyId) ?>">
+                                                    <div class="hg-roster-assign-form__field">
+                                                        <label class="visually-hidden" for="<?= e($rosterFieldId) ?>">Guards for <?= e($companyId) ?></label>
+                                                        <select
+                                                            id="<?= e($rosterFieldId) ?>"
+                                                            name="guard_ids[]"
+                                                            class="field-select hg-roster-assign-form__select"
+                                                            multiple
+                                                            size="6"
+                                                        >
+                                                            <?php
+                                                            $lastGroup = '';
+                                                            foreach ($rosterOptions as $opt):
+                                                                $group = (string) ($opt['group'] ?? '');
+                                                                if ($group !== $lastGroup && $group !== ''):
+                                                                    if ($lastGroup !== ''):
+                                                                        echo '</optgroup>';
+                                                                    endif;
+                                                                    echo '<optgroup label="' . e_attr($group) . '">';
+                                                                    $lastGroup = $group;
+                                                                endif;
+                                                                ?>
+                                                                <option
+                                                                    value="<?= e((string) $opt['company_id']) ?>"
+                                                                    <?= !empty($opt['selected']) ? ' selected' : '' ?>
+                                                                ><?= e((string) $opt['label']) ?></option>
+                                                            <?php endforeach;
+                                                            if ($lastGroup !== ''):
+                                                                echo '</optgroup>';
+                                                            endif;
+                                                            ?>
+                                                        </select>
+                                                        <p class="form-hint hg-roster-assign-form__hint">Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
+                                                    </div>
+                                                    <button type="submit" class="hg-post-assign-form__save">
+                                                        <?= admin_ui_icon('floppy-disk', 14) ?>
+                                                        <span>Save team</span>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <tr id="hg-roster-no-results" class="hg-posts-no-results" hidden>
+                                        <td colspan="4" class="table-empty">No head guards match your search.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <?php endif; ?>
         <?php endif; ?>
     </main>
 </div>
@@ -286,29 +497,33 @@ $adminNavActive = 'head-guards';
 <?php if ($tablesReady && $headGuards !== []): ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const search = document.getElementById('hg-posts-search');
-    const rows = document.querySelectorAll('[data-hg-post-row]');
-    const emptyRow = document.getElementById('hg-posts-no-results');
-    if (!search || !rows.length) {
-        return;
-    }
-    function applyFilter() {
-        const q = search.value.trim().toLowerCase();
-        let visible = 0;
-        rows.forEach(function (row) {
-            const blob = (row.getAttribute('data-search') || '').toLowerCase();
-            const show = q === '' || blob.indexOf(q) !== -1;
-            row.hidden = !show;
-            if (show) {
-                visible += 1;
-            }
-        });
-        if (emptyRow) {
-            emptyRow.hidden = q === '' || visible > 0;
+    function wireFilter(searchId, rowSelector, emptyId) {
+        const search = document.getElementById(searchId);
+        const rows = document.querySelectorAll(rowSelector);
+        const emptyRow = document.getElementById(emptyId);
+        if (!search || !rows.length) {
+            return;
         }
+        function applyFilter() {
+            const q = search.value.trim().toLowerCase();
+            let visible = 0;
+            rows.forEach(function (row) {
+                const blob = (row.getAttribute('data-search') || '').toLowerCase();
+                const show = q === '' || blob.indexOf(q) !== -1;
+                row.hidden = !show;
+                if (show) {
+                    visible += 1;
+                }
+            });
+            if (emptyRow) {
+                emptyRow.hidden = q === '' || visible > 0;
+            }
+        }
+        search.addEventListener('input', applyFilter);
+        search.addEventListener('search', applyFilter);
     }
-    search.addEventListener('input', applyFilter);
-    search.addEventListener('search', applyFilter);
+    wireFilter('hg-posts-search', '[data-hg-post-row]', 'hg-posts-no-results');
+    wireFilter('hg-roster-search', '[data-hg-roster-row]', 'hg-roster-no-results');
 });
 </script>
 <?php endif; ?>

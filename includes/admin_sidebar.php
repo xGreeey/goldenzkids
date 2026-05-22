@@ -2,38 +2,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin_ui_icons.php';
+require_once __DIR__ . '/admin_report_nav.php';
 
 $adminNavActive = $adminNavActive ?? 'dashboard';
-$adminProfile = admin_sidebar_profile();
-
-$reportNavOpen = in_array($adminNavActive, ['reports', 'dad', 'duty', 'weekly-accomplishment'], true);
-/** @var list<array{slug: string, href: string, label: string, icon: string, tip: string, active: list<string>}> */
-$reportNavItems = [
-    [
-        'slug' => 'weekly-accomplishment',
-        'href' => 'weekly-accomplishment.php',
-        'label' => 'Weekly accomplishment report',
-        'icon' => 'clipboard-list',
-        'tip' => 'Weekly Accomplishment Report — review head guard weekly summaries',
-        'active' => ['weekly-accomplishment'],
-    ],
-    [
-        'slug' => 'dad',
-        'href' => 'dad.php',
-        'label' => 'DAD',
-        'icon' => 'calendar-day',
-        'tip' => 'Daily Attendance Detail (DAD) — time-in/out, NTE, missing values',
-        'active' => ['dad', 'duty'],
-    ],
-    [
-        'slug' => 'reports',
-        'href' => 'reports.php',
-        'label' => 'Incident report',
-        'icon' => 'file-lines',
-        'tip' => 'Incident reports — monitor and archive',
-        'active' => ['reports'],
-    ],
-];
+$reportNavOpen = admin_report_nav_is_open($adminNavActive);
+$reportNavItems = admin_report_nav_items();
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -58,7 +31,7 @@ $reportNavItems = [
                     class="sidebar-nav-group__toggle"
                     aria-expanded="<?= $reportNavOpen ? 'true' : 'false' ?>"
                     aria-controls="sidebarReportMenu"
-                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly accomplishment, DAD, incident') ?>>
+                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly activity, daily activity, DTR, incident') ?>>
                 <?= admin_nav_icon('folder-open') ?>
                 <span class="sidebar-nav-group__label">Report</span>
                 <span class="sidebar-nav-group__chevron" aria-hidden="true"><?= admin_ui_icon('chevron-down', 16) ?></span>
@@ -73,6 +46,7 @@ $reportNavItems = [
                     ?>
                 <a href="<?= e($item['href']) ?>"
                    class="sidebar-link sidebar-link--sub<?= $itemActive ? ' active' : '' ?>"
+                   data-nav-slug="<?= e((string) $item['slug']) ?>"
                    <?= $itemActive ? ' aria-current="page"' : '' ?>
                    <?= ui_tooltip((string) $item['tip']) ?>>
                     <?= admin_nav_icon((string) $item['icon']) ?>
@@ -81,10 +55,6 @@ $reportNavItems = [
                 <?php endforeach; ?>
             </div>
         </div>
-        <a href="daily-activity.php" class="sidebar-link<?= $adminNavActive === 'daily-activity' ? ' active' : '' ?>"<?= $adminNavActive === 'daily-activity' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Activity — shift logs and field activity for the current day') ?>>
-            <?= admin_nav_icon('clock') ?>
-            Daily Activity
-        </a>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
             <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts
@@ -92,13 +62,6 @@ $reportNavItems = [
     </nav>
 
     <div class="sidebar-footer">
-        <div class="sidebar-footer-user">
-            <span class="sidebar-footer-name" title="<?= e($adminProfile['email']) ?>"><?= e($adminProfile['name']) ?></span>
-            <div class="sidebar-footer-meta">
-                <span class="sidebar-footer-role"><?= e($adminProfile['role']) ?></span>
-            </div>
-        </div>
-
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
                 <span class="sidebar-footer-label">Settings</span>

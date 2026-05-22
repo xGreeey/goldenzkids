@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Legacy URL — Daily Attendance Detail (DAD) moved to dad.php.
+ * Legacy URL — Daily Time Record (DTR) registry moved to dtr.php.
  */
 require_once __DIR__ . '/../config/app.php';
 
 $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
-$target = 'dad.php' . ($query !== '' ? '?' . $query : '');
+$target = 'dtr.php' . ($query !== '' ? '?' . $query : '');
 
 header('Location: ' . $target, true, 301);
 exit;

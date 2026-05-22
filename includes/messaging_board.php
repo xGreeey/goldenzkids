@@ -75,7 +75,7 @@ $boardSubtitle = match (auth_normalize_role(auth_user_role())) {
 };
 
 $messagingSidebarTitle = $messagingSidebarTitle ?? 'Conversations';
-$messagingSidebarSubtitle = $messagingSidebarSubtitle ?? 'Staff messaging board for direct and group conversations.';
+$messagingSidebarSubtitle = $messagingSidebarSubtitle ?? 'Direct and group conversations with head guards.';
 $messagingHideSidebarHead = $messagingHideSidebarHead ?? false;
 
 $canRenderCreateForm = $messagingCanCreateGroups && $messagingHeadGuardOptions !== [];

@@ -202,7 +202,7 @@ if (guard_dad_is_report_type($templateName)) {
     );
 
     if (!$dadResult['ok']) {
-        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DAD record.')]);
+        echo json_encode(['ok' => false, 'error' => (string) ($dadResult['error'] ?? 'Could not register DTR record.')]);
         exit;
     }
     $dadReference = (string) ($dadResult['reference'] ?? '');
@@ -241,7 +241,7 @@ if (guard_incident_is_report_type($templateName)) {
 }
 
 $message = guard_dad_is_report_type($templateName)
-    ? 'Daily attendance document submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
+    ? 'Daily time record submitted. Reference: ' . ($dadReference ?? 'pending') . '.'
     : (guard_incident_is_report_type($templateName)
         ? 'Post incident submitted. Reference: ' . ($incReference ?? 'pending') . '. It will appear in Admin → Incident reports.'
         : 'Report submitted. Status: Pending review.');

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/memo_portal.php';
+require_once __DIR__ . '/guard_dad.php';
 
 /** @return list<array<string,mixed>> */
 function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50): array
@@ -37,7 +38,7 @@ function guard_portal_report_types(): array
 {
     return [
         'Post incident',
-        'Daily Attendance Document',
+        GUARD_DTR_REPORT_TYPE,
         'Daily Activity',
     ];
 }
@@ -59,7 +60,7 @@ function guard_portal_report_type_icon(string $label): string
 {
     return match ($label) {
         'Post incident' => 'fa-triangle-exclamation',
-        'Daily Attendance Document' => 'fa-calendar-day',
+        GUARD_DTR_REPORT_TYPE, GUARD_DTR_REPORT_TYPE_LEGACY => 'fa-calendar-day',
         'Daily Activity' => 'fa-clipboard-list',
         default => 'fa-file-lines',
     };

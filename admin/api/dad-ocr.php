@@ -6,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/app.php';
 require_once APP_ROOT . '/includes/guard_dad.php';
 
-if (!auth_user_can('admin.dad.view')) {
+if (!auth_user_can('admin.dtr.view')) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Forbidden']);
     exit;
@@ -28,7 +28,7 @@ try {
 
 $dadId = (int) ($_POST['dad_id'] ?? $_POST['dad'] ?? 0);
 if ($dadId <= 0) {
-    echo json_encode(['ok' => false, 'error' => 'Invalid DAD record.']);
+    echo json_encode(['ok' => false, 'error' => 'Invalid DTR record.']);
     exit;
 }
 

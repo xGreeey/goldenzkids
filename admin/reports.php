@@ -163,27 +163,27 @@ function admin_reports_row_attrs(array $report): string
             <div id="reports-module" class="reports-module">
                 <?php
                 $reportKpiIcons = [
-                    'all' => 'fa-clipboard-list',
-                    'ongoing' => 'fa-folder-open',
-                    'on_hold' => 'fa-clock',
-                    'accomplished' => 'fa-circle-check',
-                    'denied' => 'fa-ban',
+                    'all' => 'clipboard-list',
+                    'ongoing' => 'folder-open',
+                    'on_hold' => 'clock',
+                    'accomplished' => 'circle-check',
+                    'denied' => 'ban',
                 ];
                 ?>
                 <section class="kpi-grid" aria-label="Report summary">
                     <article class="kpi-card kpi-card--total" title="All incident reports in the registry">
                         <div class="kpi-stat">
-                            <i class="fa-solid <?= e($reportKpiIcons['all']) ?> kpi-icon" aria-hidden="true"></i>
+                            <?= admin_kpi_icon($reportKpiIcons['all']) ?>
                             <span class="kpi-value" data-kpi="all"><?= (int) $statusCounts['all'] ?></span>
                         </div>
                         <p class="kpi-label">Total reports</p>
                     </article>
                     <?php foreach ($statusDefinitions as $slug => $def):
-                        $icon = $reportKpiIcons[$slug] ?? 'fa-file-lines';
+                        $icon = $reportKpiIcons[$slug] ?? 'file-lines';
                         ?>
                     <article class="kpi-card kpi-card--<?= e($slug) ?>" title="<?= e((string) $def['description']) ?>">
                         <div class="kpi-stat">
-                            <i class="fa-solid <?= e($icon) ?> kpi-icon" aria-hidden="true"></i>
+                            <?= admin_kpi_icon($icon) ?>
                             <span class="kpi-value" data-kpi="<?= e($slug) ?>"><?= (int) ($statusCounts[$slug] ?? 0) ?></span>
                         </div>
                         <p class="kpi-label"><?= e((string) $def['kpi']) ?></p>
@@ -196,7 +196,7 @@ function admin_reports_row_attrs(array $report): string
                         <div class="reports-toolbar" role="search">
                             <div class="reports-toolbar__fields">
                                 <div class="form-field reports-field--search">
-                                    <label for="reports-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</label>
+                                    <label for="reports-search" class="reports-label-with-icon"><?= admin_ui_icon('magnifying-glass', 14) ?> Search</label>
                                     <input type="search" id="reports-search" placeholder="Reference, head guard, post, summary…" autocomplete="off">
                                 </div>
                                 <div class="form-field reports-field--category">
@@ -220,15 +220,20 @@ function admin_reports_row_attrs(array $report): string
                             <div class="reports-toolbar-actions" role="toolbar" aria-label="Report filter actions">
                                 <div class="reports-button-set">
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-reset">
-                                        <i class="fa-solid fa-rotate-left reports-btn__icon" aria-hidden="true"></i>
+                                        <?= admin_btn_icon('rotate-left') ?>
                                         <span class="reports-btn__text">Reset</span>
                                     </button>
                                     <a href="reports.php?export=1" class="reports-btn reports-btn--primary" id="reports-export">
-                                        <i class="fa-solid fa-file-export reports-btn__icon" aria-hidden="true"></i>
+                                        <?= admin_btn_icon('file-export') ?>
                                         <span class="reports-btn__text">Export</span>
                                     </a>
+<<<<<<< HEAD
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-guard-guide-open" title="Guard guide — workflow and status reference" aria-haspopup="dialog" aria-controls="reports-guard-guide-modal">
                                         <i class="fa-solid fa-book-open reports-btn__icon" aria-hidden="true"></i>
+=======
+                                    <button type="button" class="reports-btn reports-btn--secondary" id="reports-sanctions-open" title="Guard guide — workflow and status reference">
+                                        <?= admin_btn_icon('book-open') ?>
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
                                         <span class="reports-btn__text">Guard guide</span>
                                     </button>
                                     <button type="button" class="reports-btn reports-btn--secondary" id="reports-incident-types-open" title="Incident types — severity and filing reference" aria-haspopup="dialog" aria-controls="reports-incident-types-modal">
@@ -408,7 +413,7 @@ function admin_reports_row_attrs(array $report): string
                         </div>
 
                         <div id="reports-empty" class="reports-empty" role="status" aria-live="polite">
-                            <div class="reports-empty__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></div>
+                            <div class="reports-empty__icon" aria-hidden="true"><?= admin_ui_icon('folder-open', 28) ?></div>
                             <p class="reports-empty__title">No reports match your filters</p>
                             <p class="reports-empty__hint">Try adjusting the date range, category, or status tab — or clear search to see the full archive.</p>
                         </div>
@@ -497,17 +502,28 @@ function admin_reports_row_attrs(array $report): string
             <footer class="reports-modal__footer">
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
+<<<<<<< HEAD
                         <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?> aria-controls="modal-history-section">
                             <i class="fa-solid fa-pen-to-square reports-btn__icon" aria-hidden="true"></i>
                             <span class="reports-btn__text">Update progression</span>
+=======
+                        <button type="button" class="reports-btn reports-btn--primary" id="modal-goto-edit"<?= $openIncident ? '' : ' hidden' ?>>
+                            <?= admin_btn_icon('pen-to-square') ?>
+                            <span class="reports-btn__text">Edit this report</span>
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
                         </button>
                     </div>
                 </div>
                 <div class="reports-modal-footer__button-set" id="reports-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
                     <div class="reports-button-set">
                         <button type="submit" class="reports-btn reports-btn--primary" form="reports-edit-form" id="modal-save-edit">
+<<<<<<< HEAD
                             <i class="fa-solid fa-floppy-disk reports-btn__icon" aria-hidden="true"></i>
                             <span class="reports-btn__text" id="modal-save-edit-label">Save progression</span>
+=======
+                            <?= admin_btn_icon('floppy-disk') ?>
+                            <span class="reports-btn__text">Save changes</span>
+>>>>>>> b50d5b41c3abd76c78221f9a33041ad353ca1656
                         </button>
                         <button type="button" class="reports-btn reports-btn--secondary" id="modal-cancel-edit">
                             <span class="reports-btn__text" id="modal-cancel-edit-label">Cancel</span>

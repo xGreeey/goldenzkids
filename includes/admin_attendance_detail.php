@@ -412,6 +412,10 @@ function admin_attendance_normalize(array $row): array
     $headGuardName = trim((string) ($row['head_guard_name'] ?? ''));
     $row['head_guard_name'] = $headGuardName !== '' ? $headGuardName : 'Head guard';
 
+    $history = is_array($row['history'] ?? null) ? $row['history'] : [];
+    $row['view_html'] = admin_attendance_modal_details_html($row);
+    $row['history_html'] = admin_attendance_history_stepper_html($history, (string) $row['status']);
+
     return $row;
 }
 

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/admin_ui_icons.php';
+
 $adminNavActive = $adminNavActive ?? 'dashboard';
 $adminProfile = admin_sidebar_profile();
 ?>
@@ -11,27 +13,27 @@ $adminProfile = admin_sidebar_profile();
 
     <nav class="sidebar-nav" aria-label="Workspace">
         <a href="dashboard.php" class="sidebar-link<?= $adminNavActive === 'dashboard' ? ' active' : '' ?>"<?= $adminNavActive === 'dashboard' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Operations dashboard') ?>>
-            <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+            <?= admin_nav_icon('chart-line') ?>
             Dashboard
         </a>
         <a href="inbox.php" class="sidebar-link<?= $adminNavActive === 'inbox' ? ' active' : '' ?>"<?= $adminNavActive === 'inbox' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Staff messaging board') ?>>
-            <i class="fa-solid fa-inbox" aria-hidden="true"></i>
+            <?= admin_nav_icon('inbox') ?>
             Inbox
         </a>
         <a href="announcements.php" class="sidebar-link<?= $adminNavActive === 'announcements' ? ' active' : '' ?>"<?= $adminNavActive === 'announcements' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Secured memos and internal announcements') ?>>
-            <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
+            <?= admin_nav_icon('bullhorn') ?>
             Announcement
         </a>
         <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Incident reports — monitor and archive') ?>>
-            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+            <?= admin_nav_icon('file-lines') ?>
             Incident report
         </a>
         <a href="dad.php" class="sidebar-link<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' active' : '' ?>"<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Attendance Detail (DAD) — time-in/out, NTE, missing values') ?>>
-            <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+            <?= admin_nav_icon('calendar-day') ?>
             DAD
         </a>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
-            <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+            <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts
         </a>
     </nav>
@@ -82,6 +84,9 @@ if (!function_exists('theme_sidebar_boot_script')) {
     require_once __DIR__ . '/theme.php';
 }
 theme_sidebar_boot_script('light-class');
+
+require_once __DIR__ . '/admin_topbar.php';
 ?>
 
 <div class="app-shell">
+<?php admin_topbar_markup(); ?>

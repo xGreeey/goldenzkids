@@ -477,6 +477,46 @@ function guard_hub_styles(): void
             word-break: break-word;
         }
 
+        body.guard-portal .guard-ocr-preview__as-is {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        body.guard-portal .guard-ocr-preview__col {
+            min-width: 0;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            background: #fff;
+        }
+
+        body.guard-portal .guard-ocr-preview__col-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: rgba(15, 23, 42, 0.55);
+        }
+
+        body.guard-portal .guard-ocr-preview__col-body {
+            font-size: 0.75rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 140px;
+            overflow: auto;
+        }
+
+        @media (max-width: 520px) {
+            body.guard-portal .guard-ocr-preview__as-is {
+                grid-template-columns: 1fr;
+            }
+        }
+
         body.guard-portal .guard-dad-sheet-preview {
             margin-bottom: 12px;
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 if (!function_exists('message_groups_table_exists')) {
     require_once __DIR__ . '/group_messaging.php';
 }
+require_once __DIR__ . '/messaging_unread.php';
 
 /**
  * @var list<array{company_id:string,label:string,unread:int}> $messagingContacts
@@ -72,10 +73,18 @@ $boardSubtitle = match (auth_normalize_role(auth_user_role())) {
 $canRenderCreateForm = $messagingCanCreateGroups && $messagingHeadGuardOptions !== [];
 $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
     || ($messagingMode === 'direct' && $messagingActivePeer !== null && $messagingActivePeer !== '');
+
+[$messagingContacts, $messagingGroups, $messagingUnreadTotal] = messaging_apply_open_thread_unread(
+    $messagingContacts,
+    $messagingGroups,
+    $messagingMode === 'direct' ? $messagingActivePeer : null,
+    $messagingMode === 'group' ? $messagingActiveGroupId : null
+);
 ?>
 <section class="messaging-board"
          id="messaging-board"
          aria-labelledby="messaging-board-heading"
+         data-unread-total="<?= (int) $messagingUnreadTotal ?>"
          data-thread-api="<?= e($messagingThreadApi) ?>"
          data-send-direct="<?= e($messagingPostUrl) ?>"
          data-send-group="<?= e($messagingGroupPostUrl) ?>"
@@ -101,6 +110,22 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
         </div>
         <p class="messaging-board__subtitle"><?= e($boardSubtitle) ?></p>
     </div>
+    <div class="messaging-board__unread-banner<?= $messagingUnreadTotal > 0 ? '' : ' is-hidden' ?>"
+         id="messagingUnreadBanner"
+         role="status"
+         aria-live="polite"
+         <?= $messagingUnreadTotal > 0 ? '' : ' hidden' ?>>
+        <span class="messaging-board__unread-banner-icon" aria-hidden="true">
+            <i class="fa-solid fa-comment-dots"></i>
+        </span>
+        <span class="messaging-board__unread-banner-text" data-messaging-unread-banner-text>
+            <?php if ($messagingUnreadTotal === 1): ?>
+                You have <strong>1 new message</strong> — open a conversation below.
+            <?php else: ?>
+                You have <strong><?= (int) $messagingUnreadTotal ?> new messages</strong> — open a conversation below.
+            <?php endif; ?>
+        </span>
+    </div>
     <?php if (!$messagingAvailable && !$groupsAvailable): ?>
         <p class="messaging-board__notice" role="status">
             Messaging is not available yet. Run <code>php database/migrate.php</code> to create the messaging tables.
@@ -120,16 +145,21 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                     <?php foreach ($messagingContacts as $contact): ?>
                         <?php $isActive = $messagingMode === 'direct' && $messagingActivePeer === $contact['company_id']; ?>
                     <li>
+                        <?php $contactUnread = (int) ($contact['unread'] ?? 0); ?>
                         <button type="button"
-                                class="messaging-contact<?= $isActive ? ' is-active' : '' ?>"
+                                class="messaging-contact<?= $isActive ? ' is-active' : '' ?><?= $contactUnread > 0 ? ' has-unread' : '' ?>"
                                 data-chat-type="direct"
                                 data-peer-id="<?= e($contact['company_id']) ?>"
                                 data-chat-label="<?= e($contact['label']) ?>"
+                                data-unread="<?= $contactUnread ?>"
                                 <?= $isActive ? 'aria-current="true"' : '' ?>>
+                            <?php if ($contactUnread > 0): ?>
+                                <span class="messaging-contact__dot" aria-hidden="true"></span>
+                            <?php endif; ?>
                             <span class="messaging-contact__label"><?= e($contact['label']) ?></span>
                             <span class="messaging-contact__id"><?= e($contact['company_id']) ?></span>
-                            <?php if ($contact['unread'] > 0): ?>
-                                <span class="messaging-contact__badge" aria-label="<?= (int) $contact['unread'] ?> unread"><?= (int) $contact['unread'] ?></span>
+                            <?php if ($contactUnread > 0): ?>
+                                <span class="messaging-contact__badge" aria-label="<?= $contactUnread ?> unread"><?= $contactUnread ?></span>
                             <?php endif; ?>
                         </button>
                     </li>
@@ -157,19 +187,24 @@ $hasActiveThread = ($messagingMode === 'group' && $messagingGroupMeta !== null)
                     <?php foreach ($messagingGroups as $group): ?>
                         <?php $isActive = $messagingMode === 'group' && $messagingActiveGroupId === $group['group_id']; ?>
                     <li>
+                        <?php $groupUnread = (int) ($group['unread'] ?? 0); ?>
                         <button type="button"
-                                class="messaging-contact messaging-contact--group<?= $isActive ? ' is-active' : '' ?>"
+                                class="messaging-contact messaging-contact--group<?= $isActive ? ' is-active' : '' ?><?= $groupUnread > 0 ? ' has-unread' : '' ?>"
                                 data-chat-type="group"
                                 data-group-id="<?= (int) $group['group_id'] ?>"
                                 data-chat-label="<?= e($group['group_name']) ?>"
+                                data-unread="<?= $groupUnread ?>"
                                 <?= $isActive ? 'aria-current="true"' : '' ?>>
+                            <?php if ($groupUnread > 0): ?>
+                                <span class="messaging-contact__dot" aria-hidden="true"></span>
+                            <?php endif; ?>
                             <span class="messaging-contact__label">
                                 <i class="fa-solid fa-users" aria-hidden="true"></i>
                                 <?= e($group['group_name']) ?>
                             </span>
                             <span class="messaging-contact__id"><?= (int) $group['member_count'] ?> members</span>
-                            <?php if ($group['unread'] > 0): ?>
-                                <span class="messaging-contact__badge" aria-label="<?= (int) $group['unread'] ?> unread"><?= (int) $group['unread'] ?></span>
+                            <?php if ($groupUnread > 0): ?>
+                                <span class="messaging-contact__badge" aria-label="<?= $groupUnread ?> unread"><?= $groupUnread ?></span>
                             <?php endif; ?>
                         </button>
                     </li>

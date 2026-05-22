@@ -304,7 +304,11 @@ function admin_profile_page_styles(): void
     $loaded = true;
     ?>
         .profile-settings-panel {
+            width: 100%;
             max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
         }
 
         .profile-password-fieldset {

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/app.php';
+require_once APP_ROOT . '/includes/admin_ui_icons.php';
 require_once __DIR__ . '/../includes/admin_head_guard_posts.php';
 
 auth_require_permission('admin.duty.view');
@@ -38,6 +39,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['assign_post']
 $posts = admin_head_guard_posts_list_posts($conn);
 $headGuards = admin_head_guard_posts_list_users($conn);
 $activeCount = count(array_filter($headGuards, static fn (array $row): bool => (int) ($row['is_active'] ?? 0) === 1));
+$assignedCount = count(array_filter(
+    $headGuards,
+    static fn (array $row): bool => trim((string) ($row['assigned_post_name'] ?? '')) !== ''
+));
+$unassignedCount = max(0, count($headGuards) - $assignedCount);
 
 $adminNavActive = 'head-guards';
 ?>
@@ -54,7 +60,7 @@ $adminNavActive = 'head-guards';
 <?php readfile(__DIR__ . '/assets/css/dashboard.css'); ?>
     </style>
 </head>
-<body class="light-mode">
+<body class="light-mode page-head-guard-posts">
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
@@ -65,28 +71,70 @@ $adminNavActive = 'head-guards';
         </header>
 
         <?php if (!$tablesReady): ?>
-            <section class="panel" aria-labelledby="hg-posts-missing-heading">
-                <div class="panel-body">
-                    <h2 id="hg-posts-missing-heading" class="panel-title">Setup required</h2>
-                    <p class="panel-head__note">Run migration <code>012_callout_posts_head_guards.sql</code> (or <code>php database/migrate.php</code>) to create <code>callout_posts</code>, <code>callout_head_guards</code>, and <code>callout_post_assignments</code>.</p>
+            <section class="panel panel--setup-missing" aria-labelledby="hg-posts-missing-heading">
+                <div class="panel-body panel-body--setup-missing">
+                    <div class="hg-setup-missing" role="status">
+                        <span class="hg-setup-missing__icon" aria-hidden="true"><?= admin_ui_icon('database', 28) ?></span>
+                        <div class="hg-setup-missing__copy">
+                            <h2 id="hg-posts-missing-heading" class="hg-setup-missing__title">Database setup required</h2>
+                            <p class="hg-setup-missing__lead">
+                                Post assignment needs the callout tables. Run migration
+                                <code>012_callout_posts_head_guards.sql</code> or
+                                <code>php database/migrate.php</code> to create
+                                <code>callout_posts</code>, <code>callout_head_guards</code>, and
+                                <code>callout_post_assignments</code>.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
         <?php else: ?>
+            <section class="kpi-grid" aria-label="Head guard post summary">
+                <article class="kpi-card kpi-card--personnel" title="Head guard portal accounts (role 0)">
+                    <div class="kpi-stat">
+                        <?= admin_kpi_icon('user-shield') ?>
+                        <span class="kpi-value"><?= count($headGuards) ?></span>
+                    </div>
+                    <p class="kpi-label">Head guards</p>
+                </article>
+                <article class="kpi-card kpi-card--assigned" title="Accounts with an active duty post">
+                    <div class="kpi-stat">
+                        <?= admin_kpi_icon('map-location-dot') ?>
+                        <span class="kpi-value"><?= $assignedCount ?></span>
+                    </div>
+                    <p class="kpi-label">Assigned to a post</p>
+                </article>
+                <article class="kpi-card kpi-card--pending" title="Active accounts still needing a post">
+                    <div class="kpi-stat">
+                        <?= admin_kpi_icon('triangle-exclamation') ?>
+                        <span class="kpi-value"><?= $unassignedCount ?></span>
+                    </div>
+                    <p class="kpi-label">Without a post</p>
+                </article>
+                <article class="kpi-card kpi-card--posts" title="Duty posts available for assignment">
+                    <div class="kpi-stat">
+                        <?= admin_kpi_icon('clipboard-list') ?>
+                        <span class="kpi-value"><?= count($posts) ?></span>
+                    </div>
+                    <p class="kpi-label">Duty posts</p>
+                </article>
+            </section>
+
             <section class="panel panel--duty" aria-labelledby="hg-posts-heading">
                 <header class="panel-head panel-head--registry">
                     <div class="panel-head__head">
                         <div class="panel-head__intro">
                             <h2 id="hg-posts-heading" class="panel-title panel-title--registry">
-                                <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+                                <?= admin_ui_icon('map-location-dot', 18) ?>
                                 Post assignments
                             </h2>
                             <div class="panel-head__subrow">
                                 <p class="panel-head__note">
                                     <?= e((string) $activeCount) ?> active head guard<?= $activeCount === 1 ? '' : 's' ?> ·
-                                    <?= e((string) count($posts)) ?> duty post<?= count($posts) === 1 ? '' : 's' ?> available.
-                                    Without a post, guards see “No post is assigned to your guard profile.”
+                                    <?= e((string) count($posts)) ?> duty post<?= count($posts) === 1 ? '' : 's' ?> in the catalog.
+                                    Unassigned guards see “No post is assigned to your guard profile” in the portal.
                                 </p>
-                                <div class="panel-head__table-labels panel-head__table-labels--desktop" id="hg-posts-table-labels">
+                                <div class="panel-head__table-labels panel-head__table-labels--desktop panel-head__table-labels--4" id="hg-posts-table-labels">
                                     <span>Account</span>
                                     <span>Email</span>
                                     <span>Current post</span>
@@ -94,12 +142,33 @@ $adminNavActive = 'head-guards';
                                 </div>
                             </div>
                         </div>
-                        <span class="panel-badge">Role 0</span>
+                        <span class="panel-badge panel-badge--role" title="Portal role for head guards">Head guard · role 0</span>
                     </div>
+                    <?php if ($headGuards !== []): ?>
+                        <div class="hg-posts-toolbar" role="search">
+                            <label class="hg-posts-toolbar__label" for="hg-posts-search">
+                                <?= admin_ui_icon('magnifying-glass', 14) ?>
+                                <span>Search accounts</span>
+                            </label>
+                            <input
+                                type="search"
+                                id="hg-posts-search"
+                                class="hg-posts-toolbar__input field-input"
+                                placeholder="Name, company ID, email, or post…"
+                                autocomplete="off"
+                            >
+                        </div>
+                    <?php endif; ?>
                 </header>
-                <div class="panel-body" style="padding: 0;">
+                <div class="panel-body panel-body--table">
                     <div class="table-wrap">
-                        <table class="data-table" aria-describedby="hg-posts-table-labels">
+                        <table class="data-table data-table--hg-posts" aria-describedby="hg-posts-table-labels">
+                            <colgroup>
+                                <col class="col-account">
+                                <col class="col-email">
+                                <col class="col-current">
+                                <col class="col-assign">
+                            </colgroup>
                             <thead class="data-table__head--compact">
                                 <tr>
                                     <th scope="col">Account</th>
@@ -108,55 +177,92 @@ $adminNavActive = 'head-guards';
                                     <th scope="col">Assign post</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="hg-posts-tbody">
                                 <?php if ($headGuards === []): ?>
                                     <tr>
-                                        <td colspan="4" class="table-empty">No head guard accounts (role 0) found. Create them in User Management.</td>
+                                        <td colspan="4" class="table-empty">
+                                            No head guard accounts (role 0) found.
+                                            Create or activate them in User Management, then return here to assign posts.
+                                        </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($headGuards as $guard): ?>
                                         <?php
                                         $companyId = (string) ($guard['company_id'] ?? '');
                                         $assignedId = $guard['assigned_post_id'] ?? null;
-                                        $assignedName = $guard['assigned_post_name'] ?? null;
+                                        $assignedName = trim((string) ($guard['assigned_post_name'] ?? ''));
                                         $isActive = (int) ($guard['is_active'] ?? 0) === 1;
+                                        $hasPost = $assignedName !== '';
+                                        $fieldId = 'post_id_' . preg_replace('/[^a-z0-9_-]/i', '_', $companyId);
+                                        $searchBlob = strtolower(implode(' ', [
+                                            (string) ($guard['label'] ?? ''),
+                                            $companyId,
+                                            (string) ($guard['email'] ?? ''),
+                                            $assignedName,
+                                        ]));
                                         ?>
-                                        <tr<?= $isActive ? '' : ' class="is-muted"' ?>>
-                                            <td>
-                                                <strong><?= e((string) ($guard['label'] ?? $companyId)) ?></strong>
-                                                <div class="table-meta"><?= e($companyId) ?><?= $isActive ? '' : ' · inactive' ?></div>
-                                            </td>
-                                            <td><?= e((string) ($guard['email'] ?? '—')) ?></td>
-                                            <td>
-                                                <?php if ($assignedName !== null && $assignedName !== ''): ?>
-                                                    <span class="panel-badge"><?= e((string) $assignedName) ?></span>
-                                                <?php else: ?>
-                                                    <span class="table-meta">Not assigned</span>
+                                        <tr
+                                            data-hg-post-row
+                                            data-search="<?= e_attr($searchBlob) ?>"
+                                            class="<?= $isActive ? '' : 'is-muted' ?><?= $hasPost ? '' : ' is-unassigned' ?>"
+                                        >
+                                            <td class="hg-posts-cell hg-posts-cell--account">
+                                                <span class="hg-posts-name"><?= e((string) ($guard['label'] ?? $companyId)) ?></span>
+                                                <span class="table-meta mono"><?= e($companyId) ?></span>
+                                                <?php if (!$isActive): ?>
+                                                    <span class="hg-posts-flag hg-posts-flag--inactive">Inactive</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <td>
-                                                <form method="POST" class="hg-post-assign-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                            <td class="hg-posts-cell hg-posts-cell--email">
+                                                <?php if (trim((string) ($guard['email'] ?? '')) !== ''): ?>
+                                                    <a href="mailto:<?= e_attr((string) $guard['email']) ?>" class="hg-posts-email"><?= e((string) $guard['email']) ?></a>
+                                                <?php else: ?>
+                                                    <span class="table-meta">—</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="hg-posts-cell hg-posts-cell--current">
+                                                <?php if ($hasPost): ?>
+                                                    <span class="hg-post-status hg-post-status--assigned">
+                                                        <?= admin_ui_icon('circle-check', 12) ?>
+                                                        <?= e($assignedName) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="hg-post-status hg-post-status--unassigned">
+                                                        <?= admin_ui_icon('triangle-exclamation', 12) ?>
+                                                        Not assigned
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="hg-posts-cell hg-posts-cell--assign">
+                                                <form method="POST" class="hg-post-assign-form">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="assign_post" value="1">
                                                     <input type="hidden" name="company_id" value="<?= e($companyId) ?>">
-                                                    <label class="visually-hidden" for="post_id_<?= e(preg_replace('/[^a-z0-9_-]/i', '_', $companyId)) ?>">Duty post for <?= e($companyId) ?></label>
-                                                    <select
-                                                        id="post_id_<?= e(preg_replace('/[^a-z0-9_-]/i', '_', $companyId)) ?>"
-                                                        name="post_id"
-                                                        class="guard-select__native"
-                                                        style="min-width:12rem;max-width:100%;"
-                                                    >
-                                                        <option value="0"<?= $assignedId === null ? ' selected' : '' ?>>— No post —</option>
-                                                        <?php foreach ($posts as $post): ?>
-                                                            <?php $pid = (int) ($post['post_id'] ?? 0); ?>
-                                                            <option value="<?= $pid ?>"<?= $assignedId === $pid ? ' selected' : '' ?>><?= e((string) ($post['post_name'] ?? '')) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                    <button type="submit" class="btn-primary btn-primary--compact">Save</button>
+                                                    <div class="hg-post-assign-form__field">
+                                                        <label class="visually-hidden" for="<?= e($fieldId) ?>">Duty post for <?= e($companyId) ?></label>
+                                                        <select
+                                                            id="<?= e($fieldId) ?>"
+                                                            name="post_id"
+                                                            class="field-select hg-post-assign-form__select"
+                                                        >
+                                                            <option value="0"<?= $assignedId === null || (int) $assignedId <= 0 ? ' selected' : '' ?>>No post</option>
+                                                            <?php foreach ($posts as $post): ?>
+                                                                <?php $pid = (int) ($post['post_id'] ?? 0); ?>
+                                                                <option value="<?= $pid ?>"<?= (int) $assignedId === $pid ? ' selected' : '' ?>><?= e((string) ($post['post_name'] ?? '')) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <button type="submit" class="hg-post-assign-form__save">
+                                                        <?= admin_ui_icon('floppy-disk', 14) ?>
+                                                        <span>Save</span>
+                                                    </button>
                                                 </form>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
+                                    <tr id="hg-posts-no-results" class="hg-posts-no-results" hidden>
+                                        <td colspan="4" class="table-empty">No accounts match your search.</td>
+                                    </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -168,6 +274,35 @@ $adminNavActive = 'head-guards';
 </div>
 
 <?php admin_shell_scripts(); ?>
+<?php if ($tablesReady && $headGuards !== []): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const search = document.getElementById('hg-posts-search');
+    const rows = document.querySelectorAll('[data-hg-post-row]');
+    const emptyRow = document.getElementById('hg-posts-no-results');
+    if (!search || !rows.length) {
+        return;
+    }
+    function applyFilter() {
+        const q = search.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const blob = (row.getAttribute('data-search') || '').toLowerCase();
+            const show = q === '' || blob.indexOf(q) !== -1;
+            row.hidden = !show;
+            if (show) {
+                visible += 1;
+            }
+        });
+        if (emptyRow) {
+            emptyRow.hidden = q === '' || visible > 0;
+        }
+    }
+    search.addEventListener('input', applyFilter);
+    search.addEventListener('search', applyFilter);
+});
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

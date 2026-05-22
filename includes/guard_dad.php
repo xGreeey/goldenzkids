@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/document_ai.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/admin_ui_icons.php';
 
 const GUARD_DAD_REF_PREFIX = 'DAD';
 const GUARD_DAD_STATUS_PENDING = 'pending';
@@ -833,8 +834,10 @@ function guard_dad_submission_media_html(array $record): string
     $html = '<div class="reports-dad-step1" data-dad-step1' . ($dadId > 0 ? ' data-dad-id="' . $dadId . '"' : '') . '>';
     $html .= '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
     $html .= '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
-    $html .= '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet"><i class="fa-solid fa-image" aria-hidden="true"></i> Sheet image</button>';
-    $html .= '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Extracted text</button>';
+    $html .= '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet">'
+        . admin_ui_icon('image', 14) . ' Sheet image</button>';
+    $html .= '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr">'
+        . admin_ui_icon('wand-magic-sparkles', 14) . ' Extracted text</button>';
     $html .= '</div>';
     $html .= '<div class="reports-dad-step1__panels">';
     $html .= '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';

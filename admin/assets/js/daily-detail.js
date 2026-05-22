@@ -24,6 +24,12 @@
         }
         root.dataset.dailyBound = '1';
 
+        if (window.__dailyDetailAbort) {
+            window.__dailyDetailAbort.abort();
+        }
+        window.__dailyDetailAbort = new AbortController();
+        const panelSignal = window.__dailyDetailAbort.signal;
+
         const tableHeadWrap = document.getElementById('daily-table-head-wrap');
         const tableBodyWrap = document.getElementById('daily-table-body-wrap');
         if (tableHeadWrap && tableBodyWrap) {
@@ -511,9 +517,9 @@
             html += '<p class="reports-dad-step1__label">Step 1 — Attendance sheet</p>';
             html += '<div class="reports-dad-step1__tabs" role="tablist" aria-label="Attendance sheet and OCR">';
             html +=
-                '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet"><i class="fa-solid fa-image" aria-hidden="true"></i> Sheet image</button>';
+                '<button type="button" class="reports-dad-step1__tab is-active" role="tab" aria-selected="true" data-dad-tab="sheet">Sheet image</button>';
             html +=
-                '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Extracted text</button>';
+                '<button type="button" class="reports-dad-step1__tab" role="tab" aria-selected="false" data-dad-tab="ocr">Extracted text</button>';
             html += '</div><div class="reports-dad-step1__panels">';
             html += '<div class="reports-dad-step1__panel is-active" role="tabpanel" data-dad-panel="sheet">';
             if (scanUrl) {
@@ -666,8 +672,14 @@
             });
         }
 
-        function renderViewDetails(p) {
+        function renderViewDetails(p, options) {
             if (!viewDetails) {
+                return;
+            }
+            const forceClient = options && options.forceClient === true;
+            if (!forceClient && p && typeof p.view_html === 'string' && p.view_html.trim() !== '') {
+                viewDetails.innerHTML = p.view_html;
+                bindDadStep1Tabs(viewDetails, p);
                 return;
             }
             const pairs = [
@@ -714,8 +726,12 @@
             bindDadStep1Tabs(viewDetails, p);
         }
 
-        function renderHistory(history) {
+        function renderHistory(history, record) {
             if (!stepperHost) {
+                return;
+            }
+            if (record && typeof record.history_html === 'string' && record.history_html.trim() !== '') {
+                stepperHost.innerHTML = record.history_html;
                 return;
             }
             if (!history || !history.length) {
@@ -886,7 +902,7 @@
             }
 
             renderViewDetails(p);
-            renderHistory(p.history);
+            renderHistory(p.history, p);
             populateEditForm(p);
             if (editForm) {
                 editForm.hidden = false;
@@ -1138,20 +1154,26 @@
         });
         guideModal?.addEventListener('click', (e) => e.stopPropagation());
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') {
-                return;
-            }
-            if (guideOverlay?.classList.contains('is-open')) {
-                closeGuide();
-                return;
-            }
-            if (modalOverlay?.classList.contains('is-open')) {
-                closeModal();
-            }
-        });
+        document.addEventListener(
+            'keydown',
+            (e) => {
+                if (e.key !== 'Escape') {
+                    return;
+                }
+                if (guideOverlay?.classList.contains('is-open')) {
+                    closeGuide();
+                    return;
+                }
+                if (modalOverlay?.classList.contains('is-open')) {
+                    closeModal();
+                }
+            },
+            { signal: panelSignal }
+        );
 
-        window.addEventListener('popstate', (e) => {
+        window.addEventListener(
+            'popstate',
+            (e) => {
             const state = e.state || {};
             const url = new URL(window.location.href);
             const statusFromUrl = url.searchParams.get('status');
@@ -1175,7 +1197,9 @@
             } else {
                 closeModal();
             }
-        });
+            },
+            { signal: panelSignal }
+        );
 
         const initialTab = document.body.dataset.statusTab;
         if (initialTab) {
@@ -1197,7 +1221,7 @@
                     recordsById[currentRecordId] = p;
                     setModalMode(currentMode);
                     renderViewDetails(p);
-                    renderHistory(p.history);
+                    renderHistory(p.history, p);
                     populateEditForm(p);
                     recordsIndex.forEach((r) => {
                         r.el.classList.toggle('is-selected', r.id === currentRecordId);
@@ -1208,6 +1232,8 @@
             }
         }
     }
+
+    window.initDailyDetailModule = initDailyDetailModule;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initDailyDetailModule);

@@ -246,7 +246,8 @@ function admin_shell_styles(): void
             box-shadow: inset 3px 0 0 0 var(--admin-chrome-accent);
         }
 
-        body.light-mode:has(.app-shell) .sidebar-link.active i {
+        body.light-mode:has(.app-shell) .sidebar-link.active i,
+        body.light-mode:has(.app-shell) .sidebar-link.active .admin-ui-icon {
             color: var(--admin-chrome-accent);
         }
 
@@ -265,7 +266,8 @@ function admin_shell_styles(): void
             box-shadow: inset 3px 0 0 0 #8a9aad;
         }
 
-        body:not(.light-mode):has(.app-shell) .sidebar-link.active i {
+        body:not(.light-mode):has(.app-shell) .sidebar-link.active i,
+        body:not(.light-mode):has(.app-shell) .sidebar-link.active .admin-ui-icon {
             color: #c5d0da;
         }
 
@@ -443,12 +445,32 @@ function admin_shell_styles(): void
                 box-shadow 0.08s ease;
         }
 
-        .sidebar-link i {
+        .sidebar-link i,
+        .sidebar-link__icon {
+            flex-shrink: 0;
             width: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             font-size: 1rem;
             opacity: 1;
             color: inherit;
+        }
+
+        .sidebar-link__icon .admin-ui-icon {
+            display: block;
+        }
+
+        .admin-ui-icon {
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .kpi-icon .admin-ui-icon,
+        .reports-btn__icon .admin-ui-icon,
+        .reports-empty__icon .admin-ui-icon {
+            display: block;
         }
 
         .sidebar-link:hover {
@@ -826,7 +848,7 @@ function admin_panel_asset_styles(): void
     $loaded = true;
 
     $cssDir = dirname(__DIR__) . '/admin/assets/css';
-    foreach (['messaging-board.css', 'inbox.css', 'reports.css'] as $file) {
+    foreach (['messaging-board.css', 'inbox.css', 'reports.css', 'admin-notifications.css'] as $file) {
         $path = $cssDir . '/' . $file;
         if (is_readable($path)) {
             readfile($path);
@@ -885,5 +907,6 @@ document.addEventListener('DOMContentLoaded', function () {
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
+        echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';
     }
 }

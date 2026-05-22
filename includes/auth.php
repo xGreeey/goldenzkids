@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-/** 0 = security guard (field portal) */
+/** 0 = head guard (field portal) */
 const AUTH_ROLE_GUARD = 0;
+/** Alias for {@see AUTH_ROLE_GUARD} — head guard portal accounts. */
+const AUTH_ROLE_HEADGUARD = AUTH_ROLE_GUARD;
 /** 1 = admin (operations dashboard) */
 const AUTH_ROLE_ADMIN = 1;
 /** 2 = superadmin (full admin access) */
@@ -132,7 +134,7 @@ function auth_role_name(int $role): string
 {
     return match (auth_normalize_role($role)) {
         AUTH_ROLE_SUPERADMIN => 'Super Administrator',
-        AUTH_ROLE_GUARD => 'Security Guard',
+        AUTH_ROLE_GUARD => 'Head Guard',
         default => 'Administrator',
     };
 }

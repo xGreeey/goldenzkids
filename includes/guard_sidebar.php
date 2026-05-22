@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $guardNavActive = $guardNavActive ?? 'dashboard';
+$guardProfile = admin_sidebar_profile();
 $guardInboxUnread = 0;
 
 if (isset($conn) && $conn instanceof PDO) {
@@ -45,9 +46,20 @@ if (isset($conn) && $conn instanceof PDO) {
     </nav>
 
     <div class="sidebar-footer">
+        <div class="sidebar-footer-user">
+            <span class="sidebar-footer-name" title="<?= e($guardProfile['email']) ?>"><?= e($guardProfile['name']) ?></span>
+            <div class="sidebar-footer-meta">
+                <span class="sidebar-footer-role"><?= e($guardProfile['role']) ?></span>
+            </div>
+        </div>
+
         <div class="sidebar-footer-settings">
             <div class="sidebar-footer-settings-row">
-                <div class="sidebar-footer-actions" role="toolbar" aria-label="Sign out and appearance">
+                <span class="sidebar-footer-label">Settings</span>
+                <div class="sidebar-footer-actions" role="toolbar" aria-label="Settings shortcuts">
+                    <a href="settings.php" class="sidebar-footer-icon<?= $guardNavActive === 'settings' ? ' active' : '' ?>" aria-label="Account settings"<?= $guardNavActive === 'settings' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Account settings', 'bottom') ?>>
+                        <?= admin_sidebar_icon('settings') ?>
+                    </a>
                     <form method="POST" action="../auth/logout-guard.php" class="sidebar-footer-logout">
                         <?= csrf_field() ?>
                         <button type="submit" class="sidebar-footer-icon" aria-label="Sign Out"<?= ui_tooltip('Sign out', 'bottom') ?>>

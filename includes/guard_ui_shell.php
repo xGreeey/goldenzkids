@@ -56,11 +56,15 @@ function guard_ui_profile_block_markup(string $modifier = ''): void
     <?php
 }
 
-function guard_ui_settings_row_markup(string $themeToggleId): void
+function guard_ui_settings_row_markup(string $themeToggleId, string $navActive = ''): void
 {
     ?>
     <div class="guard-app__settings">
-        <div class="guard-app__settings-tools" role="toolbar" aria-label="Sign out and appearance">
+        <div class="guard-app__settings-tools" role="toolbar" aria-label="Account settings, sign out, and appearance">
+            <a href="settings.php" class="guard-app__icon-btn<?= $navActive === 'settings' ? ' is-active' : '' ?>" aria-label="Account settings"<?= $navActive === 'settings' ? ' aria-current="page"' : '' ?>>
+                <?= guard_ui_icon('gear', 20) ?>
+                <span class="guard-app__logout-btn-label">Settings</span>
+            </a>
             <form method="POST" action="../auth/logout-guard.php" class="guard-app__logout-form">
                 <?= csrf_field() ?>
                 <button type="submit" class="guard-app__icon-btn guard-app__logout-btn" aria-label="Sign out">
@@ -112,7 +116,7 @@ function guard_ui_drawer_markup(string $navActive): void
             </nav>
             <footer class="guard-app__drawer-footer">
                 <?php guard_ui_profile_block_markup('guard-app__profile--drawer'); ?>
-                <?php guard_ui_settings_row_markup('guardAppDrawerThemeToggle'); ?>
+                <?php guard_ui_settings_row_markup('guardAppDrawerThemeToggle', $navActive); ?>
             </footer>
         </aside>
     </div>

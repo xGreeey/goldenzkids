@@ -15,6 +15,43 @@
         handlers: null,
     };
 
+    function openReportsImageViewer(src, alt) {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer || !img || !src) {
+            return;
+        }
+        img.src = src;
+        img.alt = alt || 'Attachment preview';
+        viewer.hidden = false;
+        viewer.classList.add('is-open');
+        viewer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeReportsImageViewer() {
+        const viewer = document.getElementById('reports-image-viewer');
+        const img = document.getElementById('reports-image-viewer-img');
+        if (!viewer) {
+            return;
+        }
+        viewer.classList.remove('is-open');
+        viewer.hidden = true;
+        viewer.setAttribute('aria-hidden', 'true');
+        if (img) {
+            img.removeAttribute('src');
+            img.alt = '';
+        }
+        const modalOpen = document.getElementById('reports-modal-overlay')?.classList.contains('is-open');
+        const guideOpen = document.getElementById('reports-guard-guide-overlay')?.classList.contains('is-open');
+        const typesOpen = document
+            .getElementById('reports-incident-types-overlay')
+            ?.classList.contains('is-open');
+        if (!modalOpen && !guideOpen && !typesOpen) {
+            document.body.style.overflow = '';
+        }
+    }
+
     function bindReportsModalUi() {
         const h = reportsLive.handlers;
         if (!h) {

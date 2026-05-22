@@ -1882,38 +1882,54 @@ function guard_hub_styles(): void
         }
 
         body.guard-portal .guard-daily-activity-photo-list__remove {
+            --guard-daily-photo-rm-bg: rgba(255, 255, 255, 0.96);
+            --guard-daily-photo-rm-border: rgba(15, 23, 42, 0.16);
+            --guard-daily-photo-rm-fg: rgba(15, 23, 42, 0.5);
+            --guard-daily-photo-rm-bg-hover: #f8fafc;
+            --guard-daily-photo-rm-border-hover: rgba(15, 23, 42, 0.28);
+            --guard-daily-photo-rm-fg-hover: rgba(15, 23, 42, 0.78);
             position: absolute;
-            top: -6px;
-            right: -6px;
+            top: -4px;
+            right: -4px;
             z-index: 2;
-            width: 22px;
-            height: 22px;
+            box-sizing: border-box;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            max-width: 20px;
+            max-height: 20px;
             padding: 0;
             margin: 0;
-            border: 2px solid #fff;
+            border: 1px solid var(--guard-daily-photo-rm-border);
             border-radius: 50%;
-            background: #b91c1c;
-            color: #fff;
+            background: var(--guard-daily-photo-rm-bg);
+            color: var(--guard-daily-photo-rm-fg);
             cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             line-height: 1;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         }
 
         body.guard-portal .guard-daily-activity-photo-list__remove-glyph {
-            font-size: 1rem;
-            font-weight: 700;
+            font-size: 0.8125rem;
+            font-weight: 500;
             line-height: 1;
-            margin-top: -1px;
+            margin: 0;
         }
 
         body.guard-portal .guard-daily-activity-photo-list__remove:hover,
         body.guard-portal .guard-daily-activity-photo-list__remove:focus-visible {
-            background: #991b1b;
-            color: #fff;
+            background: var(--guard-daily-photo-rm-bg-hover);
+            color: var(--guard-daily-photo-rm-fg-hover);
+            border-color: var(--guard-daily-photo-rm-border-hover);
             outline: none;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
         }
 
         body.guard-portal .guard-daily-activity-photo-list__name {
@@ -1933,7 +1949,13 @@ function guard_hub_styles(): void
         }
 
         body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__remove {
-            border-color: var(--guard-ui-surface, #1e293b);
+            --guard-daily-photo-rm-bg: rgba(30, 41, 59, 0.94);
+            --guard-daily-photo-rm-border: rgba(148, 163, 184, 0.38);
+            --guard-daily-photo-rm-fg: rgba(226, 232, 240, 0.82);
+            --guard-daily-photo-rm-bg-hover: rgba(51, 65, 85, 0.98);
+            --guard-daily-photo-rm-border-hover: rgba(203, 213, 225, 0.45);
+            --guard-daily-photo-rm-fg-hover: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
         }
 
         body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__name {
@@ -2124,4 +2146,5 @@ function guard_hub_styles(): void
     <?php
     require_once __DIR__ . '/guard_inbox.css.php';
     guard_inbox_styles();
+    echo guard_mobile_input_no_zoom_css();
 }

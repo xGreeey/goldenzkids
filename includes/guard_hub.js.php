@@ -1062,6 +1062,20 @@ function guard_hub_scripts(): void
             document.body.classList.remove('guard-daily-activity-modal-open');
         }
 
+        /** Close modal without saving — clears event mode and draft details/photos. */
+        function dismissDailyActivityModal() {
+            closeDailyActivityModal();
+            dailyActivityEvent = null;
+            if (dailyDetailsInput) dailyDetailsInput.value = '';
+            if (dailyModalDetails) dailyModalDetails.value = '';
+            clearDailyActivityPhotos();
+            qsa('[name="daily_activity_mode"]', form).forEach(function (radio) {
+                radio.checked = false;
+            });
+            syncDailyActivityEventSummary();
+            syncDailyActivityUi();
+        }
+
         function saveDailyActivityModal() {
             var details = dailyModalDetails ? String(dailyModalDetails.value || '').trim() : '';
             if (details === '') {
@@ -1093,15 +1107,7 @@ function guard_hub_scripts(): void
         }
 
         function resetDailyActivityState() {
-            dailyActivityEvent = null;
-            if (dailyDetailsInput) dailyDetailsInput.value = '';
-            if (dailyModalDetails) dailyModalDetails.value = '';
-            clearDailyActivityPhotos();
-            qsa('[name="daily_activity_mode"]', form).forEach(function (radio) {
-                radio.checked = false;
-            });
-            closeDailyActivityModal();
-            syncDailyActivityUi();
+            dismissDailyActivityModal();
         }
 
         function releaseDailyActivitySubmitUi() {
@@ -1919,7 +1925,10 @@ function guard_hub_scripts(): void
         }
 
         qsa('[data-guard-daily-activity-modal-close]', document).forEach(function (btn) {
-            btn.addEventListener('click', closeDailyActivityModal);
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                dismissDailyActivityModal();
+            });
         });
         var dailyModalSave = qs('[data-guard-daily-activity-modal-save]', document);
         var dailyEventEditBtn = qs('[data-guard-daily-event-edit]', form);

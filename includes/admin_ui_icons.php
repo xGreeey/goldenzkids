@@ -22,6 +22,7 @@ function admin_ui_icon(string $name, int $size = 18, string $extraClass = ''): s
         'calendar-day' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h2v2H8z"/>',
         'map-location-dot' => '<path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/><circle cx="12" cy="11" r="2"/>',
         'clipboard-list' => '<path d="M9 5H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4M9 8h6"/>',
+        'chevron-down' => '<path d="M6 9l6 6 6-6"/>',
         'folder-open' => '<path d="M6 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v2"/><path d="M6 20h12.5a2 2 0 0 0 1.9-1.4L22 10H6z"/>',
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         'circle-check' => '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',

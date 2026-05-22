@@ -105,8 +105,26 @@ document.addEventListener('DOMContentLoaded', function () {
         return panelFiles().indexOf(file) !== -1;
     }
 
+    function syncSidebarNavGroups() {
+        nav.querySelectorAll('[data-sidebar-nav-group]').forEach(function (group) {
+            var hasActive = !!group.querySelector('a.sidebar-link.active');
+            var toggle = group.querySelector('.sidebar-nav-group__toggle');
+            var menu = group.querySelector('.sidebar-nav-group__menu');
+            group.classList.toggle('has-active', hasActive);
+            if (hasActive) {
+                group.classList.add('is-open');
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+                if (menu) {
+                    menu.hidden = false;
+                }
+            }
+        });
+    }
+
     function setActiveSidebarLink(activeLink) {
-        nav.querySelectorAll('a.sidebar-link').forEach(function (item) {
+        nav.querySelectorAll('a.sidebar-link[href]').forEach(function (item) {
             var isActive = item === activeLink;
             item.classList.toggle('active', isActive);
             if (isActive) {
@@ -115,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 item.removeAttribute('aria-current');
             }
         });
+        syncSidebarNavGroups();
     }
 
     function filenameFromHref(href) {
@@ -150,6 +169,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         if (target) {
             setActiveSidebarLink(target);
+        } else {
+            syncSidebarNavGroups();
         }
         document.querySelectorAll('.guard-app__drawer-link[href]').forEach(function (a) {
             var on = filenameFromHref(a.getAttribute('href') || '') === file;

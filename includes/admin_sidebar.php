@@ -5,6 +5,35 @@ require_once __DIR__ . '/admin_ui_icons.php';
 
 $adminNavActive = $adminNavActive ?? 'dashboard';
 $adminProfile = admin_sidebar_profile();
+
+$reportNavOpen = in_array($adminNavActive, ['reports', 'dad', 'duty', 'weekly-accomplishment'], true);
+/** @var list<array{slug: string, href: string, label: string, icon: string, tip: string, active: list<string>}> */
+$reportNavItems = [
+    [
+        'slug' => 'weekly-accomplishment',
+        'href' => 'weekly-accomplishment.php',
+        'label' => 'Weekly accomplishment report',
+        'icon' => 'clipboard-list',
+        'tip' => 'Weekly Accomplishment Report — review head guard weekly summaries',
+        'active' => ['weekly-accomplishment'],
+    ],
+    [
+        'slug' => 'dad',
+        'href' => 'dad.php',
+        'label' => 'DAD',
+        'icon' => 'calendar-day',
+        'tip' => 'Daily Attendance Detail (DAD) — time-in/out, NTE, missing values',
+        'active' => ['dad', 'duty'],
+    ],
+    [
+        'slug' => 'reports',
+        'href' => 'reports.php',
+        'label' => 'Incident report',
+        'icon' => 'file-lines',
+        'tip' => 'Incident reports — monitor and archive',
+        'active' => ['reports'],
+    ],
+];
 ?>
 <aside class="app-sidebar" id="appSidebar" aria-label="Main navigation">
     <div class="sidebar-brand">
@@ -24,14 +53,34 @@ $adminProfile = admin_sidebar_profile();
             <?= admin_nav_icon('bullhorn') ?>
             Announcement
         </a>
-        <a href="reports.php" class="sidebar-link<?= $adminNavActive === 'reports' ? ' active' : '' ?>"<?= $adminNavActive === 'reports' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Incident reports — monitor and archive') ?>>
-            <?= admin_nav_icon('file-lines') ?>
-            Incident report
-        </a>
-        <a href="dad.php" class="sidebar-link<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' active' : '' ?>"<?= in_array($adminNavActive, ['dad', 'duty'], true) ? ' aria-current="page"' : '' ?><?= ui_tooltip('Daily Attendance Detail (DAD) — time-in/out, NTE, missing values') ?>>
-            <?= admin_nav_icon('calendar-day') ?>
-            DAD
-        </a>
+        <div class="sidebar-nav-group<?= $reportNavOpen ? ' is-open has-active' : '' ?>" data-sidebar-nav-group>
+            <button type="button"
+                    class="sidebar-nav-group__toggle"
+                    aria-expanded="<?= $reportNavOpen ? 'true' : 'false' ?>"
+                    aria-controls="sidebarReportMenu"
+                    id="sidebarReportToggle"<?= ui_tooltip('Reports — weekly accomplishment, DAD, incident') ?>>
+                <?= admin_nav_icon('folder-open') ?>
+                <span class="sidebar-nav-group__label">Report</span>
+                <span class="sidebar-nav-group__chevron" aria-hidden="true"><?= admin_ui_icon('chevron-down', 16) ?></span>
+            </button>
+            <div id="sidebarReportMenu"
+                 class="sidebar-nav-group__menu"
+                 role="group"
+                 aria-labelledby="sidebarReportToggle"
+                 <?= $reportNavOpen ? '' : ' hidden' ?>>
+                <?php foreach ($reportNavItems as $item):
+                    $itemActive = in_array($adminNavActive, $item['active'], true);
+                    ?>
+                <a href="<?= e($item['href']) ?>"
+                   class="sidebar-link sidebar-link--sub<?= $itemActive ? ' active' : '' ?>"
+                   <?= $itemActive ? ' aria-current="page"' : '' ?>
+                   <?= ui_tooltip((string) $item['tip']) ?>>
+                    <?= admin_nav_icon((string) $item['icon']) ?>
+                    <?= e((string) $item['label']) ?>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
         <a href="head-guard-posts.php" class="sidebar-link<?= $adminNavActive === 'head-guards' ? ' active' : '' ?>"<?= $adminNavActive === 'head-guards' ? ' aria-current="page"' : '' ?><?= ui_tooltip('Assign duty posts to head guard accounts') ?>>
             <?= admin_nav_icon('map-location-dot') ?>
             Head guard posts

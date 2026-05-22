@@ -519,6 +519,113 @@ function admin_shell_styles(): void
             outline-offset: 2px;
         }
 
+        .sidebar-nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .sidebar-nav-group__toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 14px;
+            font-size: var(--font-body-size-sm);
+            font-weight: 600;
+            font-family: inherit;
+            color: var(--app-ink-muted-on-dark);
+            text-align: left;
+            text-decoration: none;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition:
+                background-color 0.08s ease,
+                color 0.08s ease,
+                box-shadow 0.08s ease;
+        }
+
+        .sidebar-nav-group__toggle:hover {
+            color: var(--app-ink-on-dark);
+            background: var(--bg-elevated);
+        }
+
+        .sidebar-nav-group.has-active > .sidebar-nav-group__toggle {
+            color: var(--app-ink-on-dark);
+            font-weight: 700;
+        }
+
+        .sidebar-nav-group__label {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-nav-group__chevron {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            opacity: 0.75;
+            transition: transform 0.15s ease;
+        }
+
+        .sidebar-nav-group.is-open .sidebar-nav-group__chevron {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-nav-group__menu {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin: 0 0 2px 20px;
+            padding: 2px 0 2px 10px;
+            border-left: 2px solid color-mix(in srgb, var(--app-border-on-dark) 65%, transparent);
+        }
+
+        body.light-mode .sidebar-nav-group__menu {
+            border-left-color: color-mix(in srgb, var(--app-border) 80%, transparent);
+        }
+
+        .sidebar-nav-group:not(.is-open) .sidebar-nav-group__menu {
+            display: none;
+        }
+
+        .sidebar-link--sub {
+            padding: 8px 12px;
+            font-size: var(--font-body-size-xs);
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .sidebar-link--sub .sidebar-link__icon {
+            width: 16px;
+        }
+
+        .sidebar-link--sub .sidebar-link__icon .admin-ui-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        body.light-mode .sidebar-nav-group__toggle {
+            color: var(--app-ink-muted);
+        }
+
+        body.light-mode .sidebar-nav-group__toggle:hover {
+            color: var(--app-ink);
+            background: var(--bg-elevated);
+        }
+
+        body.light-mode .sidebar-nav-group.has-active > .sidebar-nav-group__toggle {
+            color: var(--app-ink-deep);
+        }
+
+        .sidebar-nav-group__toggle:focus-visible {
+            outline: 2px solid var(--brand-accent);
+            outline-offset: 2px;
+        }
+
         .sidebar-footer {
             position: relative;
             display: flex;
@@ -892,6 +999,21 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.sidebar-footer-icon[href="#"]').forEach(function (link) {
         link.addEventListener('click', function (event) {
             event.preventDefault();
+        });
+    });
+
+    document.querySelectorAll('[data-sidebar-nav-group]').forEach(function (group) {
+        var toggle = group.querySelector('.sidebar-nav-group__toggle');
+        var menu = group.querySelector('.sidebar-nav-group__menu');
+        if (!toggle || !menu) {
+            return;
+        }
+
+        toggle.addEventListener('click', function () {
+            var open = !group.classList.contains('is-open');
+            group.classList.toggle('is-open', open);
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            menu.hidden = !open;
         });
     });
 });

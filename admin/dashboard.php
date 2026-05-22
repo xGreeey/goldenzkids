@@ -75,7 +75,7 @@ $adminNavActive = 'dashboard';
 
         <div class="content-grid">
             <div class="analytics-col">
-                <section class="panel" aria-labelledby="chart-heading">
+                <section class="panel panel--report-activity" aria-labelledby="chart-heading">
                     <div class="panel-head">
                         <h2 id="chart-heading" class="panel-title">
                             <?= admin_ui_icon('chart-pie', 18) ?>
@@ -121,7 +121,7 @@ $adminNavActive = 'dashboard';
                     </div>
                 </section>
 
-                <section class="panel" aria-labelledby="roster-heading">
+                <section class="panel panel--personnel-roster" aria-labelledby="roster-heading">
                     <div class="panel-head">
                         <h2 id="roster-heading" class="panel-title">
                             <?= admin_ui_icon('users', 18) ?>
@@ -129,7 +129,7 @@ $adminNavActive = 'dashboard';
                         </h2>
                         <span class="panel-badge">Latest 10</span>
                     </div>
-                    <div class="panel-body" style="padding: 0;">
+                    <div class="panel-body panel-body--roster">
                         <div class="table-wrap">
                             <table class="data-table">
                                 <thead>
@@ -300,9 +300,7 @@ $adminNavActive = 'dashboard';
 
             initChart();
 
-            document.querySelectorAll('.theme-switch').forEach((toggle) => {
-                toggle.addEventListener('click', () => setTimeout(initChart, 50));
-            });
+            document.addEventListener('abc-theme-change', () => setTimeout(initChart, 50));
         });
     </script>
 <?php admin_shell_scripts(); ?>

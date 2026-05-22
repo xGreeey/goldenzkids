@@ -87,7 +87,7 @@ function admin_incident_types_reference_from_db(?PDO $conn = null): ?array
     }
 
     if (!function_exists('admin_incident_category_label')) {
-        require_once __DIR__ . '/admin_incident_reports.php';
+        require_once __DIR__ . '/admin_incident_categories.php';
     }
 
     $typeRows = db_fetch_all(

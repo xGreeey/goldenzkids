@@ -93,6 +93,15 @@ function admin_sidebar_icon(string $icon): string
     };
 }
 
+/** Run immediately after `<body>` opens so saved dark/light mode applies before paint. */
+function admin_theme_body_boot(): void
+{
+    if (!function_exists('theme_body_boot_script')) {
+        require_once __DIR__ . '/theme.php';
+    }
+    theme_body_boot_script('light-class');
+}
+
 function admin_shell_styles(): void
 {
     static $loaded = false;
@@ -1210,8 +1219,27 @@ document.addEventListener('DOMContentLoaded', function () {
         app_notify_footer();
     }
     if (function_exists('app_url')) {
+        $reportPrintBrand = [
+            'logoUrl' => function_exists('app_logo_url') ? app_logo_url() : app_url('assets/images/goldenz_logo.png'),
+            'companyName' => 'Golden Z-5 Security & Investigation, Inc.',
+        ];
+        echo '<script>window.__reportPrintBrand='
+            . json_encode($reportPrintBrand, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            . ';</script>';
         echo '<script src="' . e(app_url('admin/assets/js/inbox.js')) . '" defer></script>';
-        echo '<script src="' . e(app_url('admin/assets/js/reports.js')) . '" defer></script>';
+        $html2pdfJs = dirname(__DIR__) . '/admin/assets/js/vendor/html2pdf.bundle.min.js';
+        if (is_readable($html2pdfJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/vendor/html2pdf.bundle.min.js'))
+                . '?v=' . (int) filemtime($html2pdfJs) . '" defer></script>';
+        }
+        $reportPrintJs = dirname(__DIR__) . '/admin/assets/js/report-print.js';
+        if (is_readable($reportPrintJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/report-print.js'))
+                . '?v=' . (int) filemtime($reportPrintJs) . '" defer></script>';
+        }
+        $reportsJs = dirname(__DIR__) . '/admin/assets/js/reports.js';
+        echo '<script src="' . e(app_url('admin/assets/js/reports.js'))
+            . (is_readable($reportsJs) ? '?v=' . (int) filemtime($reportsJs) : '') . '" defer></script>';
         $dailyDetailJs = dirname(__DIR__) . '/admin/assets/js/daily-detail.js';
         if (is_readable($dailyDetailJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/daily-detail.js'))
@@ -1221,6 +1249,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (is_readable($activityRegistryJs)) {
             echo '<script src="' . e(app_url('admin/assets/js/activity-registry.js'))
                 . '?v=' . (int) filemtime($activityRegistryJs) . '" defer></script>';
+        }
+        $weeklyWarJs = dirname(__DIR__) . '/admin/assets/js/weekly-war-generate.js';
+        if (is_readable($weeklyWarJs)) {
+            echo '<script src="' . e(app_url('admin/assets/js/weekly-war-generate.js'))
+                . '?v=' . (int) filemtime($weeklyWarJs) . '" defer></script>';
         }
         echo '<script src="' . e(app_url('admin/assets/js/messaging-board.js')) . '" defer></script>';
         echo '<script src="' . e(app_url('admin/assets/js/admin-notifications.js')) . '" defer></script>';

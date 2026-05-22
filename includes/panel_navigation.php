@@ -270,7 +270,8 @@ document.addEventListener('DOMContentLoaded', function () {
         'reports-image-viewer',
         'daily-modal-overlay',
         'daily-guide-overlay',
-        'activity-modal-overlay'
+        'activity-modal-overlay',
+        'war-preview-overlay'
     ];
 
     function syncPanelBodyPageClasses(doc) {
@@ -363,6 +364,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     delete moduleEl.dataset.activityBound;
                 }
             });
+        }
+        if (!doc.getElementById('weekly-generate-war-form')) {
+            if (window.__weeklyWarAbort) {
+                window.__weeklyWarAbort.abort();
+                window.__weeklyWarAbort = null;
+            }
+            var warForm = document.getElementById('weekly-generate-war-form');
+            if (warForm) {
+                delete warForm.dataset.warGenerateBound;
+            }
         }
         if (!doc.getElementById('reports-tbody')) {
             var reportsRoot = document.getElementById('reports-module');
@@ -467,6 +478,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 || document.getElementById('daily-activity-module')
                 || document.getElementById('weekly-activity-module'))) {
             window.initActivityRegistryModule();
+        }
+        if (typeof window.initWeeklyWarGenerate === 'function'
+            && (doc.getElementById('weekly-generate-war-form')
+                || document.getElementById('weekly-generate-war-form'))) {
+            window.initWeeklyWarGenerate();
         }
         if (typeof window.guardInitPortal === 'function'
             && document.body.classList.contains('guard-portal')) {

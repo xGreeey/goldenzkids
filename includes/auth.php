@@ -210,6 +210,53 @@ function auth_users_role_column(PDO $conn): string
 }
 
 /**
+ * SQL filter for head-guard portal accounts on users (role 0, or legacy role_id → guard slug).
+ *
+ * @return array{fragment: string, types: string, params: list<int>}
+ */
+function auth_users_head_guard_role_filter(PDO $conn): array
+{
+    $roleCol = auth_users_role_column($conn);
+
+    if ($roleCol === 'role') {
+        return [
+            'fragment' => 'u.role = ?',
+            'types' => 'i',
+            'params' => [AUTH_ROLE_GUARD],
+        ];
+    }
+
+    if (db_table_exists($conn, 'roles')) {
+        $rows = db_fetch_all(
+            $conn,
+            "SELECT id FROM roles WHERE slug IN ('guard', 'headguard', 'head_guard')"
+        );
+        $roleIds = [];
+        foreach ($rows as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $roleIds[] = $id;
+            }
+        }
+        if ($roleIds !== []) {
+            $placeholders = implode(', ', array_fill(0, count($roleIds), '?'));
+
+            return [
+                'fragment' => "u.role_id IN ({$placeholders})",
+                'types' => str_repeat('i', count($roleIds)),
+                'params' => $roleIds,
+            ];
+        }
+    }
+
+    return [
+        'fragment' => 'u.role_id = ?',
+        'types' => 'i',
+        'params' => [AUTH_ROLE_GUARD],
+    ];
+}
+
+/**
  * @return list<string>
  */
 function auth_permissions_for_role(int $role): array

@@ -56,6 +56,48 @@ function admin_daily_activity_status_options(): array
     return $options;
 }
 
+/** Status choices for the modal editor (archive is via the actions column only). */
+function admin_daily_activity_status_edit_options(): array
+{
+    $options = admin_daily_activity_status_options();
+    unset($options[ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED]);
+
+    return $options;
+}
+
+function admin_daily_activity_is_archived(string $status): bool
+{
+    return admin_daily_activity_status_normalize($status) === ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED;
+}
+
+function admin_daily_activity_status_normalize(string $status): string
+{
+    $status = strtolower(trim($status));
+
+    return admin_daily_activity_status_is_valid($status)
+        ? $status
+        : ADMIN_DAILY_ACTIVITY_STATUS_PENDING;
+}
+
+/**
+ * Archive control for the registry actions column.
+ *
+ * @param array<string, mixed> $report
+ */
+function admin_daily_activity_archive_action_btn_html(array $report): string
+{
+    $status = admin_daily_activity_status_normalize((string) ($report['status'] ?? ''));
+    if (admin_daily_activity_is_archived($status)) {
+        return '';
+    }
+
+    $ref = (string) ($report['ref'] ?? '');
+
+    return '<button type="button" class="reports-action-btn reports-action-btn--archive" data-action="archive" data-activity-id="'
+        . e((string) ($report['id'] ?? '')) . '" data-activity-ref="' . e($ref) . '" title="Archive report" aria-label="Archive '
+        . e($ref) . '">' . admin_incident_action_icon('archive') . '</button>';
+}
+
 function admin_daily_activity_status_label(string $status): string
 {
     $defs = admin_daily_activity_status_definitions();
@@ -83,4 +125,26 @@ function admin_daily_activity_status_badge_html(array $report): string
     return '<span class="reports-badge reports-badge--' . e($slug) . '"'
         . ($tip !== '' ? ' title="' . e_attr($tip) . '"' : '')
         . '>' . e($label) . '</span>';
+}
+
+/**
+ * Compact status control in the registry actions column (opens status editor).
+ *
+ * @param array<string, mixed> $report
+ */
+function admin_daily_activity_status_action_btn_html(array $report): string
+{
+    $slug = (string) ($report['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+    if (!admin_daily_activity_status_is_valid($slug)) {
+        $slug = ADMIN_DAILY_ACTIVITY_STATUS_PENDING;
+    }
+    $defs = admin_daily_activity_status_definitions();
+    $label = (string) ($report['status_label'] ?? admin_daily_activity_status_label($slug));
+    $short = (string) ($defs[$slug]['tab'] ?? $label);
+    $tip = (string) ($report['status_description'] ?? ($defs[$slug]['description'] ?? ''));
+    $title = $label . ($tip !== '' ? ' — ' . $tip : '') . ' — Click to update status';
+
+    return '<button type="button" class="reports-action-btn reports-action-btn--status reports-action-btn--'
+        . e($slug) . '" data-action="status" data-activity-id="' . e((string) ($report['id'] ?? '')) . '" title="'
+        . e_attr($title) . '" aria-label="Status: ' . e_attr($label) . ', update">' . e($short) . '</button>';
 }

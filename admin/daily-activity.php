@@ -33,6 +33,39 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'daily-activity.php?activity=' . rawurlencode($id) . '&mode=view'
         );
     }
+
+    if ($action === 'archive_activity') {
+        $id = trim((string) ($_POST['activity_id'] ?? ''));
+        $archived = admin_daily_activity_archive($id, $actorId);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+        if ($archived === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => 'Daily activity report not found.']);
+                exit;
+            }
+            redirect_with_alert('Daily activity report not found.', 'daily-activity.php');
+        }
+
+        $ref = (string) ($archived['ref'] ?? $id);
+        $statusLabel = admin_daily_activity_status_label((string) ($archived['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED));
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'message' => 'Daily activity ' . $ref . ' archived (' . $statusLabel . ').',
+                'record' => $archived,
+            ]);
+            exit;
+        }
+
+        redirect_with_alert(
+            'Daily activity ' . $ref . ' archived (' . $statusLabel . ').',
+            'daily-activity.php?activity=' . rawurlencode($id) . '&mode=view'
+        );
+    }
 }
 
 $records = admin_daily_activity_store_all();
@@ -79,6 +112,7 @@ $adminNavActive = 'daily-activity';
       data-open-activity="<?= e($openId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
       data-status-tab="<?= e($initialStatusTab) ?>"<?= $openRecord !== null ? ' style="overflow:hidden"' : '' ?>>
+<?php admin_theme_body_boot(); ?>
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
@@ -185,7 +219,7 @@ $adminNavActive = 'daily-activity';
                                         <th scope="col"><span class="reports-sort__label">Summary</span></th>
                                         <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="updated"><span class="reports-sort__label">Updated</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort reports-sort--center" data-sort-key="status"><span class="reports-sort__label">Status</span></button></th>
+                                        <th scope="col" class="reports-col-status"><button type="button" class="reports-sort reports-sort--center" data-sort-key="status"><span class="reports-sort__label">Status</span></button></th>
                                         <th scope="col">Actions</th>
                                     </tr>
                                 </thead>
@@ -222,15 +256,24 @@ $adminNavActive = 'daily-activity';
                                         </td>
                                         <td class="reports-col-submitted reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['submitted_at'] ?? ''), (string) ($report['submitted_display'] ?? '')) ?></td>
                                         <td class="reports-col-updated reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['updated_at'] ?? ''), (string) ($report['updated_display'] ?? '')) ?></td>
-                                        <td class="reports-col-status"><?= admin_daily_activity_status_badge_html($report) ?></td>
+                                        <td class="reports-col-status">
+                                            <?= admin_daily_activity_status_action_btn_html($report) ?>
+                                        </td>
                                         <td class="reports-col-actions">
                                             <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $report['ref']) ?>">
+                                                <?= admin_daily_activity_archive_action_btn_html($report) ?>
                                                 <button type="button"
                                                         class="reports-action-btn"
                                                         data-action="view"
                                                         data-activity-id="<?= e((string) $report['id']) ?>"
                                                         title="View report"
                                                         aria-label="View report <?= e((string) $report['ref']) ?>"><?= admin_daily_activity_action_icon('view') ?></button>
+                                                <button type="button"
+                                                        class="reports-action-btn"
+                                                        data-action="print"
+                                                        data-activity-id="<?= e((string) $report['id']) ?>"
+                                                        title="Download PDF (Legal portrait)"
+                                                        aria-label="Print <?= e((string) $report['ref']) ?>"><?= admin_daily_activity_action_icon('print') ?></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -327,7 +370,7 @@ $adminNavActive = 'daily-activity';
                         'update_activity',
                         'activity_id',
                         $openRecord ? (string) $openRecord['id'] : null,
-                        admin_daily_activity_status_options(),
+                        admin_daily_activity_status_edit_options(),
                         $openRecord ? (string) $openRecord['status'] : null,
                         $drawerMode === 'edit' && $openRecord !== null
                     ) ?>

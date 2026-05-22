@@ -175,11 +175,9 @@ function admin_daily_activity_store_all(): array
         foreach (guard_daily_activity_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_daily_activity_normalize($row);
         }
-        if ($out !== []) {
-            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-            return $out;
-        }
+        return $out;
     }
 
     if (!isset($_SESSION[ADMIN_DAILY_ACTIVITY_SESSION_KEY]) || !is_array($_SESSION[ADMIN_DAILY_ACTIVITY_SESSION_KEY])) {
@@ -356,6 +354,15 @@ function admin_daily_activity_modal_details_html(array $report): string
  */
 function admin_daily_activity_update(string $id, array $input, string $actorId): ?array
 {
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^da-(\d+)$/', $id, $m)) {
+        $updated = guard_daily_activity_admin_update($GLOBALS['conn'], (int) $m[1], $input, $actorId);
+        if ($updated !== null) {
+            return admin_daily_activity_normalize($updated);
+        }
+
+        return null;
+    }
+
     $reports = admin_daily_activity_store_all();
     $index = null;
     foreach ($reports as $i => $row) {
@@ -371,7 +378,7 @@ function admin_daily_activity_update(string $id, array $input, string $actorId):
     $report = $reports[$index];
     $oldStatus = (string) ($report['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
     $status = (string) ($input['status'] ?? $oldStatus);
-    if (!admin_daily_activity_status_is_valid($status)) {
+    if (!admin_daily_activity_status_is_valid($status) || $status === ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED) {
         $status = $oldStatus;
     }
 
@@ -395,10 +402,47 @@ function admin_daily_activity_update(string $id, array $input, string $actorId):
     return $reports[$index];
 }
 
+/**
+ * Mark a daily activity report as archived (closed).
+ *
+ * @return array<string, mixed>|null
+ */
+function admin_daily_activity_archive(string $id, string $actorId): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    $report = admin_daily_activity_find($id);
+    if ($report === null) {
+        return null;
+    }
+
+    if (admin_daily_activity_is_archived((string) ($report['status'] ?? ''))) {
+        return admin_daily_activity_normalize($report);
+    }
+
+    $previousStatus = (string) ($report['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+    $updated = admin_daily_activity_update($id, [
+        'status' => ADMIN_DAILY_ACTIVITY_STATUS_ARCHIVED,
+    ], $actorId);
+
+    if ($updated !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('daily-activity', 'archived', $updated, $actorId, $previousStatus);
+    }
+
+    return $updated;
+}
+
 function admin_daily_activity_action_icon(string $action): string
 {
-    return match ($action) {
-        'view' => admin_ui_icon('eye', 16),
-        default => admin_ui_icon('eye', 16),
+    $kind = match ($action) {
+        'print' => 'print',
+        'archive' => 'archive',
+        default => 'view',
     };
+
+    return admin_incident_action_icon($kind);
 }

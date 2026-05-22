@@ -705,11 +705,6 @@ function guard_hub_styles(): void
             background: rgba(37, 99, 235, 0.06);
         }
 
-        body.guard-portal .guard-location-stamp--sheet {
-            border-color: rgba(5, 150, 105, 0.45);
-            background: rgba(5, 150, 105, 0.06);
-        }
-
         body.guard-portal .guard-location-stamp--evidence {
             border-color: rgba(37, 99, 235, 0.45);
             background: rgba(37, 99, 235, 0.06);
@@ -847,11 +842,10 @@ function guard_hub_styles(): void
             border: 1px solid var(--guard-ui-border, #e2e8f0);
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner:not(.is-live):not(.has-capture) {
+        body.guard-portal .guard-app__scroll .guard-scanner:not(.has-capture) {
             display: none;
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner__video,
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
             position: absolute;
             inset: 0;
@@ -879,147 +873,12 @@ function guard_hub_styles(): void
             }
         }
 
-        /* Smart scan — maximized portrait camera (viewport overlay) */
-        body.guard-portal.guard-scan-fullscreen {
-            overflow: hidden;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-app__scroll {
-            overflow: hidden;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            width: 100dvw;
-            height: 100%;
-            height: 100dvh;
-            max-width: none;
-            max-height: none;
-            min-height: 0;
-            margin: 0;
-            border: none;
-            border-radius: 0;
-            z-index: 10050;
-            aspect-ratio: auto;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__video {
-            object-fit: cover;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__torch {
-            top: max(12px, env(safe-area-inset-top, 0px));
-            right: max(12px, env(safe-area-inset-right, 0px));
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-scanner.is-live .guard-scanner__hint {
-            padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
-            font-size: 0.8125rem;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 10051;
-            margin: 0;
-            padding: 14px var(--guard-ui-pad, 16px);
-            padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
-            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 28%, rgba(0, 0, 0, 0.82) 100%);
-            gap: 10px;
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-primary,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions .btn-ghost,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane .guard-scanner__actions label.btn-ghost {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active > .btn-primary[data-wizard-next],
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__pane-title,
-        body.guard-portal.guard-scan-fullscreen .guard-wizard__pane.is-active .guard-wizard__report-type {
-            visibility: hidden;
-            pointer-events: none;
-        }
-
         body.guard-portal .guard-app__scroll .guard-scanner__preview {
-            display: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__video {
             display: none;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__preview {
             display: block;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__frame {
-            display: none;
-            pointer-events: none;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.is-capturing .guard-scanner__frame {
-            display: block;
-            position: absolute;
-            inset: 8%;
-            z-index: 1;
-            border: 2px solid rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            box-shadow: none;
-            animation: guardScanPulse 0.8s ease infinite;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 3;
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            min-height: 40px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.55);
-            color: #ffffff;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch[hidden] {
-            display: none !important;
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on {
-            background: #fbbf24;
-            color: #0f172a;
-        }
-
-        @media (hover: hover) {
-            body.guard-portal .guard-app__scroll .guard-scanner__torch:hover {
-                background: rgba(15, 23, 42, 0.75);
-            }
-
-            body.guard-portal .guard-app__scroll .guard-scanner__torch.is-on:hover {
-                background: #f59e0b;
-            }
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner__torch:active {
-            transform: scale(0.94);
-        }
-
-        body.guard-portal .guard-app__scroll .guard-scanner.has-capture .guard-scanner__torch {
-            display: none !important;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__hint {
@@ -1036,11 +895,42 @@ function guard_hub_styles(): void
             background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
         }
 
-        body.guard-portal .guard-app__scroll .guard-scanner__actions {
+        body.guard-portal .guard-app__scroll .guard-scanner__actions[hidden] {
+            display: none;
+        }
+
+        /* button.btn-primary[hidden] loses to guard_ui/superadmin inline-flex (higher specificity) */
+        body.guard-portal .guard-app__scroll button.btn-primary[data-guard-step1-next][hidden],
+        body.superadmin-portal.guard-portal .guard-app__scroll button.btn-primary[data-guard-step1-next][hidden] {
+            display: none !important;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions:not([hidden]) {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             margin-top: 10px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only:not([hidden]) {
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only .guard-scanner__upload-btn {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin: 0;
+            cursor: pointer;
+            justify-content: center;
+        }
+
+        body.guard-portal .guard-app__scroll .guard-scanner__actions--upload-only .btn-ghost[data-guard-scan-retake]:not([hidden]) {
+            flex: 0 0 auto;
         }
 
         body.guard-portal .guard-app__scroll .guard-scanner__actions .btn-primary,
@@ -1721,6 +1611,29 @@ function guard_hub_styles(): void
             color: var(--guard-ui-primary, #0f172a);
         }
 
+        body.guard-portal .guard-daily-activity__event-summary {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--sa-primary, #2563eb);
+            background: rgba(37, 99, 235, 0.06);
+        }
+
+        body.guard-portal .guard-daily-activity__event-summary[hidden] {
+            display: none !important;
+        }
+
+        body.guard-portal .guard-daily-activity__event-summary-text {
+            margin: 0 0 8px;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            color: var(--guard-ui-text, #334155);
+        }
+
+        body.guard-portal .guard-daily-activity__event-edit {
+            font-size: 0.8125rem;
+        }
+
         body.guard-portal .guard-daily-activity__actions {
             display: flex;
             flex-direction: column;
@@ -1822,8 +1735,8 @@ function guard_hub_styles(): void
 
         body.guard-portal .guard-daily-activity-photo-list {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-top: 10px;
             max-height: none;
         }
@@ -1832,57 +1745,107 @@ function guard_hub_styles(): void
             display: none;
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__row {
+        body.guard-portal .guard-daily-activity-photo-list__card {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid var(--guard-ui-border, #e2e8f0);
-            background: var(--sa-input-bg, #f8fafc);
+            gap: 4px;
+            width: 72px;
+            min-width: 0;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__thumb-wrap {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
         }
 
         body.guard-portal .guard-daily-activity-photo-list__thumb {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-            border-radius: 6px;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
             object-fit: cover;
             display: block;
+            border: 1px solid var(--guard-ui-border, #e2e8f0);
+            background: var(--sa-input-bg, #f1f5f9);
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove {
+            --guard-daily-photo-rm-bg: rgba(255, 255, 255, 0.96);
+            --guard-daily-photo-rm-border: rgba(15, 23, 42, 0.16);
+            --guard-daily-photo-rm-fg: rgba(15, 23, 42, 0.5);
+            --guard-daily-photo-rm-bg-hover: #f8fafc;
+            --guard-daily-photo-rm-border-hover: rgba(15, 23, 42, 0.28);
+            --guard-daily-photo-rm-fg-hover: rgba(15, 23, 42, 0.78);
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            z-index: 2;
+            box-sizing: border-box;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            max-width: 20px;
+            max-height: 20px;
+            padding: 0;
+            margin: 0;
+            border: 1px solid var(--guard-daily-photo-rm-border);
+            border-radius: 50%;
+            background: var(--guard-daily-photo-rm-bg);
+            color: var(--guard-daily-photo-rm-fg);
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove-glyph {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1;
+            margin: 0;
+        }
+
+        body.guard-portal .guard-daily-activity-photo-list__remove:hover,
+        body.guard-portal .guard-daily-activity-photo-list__remove:focus-visible {
+            background: var(--guard-daily-photo-rm-bg-hover);
+            color: var(--guard-daily-photo-rm-fg-hover);
+            border-color: var(--guard-daily-photo-rm-border-hover);
+            outline: none;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
         }
 
         body.guard-portal .guard-daily-activity-photo-list__name {
-            flex: 1;
-            min-width: 0;
-            font-size: 0.8125rem;
-            line-height: 1.3;
+            width: 100%;
+            font-size: 0.6875rem;
+            line-height: 1.2;
+            text-align: center;
             color: var(--guard-ui-text, #334155);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__remove {
-            flex-shrink: 0;
-            width: 28px;
-            height: 28px;
-            padding: 0;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: var(--guard-ui-secondary, #64748b);
-            cursor: pointer;
-            font-size: 0.875rem;
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__thumb {
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(30, 41, 59, 0.6);
         }
 
-        body.guard-portal .guard-daily-activity-photo-list__remove:hover {
-            background: rgba(15, 23, 42, 0.06);
-            color: #b91c1c;
-        }
-
-        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__row {
-            background: rgba(30, 41, 59, 0.5);
-            border-color: rgba(148, 163, 184, 0.25);
+        body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__remove {
+            --guard-daily-photo-rm-bg: rgba(30, 41, 59, 0.94);
+            --guard-daily-photo-rm-border: rgba(148, 163, 184, 0.38);
+            --guard-daily-photo-rm-fg: rgba(226, 232, 240, 0.82);
+            --guard-daily-photo-rm-bg-hover: rgba(51, 65, 85, 0.98);
+            --guard-daily-photo-rm-border-hover: rgba(203, 213, 225, 0.45);
+            --guard-daily-photo-rm-fg-hover: #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
         }
 
         body.guard-portal:not(.light-mode) .guard-daily-activity-photo-list__name {
@@ -2073,4 +2036,5 @@ function guard_hub_styles(): void
     <?php
     require_once __DIR__ . '/guard_inbox.css.php';
     guard_inbox_styles();
+    echo guard_mobile_input_no_zoom_css();
 }

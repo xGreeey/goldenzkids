@@ -64,6 +64,64 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'reports.php?incident=' . rawurlencode($id) . '&mode=view'
         );
     }
+
+    if ($action === 'archive_incident') {
+        $id = trim((string) ($_POST['incident_id'] ?? ''));
+        $archived = admin_incident_archive($id, $actorId);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+        if ($archived === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => 'Incident report not found.']);
+                exit;
+            }
+            redirect_with_alert('Incident report not found.', 'reports.php');
+        }
+
+        $ref = (string) ($archived['ref'] ?? $id);
+        $statusLabel = admin_incident_status_label((string) ($archived['status'] ?? ADMIN_INCIDENT_STATUS_ACCOMPLISHED));
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'message' => 'Incident ' . $ref . ' archived (' . $statusLabel . ').',
+                'record' => $archived,
+            ]);
+            exit;
+        }
+
+        redirect_with_alert(
+            'Incident ' . $ref . ' archived (' . $statusLabel . ').',
+            'reports.php?incident=' . rawurlencode($id) . '&mode=view'
+        );
+    }
+
+    if ($action === 'delete_incident') {
+        $id = trim((string) ($_POST['incident_id'] ?? ''));
+        $deleted = admin_incident_delete($id);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
+        if ($deleted === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => 'Incident report not found.']);
+                exit;
+            }
+            redirect_with_alert('Incident report not found.', 'reports.php');
+        }
+
+        $ref = (string) ($deleted['ref'] ?? $id);
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => true, 'message' => 'Incident ' . $ref . ' deleted.', 'id' => $id]);
+            exit;
+        }
+
+        redirect_with_alert('Incident ' . $ref . ' deleted.', 'reports.php');
+    }
 }
 
 if (isset($_GET['export']) && (string) $_GET['export'] === '1') {
@@ -158,6 +216,7 @@ function admin_reports_row_attrs(array $report): string
       data-open-incident="<?= e($openIncidentId) ?>"
       data-open-mode="<?= e($drawerMode) ?>"
       data-status-tab="<?= e($initialStatusTab) ?>">
+<?php admin_theme_body_boot(); ?>
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
@@ -167,7 +226,10 @@ function admin_reports_row_attrs(array $report): string
                 <p class="page-subtitle">Monitor and archive security guard incident reports — on-post duty, client sites, and guard conduct — with full status history.</p>
         </header>
 
-            <div id="reports-module" class="reports-module">
+            <div id="reports-module"
+                 class="reports-module"
+                 data-csrf="<?= e_attr(csrf_token()) ?>"
+                 data-post-url="<?= e_attr('reports.php') ?>">
                 <section class="kpi-grid" aria-label="Report summary">
                     <article class="kpi-card kpi-card--total" title="All incident reports in the registry">
                         <div class="kpi-stat">
@@ -354,37 +416,49 @@ function admin_reports_row_attrs(array $report): string
                                         <td class="reports-col-status"><?= admin_incident_status_badge_html($report) ?></td>
                                         <td class="reports-col-actions">
                                             <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $report['ref']) ?>">
-                                                <a href="reports.php?incident=<?= rawurlencode((string) $report['id']) ?>&amp;mode=view"
-                                                   class="reports-action-btn"
-                                                   data-action="view"
-                                                   data-incident-id="<?= e((string) $report['id']) ?>"
-                                                   title="View report"
-                                                   aria-label="View <?= e((string) $report['ref']) ?>">
+                                                <button type="button"
+                                                        class="reports-action-btn"
+                                                        data-action="view"
+                                                        data-incident-id="<?= e((string) $report['id']) ?>"
+                                                        title="View report"
+                                                        aria-label="View <?= e((string) $report['ref']) ?>">
                                                     <?= admin_incident_action_icon('view') ?>
-                                                </a>
-                                                <a href="reports.php?incident=<?= rawurlencode((string) $report['id']) ?>&amp;mode=edit"
-                                                   class="reports-action-btn reports-action-btn--primary"
-                                                   data-action="edit"
-                                                   data-incident-id="<?= e((string) $report['id']) ?>"
-                                                   title="Edit report"
-                                                   aria-label="Edit <?= e((string) $report['ref']) ?>">
-                                                    <?= admin_incident_action_icon('edit') ?>
-                                                </a>
+                                                </button>
                                                 <button type="button"
                                                         class="reports-action-btn"
                                                         data-action="print"
                                                         data-incident-id="<?= e((string) $report['id']) ?>"
-                                                        title="Print report"
+                                                        title="Download PDF (Legal portrait)"
                                                         aria-label="Print <?= e((string) $report['ref']) ?>">
                                                     <?= admin_incident_action_icon('print') ?>
                                                 </button>
-                                                <a href="reports.php?export=1&amp;incident=<?= rawurlencode((string) $report['id']) ?>"
-                                                   class="reports-action-btn"
-                                                   data-action="export"
-                                                   title="Export CSV"
-                                                   aria-label="Export <?= e((string) $report['ref']) ?>">
-                                                    <?= admin_incident_action_icon('download') ?>
-                                                </a>
+                                                <?php
+                                                $incStatusSlug = (string) ($report['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+                                                if (!admin_incident_status_is_valid($incStatusSlug)) {
+                                                    $incStatusSlug = ADMIN_INCIDENT_STATUS_ONGOING;
+                                                }
+                                                $incStatusClosed = (admin_incident_status_definitions()[$incStatusSlug]['closed'] ?? false) === true;
+                                                if (!$incStatusClosed):
+                                                ?>
+                                                <button type="button"
+                                                        class="reports-action-btn reports-action-btn--archive"
+                                                        data-action="archive"
+                                                        data-incident-id="<?= e((string) $report['id']) ?>"
+                                                        data-incident-ref="<?= e((string) $report['ref']) ?>"
+                                                        title="Archive (close case)"
+                                                        aria-label="Archive <?= e((string) $report['ref']) ?>">
+                                                    <?= admin_incident_action_icon('archive') ?>
+                                                </button>
+                                                <?php endif; ?>
+                                                <button type="button"
+                                                        class="reports-action-btn reports-action-btn--danger"
+                                                        data-action="delete"
+                                                        data-incident-id="<?= e((string) $report['id']) ?>"
+                                                        data-incident-ref="<?= e((string) $report['ref']) ?>"
+                                                        title="Delete report"
+                                                        aria-label="Delete <?= e((string) $report['ref']) ?>">
+                                                    <?= admin_incident_action_icon('delete') ?>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -619,7 +693,6 @@ function admin_reports_row_attrs(array $report): string
 </div>
 
 <?php admin_shell_scripts(); ?>
-<script src="assets/js/reports.js?v=<?= (int) filemtime(__DIR__ . '/assets/js/reports.js') ?>" defer></script>
 
 <?php require_once __DIR__ . '/../includes/global-alerts.php'; ?>
 </body>

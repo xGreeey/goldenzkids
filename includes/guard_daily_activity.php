@@ -18,9 +18,60 @@ function guard_daily_activity_table_exists(PDO $conn): bool
     return $cached;
 }
 
+function guard_daily_activity_has_status_column(PDO $conn): bool
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    if (!guard_daily_activity_table_exists($conn)) {
+        $cached = false;
+
+        return $cached;
+    }
+    $row = db_fetch_one(
+        $conn,
+        "SELECT 1 FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'guard_daily_activity_submissions'
+           AND COLUMN_NAME = 'status'
+         LIMIT 1"
+    );
+    $cached = $row !== null;
+
+    return $cached;
+}
+
 function guard_daily_activity_is_report_type(string $reportType): bool
 {
     return trim($reportType) === GUARD_DAILY_ACTIVITY_TYPE;
+}
+
+/** Head-guard report history label aligned with admin daily activity registry status. */
+function guard_daily_activity_guard_portal_status(string $adminStatus): string
+{
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
+    if (!admin_daily_activity_status_is_valid($adminStatus)) {
+        return admin_daily_activity_status_label(ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+    }
+
+    return admin_daily_activity_status_label($adminStatus);
+}
+
+/** Keep linked dgd row in sync so guard report history reflects registry status. */
+function guard_daily_activity_sync_dgd_portal_status(PDO $conn, int $dgdReportNumber, string $adminStatus): void
+{
+    if ($dgdReportNumber <= 0) {
+        return;
+    }
+
+    db_execute(
+        $conn,
+        'UPDATE dgd SET Status = ? WHERE Report_Number = ? LIMIT 1',
+        'si',
+        [guard_daily_activity_guard_portal_status($adminStatus), $dgdReportNumber]
+    );
 }
 
 /** Short label for registry table / admin summary (not the full guard textarea). */
@@ -286,6 +337,8 @@ function guard_daily_activity_handle_submit(
     string $establishment,
     string $reportType
 ): array {
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
     if (!guard_daily_activity_is_report_type($reportType)) {
         return ['ok' => false, 'error' => 'Invalid report type.'];
     }
@@ -365,7 +418,7 @@ function guard_daily_activity_handle_submit(
             $time,
             $aiCipher,
             $ivB64,
-            'Pending',
+            guard_daily_activity_guard_portal_status(ADMIN_DAILY_ACTIVITY_STATUS_PENDING),
         ]
     );
 
@@ -442,6 +495,8 @@ function guard_daily_activity_handle_submit(
         return ['ok' => false, 'error' => (string) ($registry['error'] ?? 'Could not register daily activity.')];
     }
 
+    guard_daily_activity_sync_dgd_portal_status($conn, $reportNumber, ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+
     $reference = (string) ($registry['reference'] ?? 'pending');
     $message = $mode === GUARD_DAILY_ACTIVITY_MODE_NORMAL
         ? 'Daily activity (normal operation) submitted. Reference: ' . $reference . '.'
@@ -478,6 +533,8 @@ function guard_daily_activity_create_submission(
     ?float $accuracy,
     ?string $locationLabel
 ): array {
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
     if (!guard_daily_activity_table_exists($conn)) {
         return ['ok' => false, 'error' => 'Daily activity registry is not available. Run database migrations.'];
     }
@@ -500,37 +557,72 @@ function guard_daily_activity_create_submission(
         return ['ok' => false, 'error' => 'Could not save activity history.'];
     }
 
-    $ok = db_execute(
-        $conn,
-        'INSERT INTO guard_daily_activity_submissions (
-            reference_code, dgd_report_number, head_guard_company_id, head_guard_name,
-            site_name, activity_mode, activity_details_cipher, scan_path_cipher, ai_extracted_cipher, iv,
-            submit_latitude, submit_longitude, submit_accuracy_m, location_label,
-            history_json, submitted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        'sissssssssdddsss',
-        [
-            $reference,
-            $dgdReportNumber > 0 ? $dgdReportNumber : null,
-            $headGuardCompanyId,
-            $headName,
-            $siteName,
-            $mode,
-            $activityDetailsCipher,
-            $scanPathCipher,
-            $aiCipher !== '' && $aiCipher !== null ? $aiCipher : null,
-            $ivB64,
-            $lat,
-            $lng,
-            $accuracy,
-            $locationLabel,
-            $historyJson,
-            $submittedAt,
-        ]
-    );
+    $hasStatus = guard_daily_activity_has_status_column($conn);
+    if ($hasStatus) {
+        $ok = db_execute(
+            $conn,
+            'INSERT INTO guard_daily_activity_submissions (
+                reference_code, dgd_report_number, head_guard_company_id, head_guard_name,
+                site_name, activity_mode, status, activity_details_cipher, scan_path_cipher, ai_extracted_cipher, iv,
+                submit_latitude, submit_longitude, submit_accuracy_m, location_label,
+                history_json, submitted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'sisssssssssdddsss',
+            [
+                $reference,
+                $dgdReportNumber > 0 ? $dgdReportNumber : null,
+                $headGuardCompanyId,
+                $headName,
+                $siteName,
+                $mode,
+                ADMIN_DAILY_ACTIVITY_STATUS_PENDING,
+                $activityDetailsCipher,
+                $scanPathCipher,
+                $aiCipher !== '' && $aiCipher !== null ? $aiCipher : null,
+                $ivB64,
+                $lat,
+                $lng,
+                $accuracy,
+                $locationLabel,
+                $historyJson,
+                $submittedAt,
+            ]
+        );
+    } else {
+        $ok = db_execute(
+            $conn,
+            'INSERT INTO guard_daily_activity_submissions (
+                reference_code, dgd_report_number, head_guard_company_id, head_guard_name,
+                site_name, activity_mode, activity_details_cipher, scan_path_cipher, ai_extracted_cipher, iv,
+                submit_latitude, submit_longitude, submit_accuracy_m, location_label,
+                history_json, submitted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'sissssssssdddsss',
+            [
+                $reference,
+                $dgdReportNumber > 0 ? $dgdReportNumber : null,
+                $headGuardCompanyId,
+                $headName,
+                $siteName,
+                $mode,
+                $activityDetailsCipher,
+                $scanPathCipher,
+                $aiCipher !== '' && $aiCipher !== null ? $aiCipher : null,
+                $ivB64,
+                $lat,
+                $lng,
+                $accuracy,
+                $locationLabel,
+                $historyJson,
+                $submittedAt,
+            ]
+        );
+    }
 
     if (!$ok) {
-        return ['ok' => false, 'error' => 'Could not save daily activity record.'];
+        error_log('guard_daily_activity_create_submission INSERT failed for ' . $reference);
+
+        return ['ok' => false, 'error' => 'Could not save daily activity record. Run database migrations (022 / 027).'];
     }
 
     return [
@@ -604,18 +696,21 @@ function guard_daily_activity_map_row_for_admin(array $row): ?array
         }
     }
 
-    $status = ADMIN_DAILY_ACTIVITY_STATUS_PENDING;
-    foreach (array_reverse($history) as $entry) {
-        if (!is_array($entry)) {
-            continue;
-        }
-        $event = (string) ($entry['event'] ?? '');
-        if (preg_match('/^Registry:\s*(.+)$/iu', $event, $m)) {
-            $label = trim($m[1]);
-            foreach (admin_daily_activity_status_definitions() as $slug => $def) {
-                if (strcasecmp((string) $def['label'], $label) === 0) {
-                    $status = $slug;
-                    break 2;
+    $status = trim((string) ($row['status'] ?? ''));
+    if ($status === '' || !admin_daily_activity_status_is_valid($status)) {
+        $status = ADMIN_DAILY_ACTIVITY_STATUS_PENDING;
+        foreach (array_reverse($history) as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $event = (string) ($entry['event'] ?? '');
+            if (preg_match('/^Registry:\s*(.+)$/iu', $event, $m)) {
+                $label = trim($m[1]);
+                foreach (admin_daily_activity_status_definitions() as $slug => $def) {
+                    if (strcasecmp((string) $def['label'], $label) === 0) {
+                        $status = $slug;
+                        break 2;
+                    }
                 }
             }
         }
@@ -690,4 +785,88 @@ function guard_daily_activity_find_by_id(PDO $conn, string $id): ?array
     }
 
     return guard_daily_activity_map_row_for_admin($row);
+}
+
+/**
+ * @param array<string, mixed> $input
+ * @return array<string, mixed>|null
+ */
+function guard_daily_activity_admin_update(PDO $conn, int $daId, array $input, string $actorId): ?array
+{
+    require_once __DIR__ . '/admin_daily_activity_status.php';
+
+    if (!guard_daily_activity_table_exists($conn) || $daId <= 0) {
+        return null;
+    }
+
+    $row = db_fetch_one(
+        $conn,
+        'SELECT * FROM guard_daily_activity_submissions WHERE da_id = ? LIMIT 1',
+        'i',
+        [$daId]
+    );
+    if ($row === null) {
+        return null;
+    }
+
+    $mapped = guard_daily_activity_map_row_for_admin($row);
+    if ($mapped === null) {
+        return null;
+    }
+
+    $oldStatus = (string) ($mapped['status'] ?? ADMIN_DAILY_ACTIVITY_STATUS_PENDING);
+    $status = (string) ($input['status'] ?? $oldStatus);
+    if (!admin_daily_activity_status_is_valid($status)) {
+        $status = $oldStatus;
+    }
+
+    if ($status === $oldStatus) {
+        return $mapped;
+    }
+
+    $history = is_array($mapped['history'] ?? null) ? $mapped['history'] : [];
+    $history[] = [
+        'at' => date('j M Y, H:i'),
+        'event' => 'Registry: ' . admin_daily_activity_status_label($status),
+        'note' => 'Status updated by admin.',
+        'actor' => $actorId,
+    ];
+    $mapped['history'] = $history;
+    $mapped['status'] = $status;
+
+    try {
+        $historyJson = json_encode($history, JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        return null;
+    }
+
+    $hasStatus = guard_daily_activity_has_status_column($conn);
+    if ($hasStatus) {
+        $ok = db_execute(
+            $conn,
+            'UPDATE guard_daily_activity_submissions SET status = ?, history_json = ?, updated_at = NOW() WHERE da_id = ? LIMIT 1',
+            'ssi',
+            [$status, $historyJson, $daId]
+        );
+    } else {
+        $ok = db_execute(
+            $conn,
+            'UPDATE guard_daily_activity_submissions SET history_json = ?, updated_at = NOW() WHERE da_id = ? LIMIT 1',
+            'si',
+            [$historyJson, $daId]
+        );
+    }
+    if (!$ok) {
+        return null;
+    }
+
+    guard_daily_activity_sync_dgd_portal_status(
+        $conn,
+        (int) ($row['dgd_report_number'] ?? 0),
+        $status
+    );
+
+    $refreshed = guard_daily_activity_find_by_id($conn, 'da-' . $daId);
+
+    return $refreshed;
 }

@@ -41,6 +41,7 @@ $adminNavActive = 'dashboard';
     </style>
 </head>
 <body class="light-mode page-dashboard">
+<?php admin_theme_body_boot(); ?>
 <?php require_once __DIR__ . '/../includes/admin_sidebar.php'; ?>
 <main class="app-main">
         <header class="page-header">

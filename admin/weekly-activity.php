@@ -9,28 +9,53 @@ auth_require_permission('admin.reports.view');
 
 $actorId = (string) ($_SESSION['company_id'] ?? 'admin');
 $openId = trim((string) ($_GET['weekly'] ?? ''));
-$drawerMode = trim((string) ($_GET['mode'] ?? 'view'));
-if (!in_array($drawerMode, ['view', 'edit'], true)) {
-    $drawerMode = 'view';
-}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_verify();
     $action = trim((string) ($_POST['action'] ?? ''));
 
-    if ($action === 'update_weekly') {
+    if ($action === 'delete_weekly') {
         $id = trim((string) ($_POST['weekly_id'] ?? ''));
-        $updated = admin_weekly_activity_update($id, [
-            'status' => (string) ($_POST['status'] ?? ''),
-        ], $actorId);
+        $deleted = admin_weekly_activity_delete($id);
+        $wantsJson = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
 
-        if ($updated === null) {
+        if ($deleted === null) {
+            if ($wantsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => ADMIN_WEEKLY_SUMMARY_MODULE_LABEL . ' not found.'], JSON_THROW_ON_ERROR);
+                exit;
+            }
             redirect_with_alert(ADMIN_WEEKLY_SUMMARY_MODULE_LABEL . ' not found.', 'weekly-activity.php');
         }
 
+        $ref = (string) ($deleted['ref'] ?? $id);
+        if ($wantsJson) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'message' => ADMIN_WEEKLY_SUMMARY_MODULE_LABEL . ' ' . $ref . ' deleted.',
+                'id' => $id,
+            ], JSON_THROW_ON_ERROR);
+            exit;
+        }
+
+        redirect_with_alert(ADMIN_WEEKLY_SUMMARY_MODULE_LABEL . ' ' . $ref . ' deleted.', 'weekly-activity.php');
+    }
+
+    if ($action === 'generate_war') {
+        $result = admin_weekly_activity_generate_war($_POST, $actorId);
+        if (!$result['ok']) {
+            redirect_with_alert((string) ($result['error'] ?? 'Could not generate WAR.'), 'weekly-activity.php');
+        }
+
+        $report = $result['report'] ?? null;
+        $id = is_array($report) ? (string) ($report['id'] ?? '') : '';
+        $ref = is_array($report) ? (string) ($report['ref'] ?? $id) : $id;
+
         redirect_with_alert(
-            ADMIN_WEEKLY_SUMMARY_MODULE_LABEL . ' ' . (string) ($updated['ref'] ?? $id) . ' saved.',
-            'weekly-activity.php?weekly=' . rawurlencode($id) . '&mode=view'
+            'WAR ' . $ref . ' generated from daily activity for the selected week.',
+            $id !== '' ? 'weekly-activity.php?weekly=' . rawurlencode($id) : 'weekly-activity.php'
         );
     }
 }
@@ -43,20 +68,10 @@ if ($openId !== '' && $openRecord === null) {
 }
 
 $statusDefinitions = admin_weekly_activity_status_definitions();
-$registryStatusTabs = [
-    ['slug' => 'all', 'label' => 'All', 'count' => (int) $statusCounts['all'], 'title' => 'Every ' . ADMIN_WEEKLY_SUMMARY_MODULE_LABEL],
-];
-foreach ($statusDefinitions as $slug => $def) {
-    $registryStatusTabs[] = [
-        'slug' => $slug,
-        'label' => (string) $def['tab'],
-        'count' => (int) ($statusCounts[$slug] ?? 0),
-        'title' => (string) $def['description'],
-    ];
-}
-$statusTabFromQuery = trim((string) ($_GET['status'] ?? ''));
-$validStatusTabs = ['all', ...admin_weekly_activity_status_slugs()];
-$initialStatusTab = in_array($statusTabFromQuery, $validStatusTabs, true) ? $statusTabFromQuery : '';
+
+$warGenerateOptions = admin_weekly_activity_generate_assignment_options($conn);
+$warDefaultWeekStart = admin_weekly_activity_default_week_start();
+$warDefaultWeekEnd = admin_weekly_activity_default_week_end();
 
 $adminNavActive = 'weekly-activity';
 ?>
@@ -76,9 +91,8 @@ $adminNavActive = 'weekly-activity';
 </head>
 <body class="light-mode page-weekly-activity page-weekly-activity-reports page-activity-registry<?= $openRecord !== null ? ' activity-registry-modal-open' : '' ?>"
       data-admin-nav="weekly-activity"
-      data-open-weekly="<?= e($openId) ?>"
-      data-open-mode="<?= e($drawerMode) ?>"
-      data-status-tab="<?= e($initialStatusTab) ?>"<?= $openRecord !== null ? ' style="overflow:hidden"' : '' ?>>
+      data-open-weekly="<?= e($openId) ?>"<?= $openRecord !== null ? ' style="overflow:hidden"' : '' ?>>
+<?php admin_theme_body_boot(); ?>
 
 <?php require __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
@@ -91,7 +105,8 @@ $adminNavActive = 'weekly-activity';
         <div id="weekly-activity-module" class="reports-module"
              data-registry-kind="weekly-activity"
              data-open-param="weekly"
-             data-csrf="<?= e_attr(csrf_token()) ?>">
+             data-csrf="<?= e_attr(csrf_token()) ?>"
+             data-war-preview-url="<?= e_attr(app_url('admin/api/weekly-war-preview.php')) ?>">
             <section class="kpi-grid" aria-label="<?= e(ADMIN_WEEKLY_SUMMARY_MODULE_LABEL) ?> summary">
                 <article class="kpi-card kpi-card--total" title="All weekly summaries">
                     <div class="kpi-stat">
@@ -109,6 +124,8 @@ $adminNavActive = 'weekly-activity';
                 <?php endforeach; ?>
             </section>
 
+            <?= admin_weekly_activity_generate_panel_html($warGenerateOptions, $warDefaultWeekStart, $warDefaultWeekEnd) ?>
+
             <section class="reports-panel" aria-label="<?= e(ADMIN_WEEKLY_SUMMARY_MODULE_LABEL) ?> registry">
                 <div class="reports-panel__filters">
                     <div class="reports-toolbar" role="search">
@@ -118,11 +135,11 @@ $adminNavActive = 'weekly-activity';
                                 <input type="search" id="activity-search" placeholder="Reference, week, head guard, post…" autocomplete="off">
                             </div>
                             <div class="form-field reports-field--date">
-                                <label for="activity-date-from">Updated from</label>
+                                <label for="activity-date-from">Submitted from</label>
                                 <input type="date" id="activity-date-from" value="<?= e(date('Y-m-d', strtotime('-60 days'))) ?>">
                             </div>
                             <div class="form-field reports-field--date">
-                                <label for="activity-date-to">Updated to</label>
+                                <label for="activity-date-to">Submitted to</label>
                                 <input type="date" id="activity-date-to" value="<?= e(date('Y-m-d')) ?>">
                             </div>
                         </div>
@@ -136,23 +153,6 @@ $adminNavActive = 'weekly-activity';
                     </div>
                 </div>
 
-                <nav class="reports-status-tabs reports-panel__tabs" role="tablist" aria-label="Filter by status">
-                    <?php foreach ($registryStatusTabs as $tab):
-                        $tabSlug = (string) $tab['slug'];
-                        $isActive = $initialStatusTab === '' ? $tabSlug === 'all' : $initialStatusTab === $tabSlug;
-                        ?>
-                    <button type="button"
-                            class="reports-status-tab<?= $isActive ? ' is-active' : '' ?>"
-                            role="tab"
-                            aria-selected="<?= $isActive ? 'true' : 'false' ?>"
-                            data-status-tab="<?= e($tabSlug) ?>"
-                            title="<?= e((string) $tab['title']) ?>">
-                        <?= e((string) $tab['label']) ?>
-                        <span class="reports-status-tab__count" data-tab-count><?= (int) $tab['count'] ?></span>
-                    </button>
-                    <?php endforeach; ?>
-                </nav>
-
                 <div class="reports-panel__body">
                     <div class="reports-registry" role="region" aria-label="<?= e(ADMIN_WEEKLY_SUMMARY_MODULE_LABEL) ?> table">
                         <div class="reports-table-head-wrap" id="activity-table-head-wrap">
@@ -164,8 +164,6 @@ $adminNavActive = 'weekly-activity';
                                     <col class="reports-col-post">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
-                                    <col class="reports-col-updated">
-                                    <col class="reports-col-status">
                                     <col class="reports-col-actions">
                                 </colgroup>
                                 <thead>
@@ -175,9 +173,7 @@ $adminNavActive = 'weekly-activity';
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="headGuard"><span class="reports-sort__label">Head guard</span></button></th>
                                         <th scope="col"><button type="button" class="reports-sort" data-sort-key="post"><span class="reports-sort__label">Post</span></button></th>
                                         <th scope="col"><span class="reports-sort__label">Summary</span></th>
-                                        <th scope="col"><button type="button" class="reports-sort" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="updated"><span class="reports-sort__label">Updated</span></button></th>
-                                        <th scope="col"><button type="button" class="reports-sort reports-sort--center" data-sort-key="status"><span class="reports-sort__label">Status</span></button></th>
+                                        <th scope="col"><button type="button" class="reports-sort is-active" data-sort-key="submitted"><span class="reports-sort__label">Submitted</span></button></th>
                                         <th scope="col">Actions</th>
                                     </tr>
                                 </thead>
@@ -192,8 +188,6 @@ $adminNavActive = 'weekly-activity';
                                     <col class="reports-col-post">
                                     <col class="reports-col-summary">
                                     <col class="reports-col-submitted">
-                                    <col class="reports-col-updated">
-                                    <col class="reports-col-status">
                                     <col class="reports-col-actions">
                                 </colgroup>
                                 <tbody id="activity-tbody">
@@ -209,8 +203,6 @@ $adminNavActive = 'weekly-activity';
                                             </div>
                                         </td>
                                         <td class="reports-col-submitted reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['submitted_at'] ?? ''), (string) ($report['submitted_display'] ?? '')) ?></td>
-                                        <td class="reports-col-updated reports-col-date mono"><?= admin_incident_table_date_cell_html((string) ($report['updated_at'] ?? ''), (string) ($report['updated_display'] ?? '')) ?></td>
-                                        <td class="reports-col-status"><?= admin_weekly_activity_status_badge_html($report) ?></td>
                                         <td class="reports-col-actions">
                                             <div class="reports-actions" role="group" aria-label="Actions for <?= e((string) $report['ref']) ?>">
                                                 <button type="button"
@@ -219,6 +211,18 @@ $adminNavActive = 'weekly-activity';
                                                         data-activity-id="<?= e((string) $report['id']) ?>"
                                                         title="View summary"
                                                         aria-label="View summary <?= e((string) $report['ref']) ?>"><?= admin_weekly_activity_action_icon('view') ?></button>
+                                                <button type="button"
+                                                        class="reports-action-btn"
+                                                        data-action="print"
+                                                        data-activity-id="<?= e((string) $report['id']) ?>"
+                                                        title="Download PDF (Legal portrait)"
+                                                        aria-label="Print <?= e((string) $report['ref']) ?>"><?= admin_weekly_activity_action_icon('print') ?></button>
+                                                <button type="button"
+                                                        class="reports-action-btn reports-action-btn--danger"
+                                                        data-action="delete"
+                                                        data-activity-id="<?= e((string) $report['id']) ?>"
+                                                        title="Delete summary"
+                                                        aria-label="Delete <?= e((string) $report['ref']) ?>"><?= admin_weekly_activity_action_icon('delete') ?></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -230,7 +234,7 @@ $adminNavActive = 'weekly-activity';
                     <div id="activity-empty" class="reports-empty" role="status" aria-live="polite" hidden>
                         <div class="reports-empty__icon" aria-hidden="true"><?= admin_ui_icon('folder-open', 28) ?></div>
                         <p class="reports-empty__title">No summaries match your filters</p>
-                        <p class="reports-empty__hint">Adjust the date range or status tab — or clear search.</p>
+                        <p class="reports-empty__hint">Adjust the date range or clear search.</p>
                     </div>
                 </div>
 
@@ -277,50 +281,15 @@ $adminNavActive = 'weekly-activity';
             <main class="reports-modal__body-scroll" id="activity-modal-main" aria-label="Weekly summary report details">
                 <div class="reports-modal-form">
                     <div id="activity-modal-view"
-                         class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
+                         class="reports-modal-panel reports-modal-form__section reports-modal-form__section--wide is-active">
                         <div id="activity-modal-details" class="reports-modal-view-details">
                             <?php if ($openRecord): ?>
                                 <?= admin_weekly_activity_modal_details_html($openRecord) ?>
                             <?php endif; ?>
                         </div>
-                        <hr class="reports-modal-form__separator" aria-hidden="true">
-                        <?php $activityHistoryCopy = admin_activity_registry_history_section_copy(true); ?>
-                        <section class="reports-modal-form__section reports-modal-form__section--wide reports-modal__history"
-                                 aria-labelledby="activity-modal-history-heading">
-                            <header class="reports-modal-form__section-header">
-                                <h3 id="activity-modal-history-heading" class="reports-modal-form__section-title"><?= e($activityHistoryCopy['title']) ?></h3>
-                                <p class="reports-modal-form__section-desc"><?= e($activityHistoryCopy['description']) ?></p>
-                            </header>
-                            <div id="activity-modal-history"
-                                 class="reports-activity-timeline-host"
-                                 role="region"
-                                 aria-label="<?= e($activityHistoryCopy['title']) ?>">
-                                <?= admin_activity_registry_history_timeline_html($openRecord !== null ? ($openRecord['history'] ?? []) : []) ?>
-                            </div>
-                        </section>
                     </div>
                 </div>
             </main>
-            <footer class="reports-modal__footer">
-                <div class="reports-modal-footer__button-set" id="activity-modal-footer-view"<?= $drawerMode === 'edit' ? ' hidden' : '' ?>>
-                    <div class="reports-button-set">
-                        <button type="button" class="reports-btn reports-btn--primary" id="activity-goto-edit"<?= $openRecord ? '' : ' hidden' ?>>
-                            <?= admin_btn_icon('pen-to-square') ?>
-                            <span class="reports-btn__text">Update status</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="reports-modal-footer__button-set reports-modal-footer__button-set--edit" id="activity-modal-footer-edit"<?= $drawerMode === 'view' ? ' hidden' : '' ?>>
-                    <?= admin_activity_registry_status_edit_form_html(
-                        'update_weekly',
-                        'weekly_id',
-                        $openRecord ? (string) $openRecord['id'] : null,
-                        admin_weekly_activity_status_options(),
-                        $openRecord ? (string) $openRecord['status'] : null,
-                        $drawerMode === 'edit' && $openRecord !== null
-                    ) ?>
-                </div>
-            </footer>
         </div>
     </div>
 </div>

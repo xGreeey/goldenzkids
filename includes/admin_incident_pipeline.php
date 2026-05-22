@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/admin_incident_status.php';
+require_once __DIR__ . '/admin_incident_categories.php';
 require_once __DIR__ . '/admin_incident_guidelines.php';
 
 /** @param array<string, mixed> $entry */

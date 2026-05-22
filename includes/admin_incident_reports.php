@@ -4,33 +4,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin_ui_icons.php';
 
 require_once __DIR__ . '/admin_incident_status.php';
+require_once __DIR__ . '/admin_incident_categories.php';
 require_once __DIR__ . '/admin_incident_guidelines.php';
 require_once __DIR__ . '/admin_incident_pipeline.php';
 require_once __DIR__ . '/guard_incident.php';
 
 const ADMIN_INCIDENT_SESSION_KEY = 'admin_incident_reports_store';
-
-/** Incident at the guard's assigned duty post or within post jurisdiction. */
-const ADMIN_INCIDENT_CATEGORY_PER_POST = 'per_post';
-/** Incident outside assigned post — client site, public area, or off-post assignment. */
-const ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST = 'outside_post';
-
-/**
- * @return array<string, array{label: string, description: string}>
- */
-function admin_incident_category_definitions(): array
-{
-    return [
-        ADMIN_INCIDENT_CATEGORY_PER_POST => [
-            'label' => 'On post',
-            'description' => 'Guard on assigned duty post — patrol, access control, and post SOP within jurisdiction.',
-        ],
-        ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST => [
-            'label' => 'Off post',
-            'description' => 'Guard at client site, perimeter, or off-post assignment — not the guard’s regular duty post.',
-        ],
-    ];
-}
 
 /** @return array<string, string> */
 function admin_incident_category_options(): array
@@ -41,24 +20,6 @@ function admin_incident_category_options(): array
     }
 
     return $options;
-}
-
-function admin_incident_category_normalize(string $category): string
-{
-    $category = strtolower(trim($category));
-    if (in_array($category, ['external', 'outside_post', 'outside'], true)) {
-        return ADMIN_INCIDENT_CATEGORY_OUTSIDE_POST;
-    }
-
-    return ADMIN_INCIDENT_CATEGORY_PER_POST;
-}
-
-function admin_incident_category_label(string $category): string
-{
-    $slug = admin_incident_category_normalize($category);
-    $defs = admin_incident_category_definitions();
-
-    return $defs[$slug]['label'] ?? $defs[ADMIN_INCIDENT_CATEGORY_PER_POST]['label'];
 }
 
 function admin_incident_category_description(string $category): string
@@ -108,46 +69,91 @@ function admin_incident_head_guard_display_name(array $row): string
 }
 
 /**
- * Head guards (role 0 portal accounts) — source for incident submitters.
+ * Head guards (portal role on users) — source for incident submitters and report tooling.
+ *
+ * @return list<array{company_id:string, display_name:string, first_name?:string, last_name?:string, post_name?:string|null}>
+ */
+function admin_incident_head_guards_from_users(PDO $conn): array
+{
+    if (!db_table_exists($conn, 'users')) {
+        return [];
+    }
+
+    require_once __DIR__ . '/admin_head_guard_posts.php';
+
+    $list = [];
+    foreach (admin_head_guard_posts_list_users($conn) as $hg) {
+        if ((int) ($hg['is_active'] ?? 0) !== 1) {
+            continue;
+        }
+
+        $companyId = trim((string) ($hg['company_id'] ?? ''));
+        if ($companyId === '') {
+            continue;
+        }
+
+        $label = trim((string) ($hg['label'] ?? ''));
+        $post = trim((string) ($hg['assigned_post_name'] ?? ''));
+
+        $list[] = [
+            'company_id' => $companyId,
+            'first_name' => '',
+            'last_name' => '',
+            'display_name' => $label !== '' ? $label : $companyId,
+            'post_name' => $post !== '' ? $post : null,
+        ];
+    }
+
+    return $list;
+}
+
+/**
+ * @deprecated Prefer {@see admin_incident_head_guards_from_users()} with PDO.
  *
  * @return list<array{company_id:string, display_name:string, first_name?:string, last_name?:string, post_name?:string|null}>
  */
 function admin_incident_head_guards_fetch(mysqli $conn): array
 {
     $list = [];
+    $guardRole = (int) AUTH_ROLE_GUARD;
 
-    if (admin_incident_table_exists($conn, 'callout_head_guards')) {
+    if (admin_incident_table_exists($conn, 'callout_head_guards') && admin_incident_table_exists($conn, 'users')) {
         $result = $conn->query(
-            'SELECT company_id, first_name, last_name, display_name
-             FROM callout_head_guards
-             WHERE is_active = 1
-             ORDER BY display_name ASC'
+            "SELECT hg.company_id, hg.first_name, hg.last_name, hg.display_name,
+                    p.post_name
+             FROM callout_head_guards hg
+             INNER JOIN users u ON u.Company_ID = hg.company_id AND u.is_active = 1 AND u.role = {$guardRole}
+             LEFT JOIN callout_post_assignments a ON a.head_guard_id = hg.head_guard_id AND a.is_active = 1
+             LEFT JOIN callout_posts p ON p.post_id = a.post_id AND p.is_active = 1
+             WHERE hg.is_active = 1 AND hg.company_id IS NOT NULL AND TRIM(hg.company_id) <> ''
+             ORDER BY hg.display_name ASC"
         );
         if ($result) {
             while ($row = $result->fetch_assoc()) {
                 $companyId = trim((string) ($row['company_id'] ?? ''));
                 if ($companyId === '') {
-                    $companyId = 'HG-' . substr(md5((string) $row['display_name']), 0, 8);
+                    continue;
                 }
                 $list[] = [
                     'company_id' => $companyId,
                     'first_name' => (string) ($row['first_name'] ?? ''),
                     'last_name' => (string) ($row['last_name'] ?? ''),
                     'display_name' => (string) ($row['display_name'] ?? ''),
-                    'post_name' => null,
+                    'post_name' => isset($row['post_name']) && $row['post_name'] !== ''
+                        ? (string) $row['post_name']
+                        : null,
                 ];
             }
         }
     }
 
-    if ($list === []) {
-        $roleCol = auth_users_role_column($conn);
-        $sql = "SELECT u.Company_ID AS company_id, g.First_Name AS first_name, g.Last_Name AS last_name,
+    if ($list === [] && admin_incident_table_exists($conn, 'users')) {
+        $sql = 'SELECT u.Company_ID AS company_id, g.First_Name AS first_name, g.Last_Name AS last_name,
                        g.Post_Assigned AS post_name
                 FROM users u
                 LEFT JOIN guards g ON g.Company_ID = u.Company_ID
-                WHERE u.is_active = 1 AND u.{$roleCol} = 0
-                ORDER BY g.Last_Name ASC, g.First_Name ASC, u.Company_ID ASC";
+                WHERE u.is_active = 1 AND u.role = ' . $guardRole . '
+                ORDER BY g.Last_Name ASC, g.First_Name ASC, u.Company_ID ASC';
 
         $result = $conn->query($sql);
         if ($result) {
@@ -409,9 +415,17 @@ function admin_incident_seed_templates(): array
 function admin_incident_seed_reports(?mysqli $conn = null): array
 {
     $templates = admin_incident_seed_templates();
-    $headGuards = $conn instanceof mysqli
-        ? admin_incident_head_guards_fetch($conn)
-        : admin_incident_head_guards_fallback();
+    $pdo = $GLOBALS['conn'] ?? null;
+    if ($pdo instanceof PDO) {
+        $headGuards = admin_incident_head_guards_from_users($pdo);
+    } elseif ($conn instanceof mysqli) {
+        $headGuards = admin_incident_head_guards_fetch($conn);
+    } else {
+        $headGuards = [];
+    }
+    if ($headGuards === []) {
+        $headGuards = admin_incident_head_guards_fallback();
+    }
 
     $reports = [];
     $guardCount = count($headGuards);
@@ -492,11 +506,9 @@ function admin_incident_store_all(): array
         foreach (guard_incident_fetch_admin_records($GLOBALS['conn']) as $row) {
             $out[] = admin_incident_normalize($row);
         }
-        if ($out !== []) {
-            usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
+        usort($out, static fn (array $a, array $b): int => strcmp((string) ($b['submitted_at'] ?? ''), (string) ($a['submitted_at'] ?? '')));
 
-            return $out;
-        }
+        return $out;
     }
 
     if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {
@@ -1136,6 +1148,96 @@ function admin_incident_update(string $id, array $input, string $actorId): ?arra
     return $found;
 }
 
+/**
+ * Close (archive) an incident — sets registry status to Closed.
+ *
+ * @return array<string, mixed>|null
+ */
+function admin_incident_archive(string $id, string $actorId): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    $record = admin_incident_find($id);
+    if ($record === null) {
+        return null;
+    }
+
+    $status = (string) ($record['status'] ?? ADMIN_INCIDENT_STATUS_ONGOING);
+    if (!admin_incident_status_is_valid($status)) {
+        $status = ADMIN_INCIDENT_STATUS_ONGOING;
+    }
+    $defs = admin_incident_status_definitions();
+    if (($defs[$status]['closed'] ?? false) === true) {
+        return admin_incident_normalize($record);
+    }
+
+    $updated = admin_incident_update($id, [
+        'progression_only' => true,
+        'status' => ADMIN_INCIDENT_STATUS_ACCOMPLISHED,
+    ], $actorId);
+
+    if ($updated !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        admin_report_recovery_log('incident', 'archived', $updated, $actorId, $status);
+    }
+
+    return $updated;
+}
+
+/**
+ * Delete an incident report (database or demo session).
+ *
+ * @return array{id:string,ref:string}|null
+ */
+function admin_incident_delete(string $id): ?array
+{
+    $id = trim($id);
+    if ($id === '') {
+        return null;
+    }
+
+    $record = admin_incident_find($id);
+    if ($record !== null) {
+        require_once __DIR__ . '/admin_report_recovery.php';
+        $dbRow = admin_report_recovery_incident_db_row($id);
+        admin_report_recovery_log('incident', 'deleted', $record, null, null, $dbRow);
+    }
+
+    if (isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof PDO && preg_match('/^inc-(\d+)$/', $id, $m)) {
+        return guard_incident_admin_delete($GLOBALS['conn'], (int) $m[1]);
+    }
+
+    if (!isset($_SESSION[ADMIN_INCIDENT_SESSION_KEY]) || !is_array($_SESSION[ADMIN_INCIDENT_SESSION_KEY])) {
+        return null;
+    }
+
+    $reports = admin_incident_store_all();
+    $deleted = null;
+    $remaining = [];
+
+    foreach ($reports as $row) {
+        if ((string) ($row['id'] ?? '') === $id) {
+            $deleted = $row;
+            continue;
+        }
+        $remaining[] = $row;
+    }
+
+    if ($deleted === null) {
+        return null;
+    }
+
+    admin_incident_store_save($remaining);
+
+    return [
+        'id' => $id,
+        'ref' => (string) ($deleted['ref'] ?? $id),
+    ];
+}
+
 /** @param list<array<string, mixed>> $reports */
 function admin_incident_status_counts(array $reports): array
 {
@@ -1486,6 +1588,11 @@ function admin_incident_action_icon(string $kind): string
             . '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'
             . '<path d="M10 11v6M14 11v6"/>'
             . '<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'
+            . '</svg>',
+        'archive' => '<svg ' . $attrs . '>'
+            . '<polyline points="21 8 21 21 3 21 3 8"/>'
+            . '<rect x="1" y="3" width="22" height="5"/>'
+            . '<line x1="10" y1="12" x2="14" y2="12"/>'
             . '</svg>',
         default => '',
     };

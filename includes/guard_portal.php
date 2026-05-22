@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/memo_portal.php';
 require_once __DIR__ . '/guard_dad.php';
 require_once __DIR__ . '/guard_incident.php';
+require_once __DIR__ . '/guard_daily_activity.php';
 
 const GUARD_REPORT_HISTORY_PER_PAGE = 10;
 
@@ -90,7 +91,8 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
     $offset = max(0, $offset);
     $joinIncident = guard_incident_table_exists($conn);
     $joinDad = guard_dad_table_exists($conn);
-    if ($joinIncident || $joinDad) {
+    $joinDaily = guard_daily_activity_table_exists($conn);
+    if ($joinIncident || $joinDad || $joinDaily) {
         $sql = 'SELECT d.Report_Number, d.Time_of_Report, d.Status, d.Template, d.Establishment';
         if ($joinIncident) {
             $sql .= ', i.status AS incident_registry_status';
@@ -98,12 +100,18 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
         if ($joinDad) {
             $sql .= ', dad.status AS dad_registry_status';
         }
+        if ($joinDaily) {
+            $sql .= ', da.status AS daily_activity_registry_status';
+        }
         $sql .= ' FROM dgd d';
         if ($joinIncident) {
             $sql .= ' LEFT JOIN guard_incident_submissions i ON i.dgd_report_number = d.Report_Number';
         }
         if ($joinDad) {
             $sql .= ' LEFT JOIN guard_dad_submissions dad ON dad.dgd_report_number = d.Report_Number';
+        }
+        if ($joinDaily) {
+            $sql .= ' LEFT JOIN guard_daily_activity_submissions da ON da.dgd_report_number = d.Report_Number';
         }
         $sql .= ' WHERE d.Company_ID = ? ORDER BY d.Time_of_Report DESC LIMIT ? OFFSET ?';
     } else {
@@ -128,7 +136,11 @@ function guard_portal_user_reports(PDO $conn, string $companyId, int $limit = 50
             if ($joinDad && $dadStatus !== '' && guard_dad_is_report_type($template)) {
                 $r['Status'] = guard_dad_guard_portal_status($dadStatus);
             }
-            unset($r['incident_registry_status'], $r['dad_registry_status']);
+            $dailyStatus = trim((string) ($r['daily_activity_registry_status'] ?? ''));
+            if ($joinDaily && $dailyStatus !== '' && guard_daily_activity_is_report_type($template)) {
+                $r['Status'] = guard_daily_activity_guard_portal_status($dailyStatus);
+            }
+            unset($r['incident_registry_status'], $r['dad_registry_status'], $r['daily_activity_registry_status']);
             $rows[] = $r;
         }
     }
@@ -262,8 +274,9 @@ function guard_portal_report_history_markup(
 function guard_portal_status_badge_class(string $status): string
 {
     return match (strtoupper(trim($status))) {
-        'CLOSED', 'APPROVED', 'REVIEWED', 'OPEN' => 'guard-badge--approved',
+        'CLOSED', 'APPROVED', 'REVIEWED', 'OPEN', 'ARCHIVED' => 'guard-badge--approved',
         'NOT ACCEPTED', 'REJECTED' => 'guard-badge--rejected',
+        'PENDING REVIEW', 'PENDING', 'ON HOLD' => 'guard-badge--pending',
         default => 'guard-badge--pending',
     };
 }

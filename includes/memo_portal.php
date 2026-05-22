@@ -102,44 +102,13 @@ function memo_portal_announcements_for_user(PDO $conn, string $companyId, int $l
 }
 
 /**
- * Legacy static rows from guard_announcements (optional), then memo announcements.
+ * Admin memo announcements for the signed-in head guard (Guard corner → Board).
  *
  * @return list<array<string, mixed>>
  */
 function guard_portal_announcements(PDO $conn, string $companyId = '', int $limit = 30): array
 {
-    $limit = max(1, min($limit, 50));
-    $items = memo_portal_announcements_for_user($conn, $companyId, $limit);
-
-    if (!db_table_exists($conn, 'guard_announcements')) {
-        return $items;
-    }
-
-    $static = db_fetch_all(
-        $conn,
-        'SELECT id, title, body, created_at FROM guard_announcements
-         WHERE is_active = 1 ORDER BY created_at DESC LIMIT ' . $limit
-    );
-
-    foreach ($static as $row) {
-        $createdAt = (string) ($row['created_at'] ?? '');
-        $items[] = [
-            'id' => 'static-' . (int) ($row['id'] ?? 0),
-            'memo_id' => 0,
-            'title' => (string) ($row['title'] ?? ''),
-            'body' => (string) ($row['body'] ?? ''),
-            'created_at' => $createdAt,
-            'created_display' => $createdAt !== '' ? date('M j, Y g:i A', strtotime($createdAt)) : '—',
-            'is_read' => true,
-            'source' => 'static',
-        ];
-    }
-
-    usort($items, static function (array $a, array $b): int {
-        return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
-    });
-
-    return array_slice($items, 0, $limit);
+    return memo_portal_announcements_for_user($conn, $companyId, $limit);
 }
 
 /**
